@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: fittrack-ai
+    runtime: node
+    buildCommand: cd client && npm install && npx vite build && cd ../server && npm install
+    startCommand: cd server && node server.js
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
