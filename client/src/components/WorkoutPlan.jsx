@@ -14,13 +14,13 @@ const homeExerciseMap = {
   'לחיצת חזה שטוח דמבלים (DB Bench Press)': { name: 'שכיבות סמיכה (Push Ups)', reps: '10-20' },
   'פרפר מכונה (Pec Fly)': { name: 'שכיבות סמיכה רחבות (Wide Push Ups)', reps: '12-15' },
   'חתירה במוט (Barbell Row)': { name: 'חתירה הפוכה (Inverted Row)', reps: '8-12' },
-  'חתירה בכבל (Cable Row)': { name: 'חתירה עם גומיה (Resistance Band Row)', reps: '12-15' },
+  'חתירה בכבל (Cable Row)': { name: 'חתירה הפוכה (Inverted Row)', reps: '10-15' },
   'מתח (Pull Ups)': { name: 'מתח / חתירה הפוכה (Pull Ups / Inverted Row)', reps: '6-12' },
   'לחיצת כתפיים (Overhead Press)': { name: 'שכיבות סמיכה פייק (Pike Push Ups)', reps: '8-12' },
   'הרמה צדדית (Lateral Raise)': { name: 'הרמה צדדית עם בקבוקים (Lateral Raise - Bottles)', reps: '12-15' },
-  'הרמה אחורית (Rear Delt Fly)': { name: 'הרמה אחורית עם גומיה (Band Face Pull)', reps: '15-20' },
-  'כפיפת מרפק (Bicep Curl)': { name: 'כפיפת מרפק עם גומיה (Resistance Band Curl)', reps: '12-15' },
-  'כפיפה בפטיש (Hammer Curl)': { name: 'כפיפה עם גומיה (Resistance Band Hammer Curl)', reps: '12-15' },
+  'הרמה אחורית (Rear Delt Fly)': { name: 'סופרמן (Superman Raises)', reps: '12-15' },
+  'כפיפת מרפק (Bicep Curl)': { name: 'כפיפת מרפק עם בקבוקים (Bicep Curl - Bottles)', reps: '12-15' },
+  'כפיפה בפטיש (Hammer Curl)': { name: 'כפיפה עם בקבוקים (Hammer Curl - Bottles)', reps: '12-15' },
   'פשיטת מרפק בכבל (Tricep Pushdown)': { name: 'שכיבות סמיכה יהלום (Diamond Push Ups)', reps: '8-15' },
   'סקוואט (Squat)': { name: 'סקוואט בולגרי (Bulgarian Split Squat)', reps: '10-12' },
   'דדליפט רומני (Romanian Deadlift)': { name: 'דדליפט על רגל אחת (Single Leg Deadlift)', reps: '10-12' },
@@ -102,7 +102,7 @@ function toHomeExercises(exercises) {
   });
 }
 
-export default function WorkoutPlan({ plan, profile, api, onComplete }) {
+export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHistory }) {
   const { t, lang } = useLang();
   const [dayDurations, setDayDurations] = useState({});
   const [completingDay, setCompletingDay] = useState(null);
@@ -112,6 +112,14 @@ export default function WorkoutPlan({ plan, profile, api, onComplete }) {
 
   const days = plan?.days || plan || [];
   const notes = plan?.notes || [];
+
+  // Check if already trained today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayWorkout = (workoutHistory?.workouts || []).find(
+    w => new Date(w.date) >= today
+  );
+  const alreadyTrainedToday = !!todayWorkout;
 
   const expLabels = { beginner: t.expBeginner, intermediate: t.expIntermediate, advanced: t.expAdvanced };
   const typeColors = {
@@ -209,6 +217,18 @@ export default function WorkoutPlan({ plan, profile, api, onComplete }) {
         </div>
       </div>
 
+      {alreadyTrainedToday && !message && (
+        <div className="card" style={{
+          background: 'rgba(108, 92, 231, 0.08)',
+          borderColor: 'rgba(108, 92, 231, 0.2)',
+          textAlign: 'center',
+          fontSize: '14px',
+          color: 'var(--primary-light)',
+        }}>
+          {t.alreadyTrainedToday}
+        </div>
+      )}
+
       {message && (
         <div
           className="card"
@@ -247,7 +267,10 @@ export default function WorkoutPlan({ plan, profile, api, onComplete }) {
                 {!isCompleting ? (
                   <button
                     className="btn btn-accent btn-sm"
-                    onClick={() => setCompletingDay(day.day)}
+                    onClick={() => !alreadyTrainedToday && setCompletingDay(day.day)}
+                    disabled={alreadyTrainedToday}
+                    title={alreadyTrainedToday ? t.alreadyTrainedToday : ''}
+                    style={alreadyTrainedToday ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
                   >
                     {t.finishedWorkout}
                   </button>

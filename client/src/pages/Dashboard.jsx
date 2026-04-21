@@ -102,6 +102,7 @@ export default function Dashboard() {
             profile={profileData?.profile}
             api={api}
             onComplete={loadData}
+            workoutHistory={workoutHistory}
           />
         )}
 
@@ -120,6 +121,8 @@ export default function Dashboard() {
             todayNutrition={todayNutrition}
             workoutHistory={workoutHistory}
             profile={profileData?.profile}
+            api={api}
+            onUpdate={loadData}
           />
         )}
 

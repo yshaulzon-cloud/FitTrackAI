@@ -30,6 +30,23 @@ router.post('/complete', auth, async (req, res) => {
   }
 });
 
+// DELETE /workout/:id
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const workout = await Workout.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+    if (!workout) {
+      return res.status(404).json({ message: 'Workout not found' });
+    }
+    res.json({ message: 'Workout deleted' });
+  } catch (error) {
+    console.error('Delete workout error:', error);
+    res.status(500).json({ message: 'Error deleting workout' });
+  }
+});
+
 // GET /workout/history
 router.get('/history', auth, async (req, res) => {
   try {

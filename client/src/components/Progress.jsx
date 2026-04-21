@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useLang } from '../context/LanguageContext';
 
 function getDayName(day, lang) {
@@ -13,8 +14,10 @@ function getDayName(day, lang) {
     .replace('אירובי קל + ליבה', 'Light Cardio + Core');
 }
 
-export default function Progress({ nutrition, todayNutrition, workoutHistory, profile }) {
+export default function Progress({ nutrition, todayNutrition, workoutHistory, profile, api, onUpdate }) {
   const { t, lang } = useLang();
+  const [deletingId, setDeletingId] = useState(null);
+  const [deleteMsg, setDeleteMsg] = useState('');
   const streak = workoutHistory?.streak || 0;
   const workouts = workoutHistory?.workouts || [];
   const totalWorkouts = workouts.length;
@@ -208,18 +211,60 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
           <div className="card-header">
             <h3>{t.recentWorkouts}</h3>
           </div>
+          {deleteMsg && (
+            <div style={{
+              padding: '8px 12px',
+              marginBottom: '8px',
+              borderRadius: '8px',
+              background: deleteMsg === t.workoutDeleted ? 'rgba(0,184,148,0.1)' : 'rgba(255,107,107,0.1)',
+              color: deleteMsg === t.workoutDeleted ? 'var(--success)' : 'var(--danger)',
+              fontSize: '13px',
+              textAlign: 'center',
+            }}>
+              {deleteMsg}
+            </div>
+          )}
           <div>
             {workouts.slice(0, 10).map((w, idx) => (
-              <div key={idx} className="meal-item" style={{ marginBottom: '8px' }}>
+              <div key={idx} className="meal-item" style={{ marginBottom: '8px', alignItems: 'center' }}>
                 <span className="meal-desc">
                   {getDayName(w.dayName, lang) || t.workout}{' '}
                   <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
                     {new Date(w.date).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US')}
                   </span>
                 </span>
-                <div className="meal-macros">
+                <div className="meal-macros" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ color: 'var(--warning)' }}>{w.caloriesBurned} {t.kcal}</span>
                   <span style={{ color: 'var(--text-muted)' }}>{w.durationMinutes} {t.minutes}</span>
+                  <button
+                    onClick={async () => {
+                      setDeletingId(w._id);
+                      try {
+                        await api(`/workout/${w._id}`, { method: 'DELETE' });
+                        setDeleteMsg(t.workoutDeleted);
+                        setTimeout(() => setDeleteMsg(''), 3000);
+                        onUpdate();
+                      } catch {
+                        setDeleteMsg(t.errorDeletingWorkout);
+                        setTimeout(() => setDeleteMsg(''), 3000);
+                      } finally {
+                        setDeletingId(null);
+                      }
+                    }}
+                    disabled={deletingId === w._id}
+                    style={{
+                      padding: '3px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(255,107,107,0.3)',
+                      background: 'rgba(255,107,107,0.08)',
+                      color: 'var(--danger)',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      opacity: deletingId === w._id ? 0.5 : 1,
+                    }}
+                  >
+                    {t.deleteWorkout}
+                  </button>
                 </div>
               </div>
             ))}

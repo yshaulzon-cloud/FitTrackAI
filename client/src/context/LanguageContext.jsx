@@ -5,7 +5,7 @@ const LanguageContext = createContext(null);
 const translations = {
   he: {
     // App name
-    appName: 'פיטטרק',
+    appName: 'FitTrack',
 
     // Tabs
     tabOverview: 'סקירה כללית',
@@ -223,6 +223,10 @@ const translations = {
     longWorkoutNote: 'סטים נוספו לאימון ארוך',
     gymWorkout: 'חדר כושר',
     homeWorkout: 'אימון בבית',
+    deleteWorkout: 'מחק',
+    workoutDeleted: 'האימון נמחק בהצלחה',
+    errorDeletingWorkout: 'שגיאה במחיקת האימון',
+    alreadyTrainedToday: 'כבר אימנת היום! מחק את האימון כדי לרשום חדש',
   },
 
   en: {
@@ -433,6 +437,10 @@ const translations = {
     longWorkoutNote: 'Extra sets added for longer workout',
     gymWorkout: 'Gym',
     homeWorkout: 'Home Workout',
+    deleteWorkout: 'Delete',
+    workoutDeleted: 'Workout deleted successfully',
+    errorDeletingWorkout: 'Error deleting workout',
+    alreadyTrainedToday: 'Already trained today! Delete the workout to log a new one',
   },
 };
 
