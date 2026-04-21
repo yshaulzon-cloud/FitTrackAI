@@ -116,6 +116,7 @@ router.put(
     body('weight').optional().isFloat({ min: 30, max: 300 }).withMessage('משקל לא תקין'),
     body('height').optional().isFloat({ min: 100, max: 250 }).withMessage('גובה לא תקין'),
     body('goal').optional().isIn(['bulk', 'cut', 'recomp', 'maintain']).withMessage('מטרה לא תקינה'),
+    body('workoutsPerWeek').optional().isInt({ min: 1, max: 7 }).withMessage('מספר אימונים לא תקין'),
   ],
   async (req, res) => {
     try {
@@ -124,12 +125,13 @@ router.put(
         return res.status(400).json({ message: errors.array()[0].msg });
       }
 
-      const { weight, height, goal } = req.body;
+      const { weight, height, goal, workoutsPerWeek } = req.body;
       const user = req.user;
 
       if (weight !== undefined) user.profile.weight = weight;
       if (height !== undefined) user.profile.height = height;
       if (goal !== undefined) user.profile.goal = goal;
+      if (workoutsPerWeek !== undefined) user.profile.workoutsPerWeek = workoutsPerWeek;
 
       await user.save();
 

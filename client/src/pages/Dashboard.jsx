@@ -121,8 +121,6 @@ export default function Dashboard() {
             todayNutrition={todayNutrition}
             workoutHistory={workoutHistory}
             profile={profileData?.profile}
-            api={api}
-            onUpdate={loadData}
           />
         )}
 
@@ -328,6 +326,7 @@ function SettingsTab({ profile, api, onUpdate }) {
   const [weight, setWeight] = useState(profile?.weight || '');
   const [height, setHeight] = useState(profile?.height || '');
   const [goal, setGoal] = useState(profile?.goal || '');
+  const [workoutsPerWeek, setWorkoutsPerWeek] = useState(profile?.workoutsPerWeek || 3);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -342,6 +341,7 @@ function SettingsTab({ profile, api, onUpdate }) {
           weight: parseFloat(weight),
           height: parseFloat(height),
           goal,
+          workoutsPerWeek: parseInt(workoutsPerWeek),
         }),
       });
       setMessage(t.profileUpdated);
@@ -476,6 +476,35 @@ function SettingsTab({ profile, api, onUpdate }) {
                     <div style={{ fontSize: '13px', color: goal === g.value ? 'var(--accent)' : 'var(--text-secondary)' }}>
                       {g.label}
                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: 'var(--text-secondary)' }}>
+                {t.workoutsPerWeek}
+              </label>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <div
+                    key={n}
+                    onClick={() => setWorkoutsPerWeek(n)}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: `2px solid ${workoutsPerWeek == n ? 'var(--accent)' : 'var(--border)'}`,
+                      background: workoutsPerWeek == n ? 'rgba(0, 206, 201, 0.08)' : 'var(--bg-input)',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      fontSize: '16px',
+                      fontWeight: workoutsPerWeek == n ? 700 : 400,
+                      color: workoutsPerWeek == n ? 'var(--accent)' : 'var(--text-secondary)',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {n}
                   </div>
                 ))}
               </div>

@@ -32,6 +32,9 @@ const homeExerciseMap = {
   'הרמות עקב (Calf Raise)': { name: 'הרמות עקב על מדרגה (Single Leg Calf Raise)', reps: '15-20' },
   'הליכה מהירה / אופניים (Zone 2)': { name: 'הליכה מהירה / ריצה קלה (Zone 2 Walk / Jog)' },
   'אימון Full Body קל או אירובי בינוני': { name: 'אימון HIIT ביתי (Home HIIT Workout)' },
+  'פלאנק (Plank)': { name: 'פלאנק (Plank)' },
+  'כפיפות בטן (Crunches)': { name: 'כפיפות בטן (Crunches)' },
+  'הרמת רגליים (Leg Raise)': { name: 'הרמת רגליים (Leg Raise)' },
 };
 
 // Extract English name from "Hebrew (English)" format
@@ -165,7 +168,10 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
   }
 
-  const isError = message === t.errorSavingWorkout;
+  const isError = message === t.errorSavingWorkout || message === t.errorDeletingWorkout;
+  const isWarning = message === t.alreadyTrainedToday;
+  const workouts = workoutHistory?.workouts || [];
+  const [deletingId, setDeletingId] = useState(null);
 
   return (
     <>
@@ -217,25 +223,24 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         </div>
       </div>
 
-      {alreadyTrainedToday && !message && (
-        <div className="card" style={{
-          background: 'rgba(108, 92, 231, 0.08)',
-          borderColor: 'rgba(108, 92, 231, 0.2)',
-          textAlign: 'center',
-          fontSize: '14px',
-          color: 'var(--primary-light)',
-        }}>
-          {t.alreadyTrainedToday}
-        </div>
-      )}
+      {/* Tip: click exercise for tutorial */}
+      <div style={{
+        textAlign: 'center',
+        fontSize: '12px',
+        color: 'var(--text-muted)',
+        marginBottom: '-8px',
+        fontStyle: 'italic',
+      }}>
+        {t.clickForTutorial}
+      </div>
 
       {message && (
         <div
           className="card"
           style={{
-            background: isError ? 'rgba(255,107,107,0.1)' : 'rgba(0,184,148,0.1)',
-            borderColor: isError ? 'rgba(255,107,107,0.3)' : 'rgba(0,184,148,0.3)',
-            color: isError ? 'var(--danger)' : 'var(--success)',
+            background: isError ? 'rgba(255,107,107,0.1)' : isWarning ? 'rgba(253,203,110,0.1)' : 'rgba(0,184,148,0.1)',
+            borderColor: isError ? 'rgba(255,107,107,0.3)' : isWarning ? 'rgba(253,203,110,0.3)' : 'rgba(0,184,148,0.3)',
+            color: isError ? 'var(--danger)' : isWarning ? 'var(--warning)' : 'var(--success)',
             textAlign: 'center',
             fontWeight: 600,
           }}
@@ -267,10 +272,14 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                 {!isCompleting ? (
                   <button
                     className="btn btn-accent btn-sm"
-                    onClick={() => !alreadyTrainedToday && setCompletingDay(day.day)}
-                    disabled={alreadyTrainedToday}
-                    title={alreadyTrainedToday ? t.alreadyTrainedToday : ''}
-                    style={alreadyTrainedToday ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                    onClick={() => {
+                      if (alreadyTrainedToday) {
+                        setMessage(t.alreadyTrainedToday);
+                        setTimeout(() => setMessage(''), 3000);
+                      } else {
+                        setCompletingDay(day.day);
+                      }
+                    }}
                   >
                     {t.finishedWorkout}
                   </button>
@@ -403,6 +412,60 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             <li>{t.minSetsPerWeek}</li>
             <li>{t.consistencyMatters}</li>
           </ul>
+        </div>
+      )}
+
+      {/* Recent Workouts with delete */}
+      {workouts.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <h3>{t.recentWorkouts}</h3>
+          </div>
+          <div>
+            {workouts.slice(0, 10).map((w, idx) => (
+              <div key={idx} className="meal-item" style={{ marginBottom: '8px', alignItems: 'center' }}>
+                <span className="meal-desc">
+                  {getDayName(w.dayName, lang) || t.workout}{' '}
+                  <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                    {new Date(w.date).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US')}
+                  </span>
+                </span>
+                <div className="meal-macros" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ color: 'var(--warning)' }}>{w.caloriesBurned} {t.kcal}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>{w.durationMinutes} {t.minutes}</span>
+                  <button
+                    onClick={async () => {
+                      setDeletingId(w._id);
+                      try {
+                        await api(`/workout/${w._id}`, { method: 'DELETE' });
+                        setMessage(t.workoutDeleted);
+                        setTimeout(() => setMessage(''), 3000);
+                        onComplete();
+                      } catch {
+                        setMessage(t.errorDeletingWorkout);
+                        setTimeout(() => setMessage(''), 3000);
+                      } finally {
+                        setDeletingId(null);
+                      }
+                    }}
+                    disabled={deletingId === w._id}
+                    style={{
+                      padding: '3px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(255,107,107,0.3)',
+                      background: 'rgba(255,107,107,0.08)',
+                      color: 'var(--danger)',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      opacity: deletingId === w._id ? 0.5 : 1,
+                    }}
+                  >
+                    {t.deleteWorkout}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const Workout = require('../models/Workout');
 const { calculateExerciseCalories } = require('../utils/calculations');
@@ -33,8 +34,11 @@ router.post('/complete', auth, async (req, res) => {
 // DELETE /workout/:id
 router.delete('/:id', auth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid workout ID' });
+    }
     const workout = await Workout.findOneAndDelete({
-      _id: req.params.id,
+      _id: new mongoose.Types.ObjectId(req.params.id),
       userId: req.userId,
     });
     if (!workout) {
