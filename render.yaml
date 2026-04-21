@@ -4,8 +4,8 @@ services:
     runtime: node
     region: frankfurt
     plan: free
-    buildCommand: cd client && npm install && npx vite build && cd ../server && npm install
-    startCommand: cd server && node server.js
+    buildCommand: npm install --prefix client && npm run build --prefix client && npm install --prefix server
+    startCommand: node server/server.js
     envVars:
       - key: MONGODB_URI
         value: mongodb+srv://yyotube1487:Yn9MIAfrxokvkaXy@clusteryedid.zfna7jv.mongodb.net/fittrack-ai?retryWrites=true&w=majority
