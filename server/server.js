@@ -44,15 +44,19 @@ app.use((err, req, res, next) => {
 // Connect to MongoDB and start server
 const PORT = process.env.PORT || 3001;
 
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on port ${PORT}`);
+// Start HTTP server immediately so Render sees a healthy process
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+// Connect to MongoDB (retry on failure)
+function connectDB() {
+  mongoose
+    .connect(process.env.MONGODB_URI)
+    .then(() => console.log('Connected to MongoDB'))
+    .catch((err) => {
+      console.error('MongoDB connection error:', err.message, '- retrying in 5s...');
+      setTimeout(connectDB, 5000);
     });
-  })
-  .catch((err) => {
-    console.error('MongoDB connection error:', err.message);
-    process.exit(1);
-  });
+}
+connectDB();
