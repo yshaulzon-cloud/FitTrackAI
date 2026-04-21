@@ -113,6 +113,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [homeMode, setHomeMode] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [lastDeleted, setLastDeleted] = useState(null);
 
   const days = plan?.days || plan || [];
   const notes = plan?.notes || [];
@@ -173,8 +174,30 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     }));
   }
 
+  const isUndo = message === '__WORKOUT_DELETED__';
   const isError = message === t.errorSavingWorkout || message === t.errorDeletingWorkout;
   const isWarning = message === t.alreadyTrainedToday;
+
+  async function handleUndoWorkout() {
+    if (!lastDeleted || lastDeleted.type !== 'workout') return;
+    try {
+      await api('/workout/complete', {
+        method: 'POST',
+        body: JSON.stringify({
+          dayName: lastDeleted.data.dayName,
+          exercises: lastDeleted.data.exercises,
+          durationMinutes: lastDeleted.data.durationMinutes,
+        }),
+      });
+      setLastDeleted(null);
+      setMessage(t.workoutSaved);
+      setTimeout(() => setMessage(''), 3000);
+      onComplete();
+    } catch {
+      setMessage(t.errorSavingWorkout);
+      setTimeout(() => setMessage(''), 3000);
+    }
+  }
   const workouts = workoutHistory?.workouts || [];
 
   return (
@@ -235,7 +258,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         borderColor: 'rgba(0, 206, 201, 0.15)',
       }}>
         <span style={{ fontSize: '15px', color: 'var(--accent)' }}>
-          👆 {t.clickForTutorial}
+          {t.clickForTutorial}
         </span>
       </div>
 
@@ -248,9 +271,30 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             color: isError ? 'var(--danger)' : isWarning ? 'var(--warning)' : 'var(--success)',
             textAlign: 'center',
             fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
           }}
         >
-          {message}
+          <span>{isUndo ? t.workoutDeleted : message}</span>
+          {isUndo && (
+            <button
+              onClick={handleUndoWorkout}
+              style={{
+                padding: '4px 14px',
+                borderRadius: '8px',
+                border: '1px solid var(--accent)',
+                background: 'rgba(0, 206, 201, 0.15)',
+                color: 'var(--accent)',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              ↩ {t.undo}
+            </button>
+          )}
         </div>
       )}
 
@@ -449,8 +493,9 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
                         });
                         if (!res.ok) throw new Error('Failed');
-                        setMessage(t.workoutDeleted);
-                        setTimeout(() => setMessage(''), 3000);
+                        setLastDeleted({ type: 'workout', data: w });
+                        setMessage('__WORKOUT_DELETED__');
+                        setTimeout(() => { setMessage(''); setLastDeleted(null); }, 8000);
                         onComplete();
                       } catch {
                         setMessage(t.errorDeletingWorkout);

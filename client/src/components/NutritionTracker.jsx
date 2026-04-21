@@ -7,6 +7,7 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate }) 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [lastDeletedMeal, setLastDeletedMeal] = useState(null);
 
   async function handleAddFood(e) {
     e.preventDefault();
@@ -34,16 +35,42 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate }) 
   }
 
   async function handleDeleteMeal(mealId) {
+    // Save meal data before deleting for undo
+    const meal = todayData?.meals?.find(m => m._id === mealId);
     setDeletingId(mealId);
     try {
       await api(`/nutrition/meal/${mealId}`, { method: 'DELETE' });
-      setMessage(t.mealDeleted);
-      setTimeout(() => setMessage(''), 3000);
+      if (meal) {
+        setLastDeletedMeal(meal);
+        setMessage('__MEAL_DELETED__');
+        setTimeout(() => { setMessage(''); setLastDeletedMeal(null); }, 8000);
+      } else {
+        setMessage(t.mealDeleted);
+        setTimeout(() => setMessage(''), 3000);
+      }
       onUpdate();
     } catch (err) {
       setMessage(t.errorDeleting);
+      setTimeout(() => setMessage(''), 3000);
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function handleUndoMeal() {
+    if (!lastDeletedMeal) return;
+    try {
+      await api('/nutrition/log', {
+        method: 'POST',
+        body: JSON.stringify({ description: lastDeletedMeal.description }),
+      });
+      setLastDeletedMeal(null);
+      setMessage(t.mealDeleted.replace(t.mealDeleted, t.added + ' ' + lastDeletedMeal.description));
+      setTimeout(() => setMessage(''), 3000);
+      onUpdate();
+    } catch {
+      setMessage(t.errorSaving);
+      setTimeout(() => setMessage(''), 3000);
     }
   }
 
@@ -61,6 +88,7 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate }) 
     { label: t.fiber, current: todayData?.totalFiber || 0, target: fiberTarget, unit: t.grams, cls: 'protein', color: 'var(--success)' },
   ];
 
+  const isMealUndo = message === '__MEAL_DELETED__';
   const isError = message === t.errorSaving || message === t.errorDeleting;
 
   return (
@@ -100,9 +128,30 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate }) 
               color: isError ? 'var(--danger)' : 'var(--success)',
               fontSize: '14px',
               marginTop: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
             }}
           >
-            {message}
+            <span>{isMealUndo ? t.mealDeleted : message}</span>
+            {isMealUndo && (
+              <button
+                onClick={handleUndoMeal}
+                style={{
+                  padding: '4px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--accent)',
+                  background: 'rgba(0, 206, 201, 0.15)',
+                  color: 'var(--accent)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                ↩ {t.undo}
+              </button>
+            )}
           </div>
         )}
 

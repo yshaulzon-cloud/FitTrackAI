@@ -227,7 +227,8 @@ const translations = {
     workoutDeleted: 'האימון נמחק בהצלחה',
     errorDeletingWorkout: 'שגיאה במחיקת האימון',
     alreadyTrainedToday: 'כבר אימנת היום! מחק את האימון כדי לרשום חדש',
-    clickForTutorial: 'לחץ על תרגיל לצפייה בסרטון הדרכה ביוטיוב',
+    clickForTutorial: 'לחץ על תרגיל לצפייה בסרטון הדרכה ביוטיוב ▶',
+    undo: 'ביטול',
   },
 
   en: {
@@ -442,7 +443,8 @@ const translations = {
     workoutDeleted: 'Workout deleted successfully',
     errorDeletingWorkout: 'Error deleting workout',
     alreadyTrainedToday: 'Already trained today! Delete the workout to log a new one',
-    clickForTutorial: 'Click on an exercise to watch a YouTube tutorial',
+    clickForTutorial: '👆 Click on an exercise to watch a YouTube tutorial',
+    undo: 'Undo',
   },
 };
 
