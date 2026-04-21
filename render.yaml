@@ -2,12 +2,14 @@ services:
   - type: web
     name: fittrack-ai
     runtime: node
+    region: frankfurt
+    plan: free
     buildCommand: cd client && npm install && npx vite build && cd ../server && npm install
     startCommand: cd server && node server.js
     envVars:
       - key: MONGODB_URI
-        sync: false
+        value: mongodb+srv://yyotube1487:Yn9MIAfrxokvkaXy@clusteryedid.zfna7jv.mongodb.net/fittrack-ai?retryWrites=true&w=majority
       - key: JWT_SECRET
-        sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
+        value: fittrack-ai-super-secret-key-2026
+      - key: NODE_VERSION
+        value: 20.11.0
