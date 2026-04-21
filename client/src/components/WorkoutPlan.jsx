@@ -112,6 +112,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   const [message, setMessage] = useState('');
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [homeMode, setHomeMode] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const days = plan?.days || plan || [];
   const notes = plan?.notes || [];
@@ -162,16 +163,19 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     }
   }
 
-  function openYouTube(exerciseName) {
+  function getYouTubeLinks(exerciseName) {
     const en = getEnglishName(exerciseName);
-    const query = encodeURIComponent(en + ' exercise tutorial form');
-    window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
+    // Split on " / " to get multiple exercise names
+    const parts = en.split(' / ').map(p => p.trim()).filter(Boolean);
+    return parts.map(name => ({
+      name,
+      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' exercise tutorial form')}`,
+    }));
   }
 
   const isError = message === t.errorSavingWorkout || message === t.errorDeletingWorkout;
   const isWarning = message === t.alreadyTrainedToday;
   const workouts = workoutHistory?.workouts || [];
-  const [deletingId, setDeletingId] = useState(null);
 
   return (
     <>
@@ -224,14 +228,15 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
       </div>
 
       {/* Tip: click exercise for tutorial */}
-      <div style={{
+      <div className="card" style={{
         textAlign: 'center',
-        fontSize: '12px',
-        color: 'var(--text-muted)',
-        marginBottom: '-8px',
-        fontStyle: 'italic',
+        padding: '12px 16px',
+        background: 'rgba(0, 206, 201, 0.06)',
+        borderColor: 'rgba(0, 206, 201, 0.15)',
       }}>
-        {t.clickForTutorial}
+        <span style={{ fontSize: '15px', color: 'var(--accent)' }}>
+          👆 {t.clickForTutorial}
+        </span>
       </div>
 
       {message && (
@@ -434,10 +439,16 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                   <span style={{ color: 'var(--warning)' }}>{w.caloriesBurned} {t.kcal}</span>
                   <span style={{ color: 'var(--text-muted)' }}>{w.durationMinutes} {t.minutes}</span>
                   <button
-                    onClick={async () => {
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (deletingId) return;
                       setDeletingId(w._id);
                       try {
-                        await api(`/workout/${w._id}`, { method: 'DELETE' });
+                        const res = await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : ''}/workout/${w._id}`, {
+                          method: 'DELETE',
+                          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                        });
+                        if (!res.ok) throw new Error('Failed');
                         setMessage(t.workoutDeleted);
                         setTimeout(() => setMessage(''), 3000);
                         onComplete();
@@ -543,13 +554,16 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               </div>
             </div>
 
-            <button
-              className="btn btn-accent"
-              onClick={() => openYouTube(selectedExercise.name)}
-              style={{ width: '100%', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-            >
-              ▶ {t.watchTutorial}
-            </button>
+            {getYouTubeLinks(selectedExercise.name).map((link, i) => (
+              <button
+                key={i}
+                className="btn btn-accent"
+                onClick={() => window.open(link.url, '_blank')}
+                style={{ width: '100%', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                ▶ {link.name}
+              </button>
+            ))}
 
             <button
               className="btn"

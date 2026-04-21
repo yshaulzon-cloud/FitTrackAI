@@ -634,26 +634,44 @@ const FOOD_DB = [
  */
 function estimateNutrition(description) {
   const text = description.toLowerCase();
+  const matches = [];
 
   for (const item of FOOD_DB) {
     const matched = item.keys.some((key) => text.includes(key));
     if (matched) {
-      // Find English key (non-Hebrew) for translation
       const englishKey = item.keys.find((key) => /^[a-zA-Z0-9 %'\-\/().]+$/.test(key));
-      return {
+      matches.push({
         calories: Math.round(item.cal),
         protein: Math.round(item.p),
         carbs: Math.round(item.c),
         fat: Math.round(item.f),
         fiber: Math.round(item.fb || 0),
-        source: 'database',
         englishName: englishKey || null,
-      };
+      });
     }
   }
 
-  // No match found — return null so the caller can try AI
-  return null;
+  if (matches.length === 0) return null;
+
+  // If only one match, return it directly
+  if (matches.length === 1) {
+    return { ...matches[0], source: 'database' };
+  }
+
+  // Multiple matches: sum all values
+  const combined = {
+    calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0,
+    source: 'database',
+    englishName: matches.map(m => m.englishName).filter(Boolean).join(' + '),
+  };
+  for (const m of matches) {
+    combined.calories += m.calories;
+    combined.protein += m.protein;
+    combined.carbs += m.carbs;
+    combined.fat += m.fat;
+    combined.fiber += m.fiber;
+  }
+  return combined;
 }
 
 /**
