@@ -26,8 +26,10 @@ const resetLimiter = rateLimit({
 });
 
 function generateToken(userId) {
+  // JWT_EXPIRES_IN is optional — default to 7 days. Without this fallback,
+  // a missing env var causes jsonwebtoken to throw on startup of the route.
   return jwt.sign({ userId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN,
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
 }
 
