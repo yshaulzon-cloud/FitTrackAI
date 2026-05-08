@@ -21,7 +21,7 @@ function SplashScreen({ onDone }) {
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: 'linear-gradient(135deg, #16213E 0%, #0F0F1A 50%, #1A1A2E 100%)',
+      background: 'linear-gradient(155deg, #131a2c 0%, #0a0e1a 50%, #1a1438 100%)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -31,21 +31,58 @@ function SplashScreen({ onDone }) {
       transition: 'opacity 0.5s ease',
     }}>
       <div style={{
-        fontSize: '42px',
-        fontWeight: 800,
-        background: 'linear-gradient(135deg, #A29BFE, #00CEC9)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        marginBottom: '12px',
-      }}>
-        {t.appName}
-      </div>
+        position: 'absolute',
+        width: 480, height: 480,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(45,212,191,0.18), transparent 60%)',
+        top: -120, insetInlineStart: -120,
+        filter: 'blur(40px)',
+      }} />
       <div style={{
-        fontSize: '14px',
-        color: '#6C6C8A',
-        letterSpacing: '2px',
+        position: 'absolute',
+        width: 360, height: 360,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(139,92,246,0.18), transparent 60%)',
+        bottom: -80, insetInlineEnd: -60,
+        filter: 'blur(40px)',
+      }} />
+      <div style={{
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 18,
+        marginBottom: 18,
       }}>
-        AI FITNESS TRACKER
+        <img
+          src="/logo.png"
+          alt={t.appName}
+          width="140"
+          height="140"
+          style={{
+            display: 'block',
+            filter: 'drop-shadow(0 12px 40px rgba(45, 212, 191, 0.25))',
+          }}
+        />
+        <div style={{
+          fontFamily: 'Heebo, sans-serif',
+          fontSize: 42,
+          fontWeight: 800,
+          color: '#f4f6fb',
+          letterSpacing: '-0.025em',
+        }}>
+          {t.appName}
+        </div>
+      </div>
+      <div dir="ltr" style={{
+        position: 'relative',
+        fontSize: 14,
+        color: '#7e879d',
+        letterSpacing: '0.18em',
+        textTransform: 'uppercase',
+        fontWeight: 600,
+      }}>
+        Build. Track. Improve.
       </div>
     </div>
   );

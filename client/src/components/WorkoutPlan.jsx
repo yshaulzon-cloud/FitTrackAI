@@ -7,15 +7,25 @@ const muscleGroupMap = {
   'רגליים': 'Legs', 'תאומים': 'Calves', 'ליבה': 'Core', 'אירובי': 'Cardio', 'כללי': 'General',
 };
 
-// Home exercise alternatives - maps gym exercise Hebrew name to home version
+// Home exercise alternatives - maps gym exercise to home version(s)
+// alt = second option for exercises that need a bar/equipment
 const homeExerciseMap = {
   'לחיצת חזה שטוח (Bench Press)': { name: 'שכיבות סמיכה (Push Ups)', reps: '10-20' },
   'לחיצת חזה משופע דמבלים (Incline DB Press)': { name: 'שכיבות סמיכה רגליים מוגבהות (Decline Push Ups)', reps: '10-15' },
   'לחיצת חזה שטוח דמבלים (DB Bench Press)': { name: 'שכיבות סמיכה (Push Ups)', reps: '10-20' },
   'פרפר מכונה (Pec Fly)': { name: 'שכיבות סמיכה רחבות (Wide Push Ups)', reps: '12-15' },
-  'חתירה במוט (Barbell Row)': { name: 'חתירה הפוכה (Inverted Row)', reps: '8-12' },
-  'חתירה בכבל (Cable Row)': { name: 'חתירה הפוכה (Inverted Row)', reps: '10-15' },
-  'מתח (Pull Ups)': { name: 'מתח / חתירה הפוכה (Pull Ups / Inverted Row)', reps: '6-12' },
+  'חתירה במוט (Barbell Row)': {
+    name: 'חתירה הפוכה (Inverted Row)', reps: '8-12',
+    alt: { name: 'סופרמן חתירה (Superman Row)', reps: '12-15' },
+  },
+  'חתירה בכבל (Cable Row)': {
+    name: 'חתירה הפוכה (Inverted Row)', reps: '10-15',
+    alt: { name: 'סופרמן חתירה (Superman Row)', reps: '12-15' },
+  },
+  'מתח (Pull Ups)': {
+    name: 'מתח (Pull Ups)', reps: '6-12',
+    alt: { name: 'סופרמן (Superman Pulls)', reps: '12-15' },
+  },
   'לחיצת כתפיים (Overhead Press)': { name: 'שכיבות סמיכה פייק (Pike Push Ups)', reps: '8-12' },
   'הרמה צדדית (Lateral Raise)': { name: 'הרמה צדדית עם בקבוקים (Lateral Raise - Bottles)', reps: '12-15' },
   'הרמה אחורית (Rear Delt Fly)': { name: 'סופרמן (Superman Raises)', reps: '12-15' },
@@ -101,11 +111,16 @@ function toHomeExercises(exercises) {
   return exercises.map(ex => {
     const home = homeExerciseMap[ex.name];
     if (!home) return ex;
-    return { ...ex, name: home.name, reps: home.reps || ex.reps };
+    const result = { ...ex, name: home.name, reps: home.reps || ex.reps };
+    if (home.alt) {
+      result.altName = home.alt.name;
+      result.altReps = home.alt.reps;
+    }
+    return result;
   });
 }
 
-export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHistory }) {
+export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHistory, showXP }) {
   const { t, lang } = useLang();
   const [dayDurations, setDayDurations] = useState({});
   const [completingDay, setCompletingDay] = useState(null);
@@ -125,6 +140,33 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     w => new Date(w.date) >= today
   );
   const alreadyTrainedToday = !!todayWorkout;
+
+  // Check cycle-based limit (7 days from first workout of current series)
+  const maxPerWeek = profile?.workoutsPerWeek || 4;
+  const allWorkouts = (workoutHistory?.workouts || []).slice().sort(
+    (a, b) => new Date(a.date) - new Date(b.date)
+  );
+  let weeklyLimitReached = false;
+  if (allWorkouts.length > 0) {
+    let cycleStart = new Date(allWorkouts[0].date);
+    let cycleCount = 0;
+
+    for (const w of allWorkouts) {
+      const wDate = new Date(w.date);
+      const daysSinceCycleStart = (wDate - cycleStart) / (1000 * 60 * 60 * 24);
+
+      if (daysSinceCycleStart >= 7) {
+        cycleStart = wDate;
+        cycleCount = 1;
+      } else {
+        cycleCount++;
+      }
+    }
+
+    const now = new Date();
+    const daysSinceCycleStart = (now - cycleStart) / (1000 * 60 * 60 * 24);
+    weeklyLimitReached = cycleCount >= maxPerWeek && daysSinceCycleStart < 7;
+  }
 
   const expLabels = { beginner: t.expBeginner, intermediate: t.expIntermediate, advanced: t.expAdvanced };
   const typeColors = {
@@ -146,7 +188,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     const baseExercises = homeMode ? toHomeExercises(day.exercises) : day.exercises;
     const visibleExercises = getExercisesForDuration(baseExercises, duration);
     try {
-      await api('/workout/complete', {
+      const result = await api('/workout/complete', {
         method: 'POST',
         body: JSON.stringify({
           dayName: day.day,
@@ -154,6 +196,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           durationMinutes: duration,
         }),
       });
+      if (showXP && result?.xp) showXP(result.xp);
       setMessage(`"${getDayName(day.day, lang)}" ${t.workoutSaved}`);
       setTimeout(() => setMessage(''), 3000);
       setCompletingDay(null);
@@ -176,7 +219,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
 
   const isUndo = message === '__WORKOUT_DELETED__';
   const isError = message === t.errorSavingWorkout || message === t.errorDeletingWorkout;
-  const isWarning = message === t.alreadyTrainedToday;
+  const isWarning = message === t.alreadyTrainedToday || message === t.weeklyLimitReached;
 
   async function handleUndoWorkout() {
     if (!lastDeleted || lastDeleted.type !== 'workout') return;
@@ -210,44 +253,115 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         </p>
       </div>
 
-      {/* Gym / Home toggle */}
-      <div className="card" style={{ padding: '12px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0' }}>
-          <button
-            onClick={() => setHomeMode(false)}
-            style={{
-              padding: '8px 20px',
-              borderRadius: lang === 'he' ? '0 10px 10px 0' : '10px 0 0 10px',
-              border: '1.5px solid var(--primary-light)',
-              borderLeft: lang === 'he' ? '1.5px solid var(--primary-light)' : undefined,
-              borderRight: lang === 'he' ? undefined : '1.5px solid var(--primary-light)',
-              background: !homeMode ? 'rgba(108, 92, 231, 0.2)' : 'transparent',
-              color: !homeMode ? 'var(--primary-light)' : 'var(--text-muted)',
-              fontWeight: !homeMode ? 700 : 400,
-              fontSize: '14px',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            {t.gymWorkout}
-          </button>
-          <button
-            onClick={() => setHomeMode(true)}
-            style={{
-              padding: '8px 20px',
-              borderRadius: lang === 'he' ? '10px 0 0 10px' : '0 10px 10px 0',
-              border: '1.5px solid var(--primary-light)',
-              background: homeMode ? 'rgba(108, 92, 231, 0.2)' : 'transparent',
-              color: homeMode ? 'var(--primary-light)' : 'var(--text-muted)',
-              fontWeight: homeMode ? 700 : 400,
-              fontSize: '14px',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            {t.homeWorkout}
-          </button>
-        </div>
+      {/* Gym / Home mode picker — prominent CTA so users know home
+          alternatives exist. Each option is a full card with icon, label
+          and tagline explaining the tradeoff. */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 12,
+        marginBottom: 16,
+      }}>
+        <button
+          type="button"
+          onClick={() => setHomeMode(false)}
+          style={{
+            padding: '18px 16px',
+            borderRadius: 'var(--r-lg)',
+            border: !homeMode ? '2px solid var(--accent)' : '1px solid var(--border)',
+            background: !homeMode ? 'var(--accent-glow)' : 'var(--surface)',
+            cursor: 'pointer',
+            textAlign: 'start',
+            transition: 'all 0.15s',
+            fontFamily: 'inherit',
+            position: 'relative',
+            boxShadow: !homeMode ? '0 0 0 4px rgba(45,212,191,0.10)' : 'none',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <span style={{ fontSize: 22 }}>🏋️</span>
+            <span style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: 16,
+              color: !homeMode ? 'var(--accent)' : 'var(--text-1)',
+            }}>{t.gymWorkout}</span>
+            {!homeMode && (
+              <span style={{
+                marginInlineStart: 'auto',
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                padding: '3px 8px',
+                borderRadius: 99,
+                background: 'var(--accent)',
+                color: 'var(--bg-0)',
+              }}>{lang === 'he' ? 'נבחר' : 'ACTIVE'}</span>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', lineHeight: 1.5 }}>
+            {lang === 'he'
+              ? 'משקולות, מכונות ומשקל גוף — תוכנית הליבה.'
+              : 'Free weights, machines & bodyweight — the core plan.'}
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setHomeMode(true)}
+          style={{
+            padding: '18px 16px',
+            borderRadius: 'var(--r-lg)',
+            border: homeMode ? '2px solid var(--violet)' : '1px solid var(--border)',
+            background: homeMode ? 'rgba(139, 92, 246, 0.10)' : 'var(--surface)',
+            cursor: 'pointer',
+            textAlign: 'start',
+            transition: 'all 0.15s',
+            fontFamily: 'inherit',
+            position: 'relative',
+            boxShadow: homeMode ? '0 0 0 4px rgba(139, 92, 246, 0.10)' : 'none',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <span style={{ fontSize: 22 }}>🏠</span>
+            <span style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: 16,
+              color: homeMode ? 'var(--violet)' : 'var(--text-1)',
+            }}>{t.homeWorkout}</span>
+            {!homeMode && (
+              <span style={{
+                marginInlineStart: 'auto',
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                padding: '3px 8px',
+                borderRadius: 99,
+                background: 'rgba(139, 92, 246, 0.18)',
+                color: 'var(--violet)',
+                border: '1px solid rgba(139, 92, 246, 0.30)',
+              }}>{lang === 'he' ? '✓ זמין' : '✓ AVAILABLE'}</span>
+            )}
+            {homeMode && (
+              <span style={{
+                marginInlineStart: 'auto',
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                padding: '3px 8px',
+                borderRadius: 99,
+                background: 'var(--violet)',
+                color: '#ffffff',
+              }}>{lang === 'he' ? 'נבחר' : 'ACTIVE'}</span>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', lineHeight: 1.5 }}>
+            {lang === 'he'
+              ? 'אותה תוכנית, חלופות ביתיות לכל תרגיל — בלי ציוד.'
+              : 'Same plan, home-friendly swap for every exercise — no gear.'}
+          </div>
+        </button>
       </div>
 
       {/* Tip: click exercise for tutorial */}
@@ -262,7 +376,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         </span>
       </div>
 
-      {message && (
+      {message && !isUndo && (
         <div
           className="card"
           style={{
@@ -271,30 +385,9 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             color: isError ? 'var(--danger)' : isWarning ? 'var(--warning)' : 'var(--success)',
             textAlign: 'center',
             fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '12px',
           }}
         >
-          <span>{isUndo ? t.workoutDeleted : message}</span>
-          {isUndo && (
-            <button
-              onClick={handleUndoWorkout}
-              style={{
-                padding: '4px 14px',
-                borderRadius: '8px',
-                border: '1px solid var(--accent)',
-                background: 'rgba(0, 206, 201, 0.15)',
-                color: 'var(--accent)',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              ↩ {t.undo}
-            </button>
-          )}
+          <span>{message}</span>
         </div>
       )}
 
@@ -322,7 +415,10 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                   <button
                     className="btn btn-accent btn-sm"
                     onClick={() => {
-                      if (alreadyTrainedToday) {
+                      if (weeklyLimitReached) {
+                        setMessage(t.weeklyLimitReached);
+                        setTimeout(() => setMessage(''), 3000);
+                      } else if (alreadyTrainedToday) {
                         setMessage(t.alreadyTrainedToday);
                         setTimeout(() => setMessage(''), 3000);
                       } else {
@@ -394,32 +490,67 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
 
               <div className="exercise-list">
                 {visibleExercises.map((ex, exIdx) => (
-                  <div
-                    key={exIdx}
-                    className="exercise-item"
-                    onClick={() => setSelectedExercise(ex)}
-                    style={{ cursor: 'pointer', transition: 'background 0.15s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(108, 92, 231, 0.05)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = ''}
-                  >
-                    <span className="exercise-name">
-                      {getExerciseName(ex.name, lang)}
-                      {ex.muscleGroup && (
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            color: 'var(--text-muted)',
-                            marginRight: lang === 'he' ? '8px' : '0',
-                            marginLeft: lang === 'en' ? '8px' : '0',
-                          }}
-                        >
-                          [{getMuscleGroup(ex.muscleGroup, lang)}]
+                  <div key={exIdx}>
+                    <div
+                      className="exercise-item"
+                      onClick={() => setSelectedExercise(ex)}
+                      style={{ cursor: 'pointer', transition: 'background 0.15s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(108, 92, 231, 0.05)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = ''}
+                    >
+                      <span className="exercise-name">
+                        {getExerciseName(ex.name, lang)}
+                        {ex.altName && (
+                          <span style={{ fontSize: '11px', color: 'var(--accent)', marginRight: lang === 'he' ? '6px' : '0', marginLeft: lang === 'en' ? '6px' : '0' }}>
+                            ({lang === 'he' ? 'צריך מתח/מוט' : 'needs bar'})
+                          </span>
+                        )}
+                        {ex.muscleGroup && (
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              color: 'var(--text-muted)',
+                              marginRight: lang === 'he' ? '8px' : '0',
+                              marginLeft: lang === 'en' ? '8px' : '0',
+                            }}
+                          >
+                            [{getMuscleGroup(ex.muscleGroup, lang)}]
+                          </span>
+                        )}
+                      </span>
+                      <span className="exercise-detail">
+                        {ex.sets} {t.sets} × {ex.reps}
+                      </span>
+                    </div>
+                    {ex.altName && (
+                      <div
+                        className="exercise-item"
+                        onClick={() => setSelectedExercise({ ...ex, name: ex.altName, reps: ex.altReps })}
+                        style={{
+                          cursor: 'pointer',
+                          transition: 'background 0.15s',
+                          background: 'rgba(0, 206, 201, 0.04)',
+                          borderTop: 'none',
+                          paddingTop: '4px',
+                          paddingBottom: '8px',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 206, 201, 0.1)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 206, 201, 0.04)'}
+                      >
+                        <span className="exercise-name" style={{ fontSize: '13px' }}>
+                          <span style={{ color: 'var(--accent)', fontSize: '11px', marginLeft: lang === 'en' ? '0' : '6px', marginRight: lang === 'he' ? '0' : '6px' }}>
+                            ↳ {lang === 'he' ? 'או:' : 'or:'}
+                          </span>
+                          {getExerciseName(ex.altName, lang)}
+                          <span style={{ fontSize: '11px', color: 'var(--success)', marginRight: lang === 'he' ? '6px' : '0', marginLeft: lang === 'en' ? '6px' : '0' }}>
+                            ({lang === 'he' ? 'בלי ציוד' : 'no equipment'})
+                          </span>
                         </span>
-                      )}
-                    </span>
-                    <span className="exercise-detail">
-                      {ex.sets} {t.sets} × {ex.reps}
-                    </span>
+                        <span className="exercise-detail" style={{ fontSize: '12px' }}>
+                          {ex.sets} {t.sets} × {ex.altReps}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
                 {(hiddenCount > 0 || setsChanged) && (
@@ -471,6 +602,41 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             <h3>{t.recentWorkouts}</h3>
           </div>
           <div>
+            {isUndo && (
+              <div
+                style={{
+                  padding: '10px 16px',
+                  marginBottom: '8px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(0,184,148,0.1)',
+                  border: '1px solid rgba(0,184,148,0.3)',
+                  color: 'var(--success)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '12px',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                }}
+              >
+                <span>{t.workoutDeleted}</span>
+                <button
+                  onClick={handleUndoWorkout}
+                  style={{
+                    padding: '4px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--accent)',
+                    background: 'rgba(0, 206, 201, 0.15)',
+                    color: 'var(--accent)',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ↩ {t.undo}
+                </button>
+              </div>
+            )}
             {workouts.slice(0, 10).map((w, idx) => (
               <div key={idx} className="meal-item" style={{ marginBottom: '8px', alignItems: 'center' }}>
                 <span className="meal-desc">

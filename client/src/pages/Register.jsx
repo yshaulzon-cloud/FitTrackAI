@@ -1,8 +1,20 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useLang } from '../context/LanguageContext';
 
+function ArrowIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M19 12H5M12 19l-7-7 7-7"/>
+    </svg>
+  );
+}
+
+/**
+ * Register page is intentionally LTR English regardless of the user's
+ * stored language preference — the post-onboarding name detection is
+ * what drives the rest of the app's language.
+ */
 export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -11,24 +23,21 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
-  const { t } = useLang();
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
 
     if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
-      setError(t.fillAllFields);
+      setError('Please fill in all fields');
       return;
     }
-
     if (password.length < 6) {
-      setError(t.passwordMin);
+      setError('Password must be at least 6 characters');
       return;
     }
-
     if (password !== confirmPassword) {
-      setError(t.passwordMismatch);
+      setError('Passwords do not match');
       return;
     }
 
@@ -44,57 +53,66 @@ export default function Register() {
   }
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h1>{t.appName}</h1>
-        <p className="subtitle">{t.registerSubtitle}</p>
+    <div className="auth-container" dir="ltr" lang="en">
+      <div className="auth-card" style={{ textAlign: 'left' }}>
+        <div className="brand" style={{ marginBottom: 24 }}>
+          <div className="brand__mark">BS</div>
+          <div className="brand__name">BodySync</div>
+        </div>
+
+        <h1>Create your account</h1>
+        <p className="subtitle">Sign up and start tracking your progress.</p>
 
         {error && <div className="error-message">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>{t.email}</label>
+            <label>Email</label>
             <input
               type="email"
-              placeholder="your@email.com"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               dir="ltr"
               autoComplete="email"
+              style={{ direction: 'ltr', textAlign: 'left' }}
             />
           </div>
 
           <div className="form-group">
-            <label>{t.password}</label>
+            <label>Password</label>
             <input
               type="password"
-              placeholder={t.passwordPlaceholder}
+              placeholder="At least 6 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               dir="ltr"
               autoComplete="new-password"
+              style={{ direction: 'ltr', textAlign: 'left' }}
             />
           </div>
 
           <div className="form-group">
-            <label>{t.confirmPassword}</label>
+            <label>Confirm password</label>
             <input
               type="password"
-              placeholder={t.confirmPlaceholder}
+              placeholder="Enter password again"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               dir="ltr"
               autoComplete="new-password"
+              style={{ direction: 'ltr', textAlign: 'left' }}
             />
           </div>
 
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? t.registering : t.registerBtn}
+          <button type="submit" className="btn-primary-cta" disabled={loading} style={{ marginTop: 8 }}>
+            <span>{loading ? 'Signing up…' : 'Sign up'}</span>
+            <ArrowIcon />
           </button>
         </form>
 
         <div className="auth-footer">
-          {t.hasAccount} <Link to="/login">{t.loginHere}</Link>
+          Already have an account? <Link to="/login">Log in here</Link>
         </div>
       </div>
     </div>

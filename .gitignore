@@ -1,4 +1,29 @@
+# Dependencies & build artifacts
 node_modules/
 dist/
-.env
 *.log
+
+# Local env / secrets — server/.env contains real secrets and must never
+# be committed. .env.production / .env.example are safe (no secrets).
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Project-local data not relevant to the app
+photos/
+מחקרים/
+תמונות אנימציה/
+לוגו.png
+
+# Test screenshots & one-off assets
+screenshot-extras.mjs.bin
+*.pdf
+
+# Build cache
+.cache/

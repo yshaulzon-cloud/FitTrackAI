@@ -17,6 +17,7 @@ const userSchema = new mongoose.Schema(
       minlength: [6, 'הסיסמה חייבת להכיל לפחות 6 תווים'],
       select: false,
     },
+    name: { type: String, trim: true, maxlength: 50 },
     profile: {
       age: { type: Number, min: 13, max: 120 },
       height: { type: Number, min: 100, max: 250 },
@@ -34,6 +35,9 @@ const userSchema = new mongoose.Schema(
       bodyFatPercentage: { type: Number, min: 3, max: 60 },
     },
     onboardingComplete: { type: Boolean, default: false },
+    isAdmin: { type: Boolean, default: false },
+    resetCode: { type: String, default: null },
+    resetCodeExpires: { type: Date, default: null },
   },
   { timestamps: true }
 );

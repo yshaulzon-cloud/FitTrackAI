@@ -242,6 +242,114 @@ function calculateWeeklyWeightTarget(weight, goal, experience) {
 }
 
 /**
+ * BMI Calculation: weight(kg) / height(m)²
+ * WHO Classification:
+ *   < 18.5       Underweight
+ *   18.5 - 24.9  Normal
+ *   25.0 - 29.9  Overweight
+ *   30.0 - 34.9  Obese I
+ *   35.0 - 39.9  Obese II
+ *   >= 40        Obese III
+ */
+function calculateBMI(weight, heightCm) {
+  const heightM = heightCm / 100;
+  const bmi = weight / (heightM * heightM);
+  return Math.round(bmi * 10) / 10;
+}
+
+function classifyBMI(bmi) {
+  if (bmi < 18.5) return 'underweight';
+  if (bmi < 25) return 'normal';
+  if (bmi < 30) return 'overweight';
+  if (bmi < 35) return 'obese1';
+  if (bmi < 40) return 'obese2';
+  return 'obese3';
+}
+
+/**
+ * Target weight range based on BMI 18.5-24.9
+ * Returns min/max healthy weight for the given height
+ */
+function getHealthyWeightRange(heightCm) {
+  const heightM = heightCm / 100;
+  return {
+    min: Math.round(18.5 * heightM * heightM * 10) / 10,
+    max: Math.round(24.9 * heightM * heightM * 10) / 10,
+  };
+}
+
+/**
+ * Full BMI analysis with recommendations
+ * Returns BMI value, classification, healthy range, target weight,
+ * weight delta, recommended weekly rate, and daily calorie adjustment
+ */
+function generateBMIAnalysis(profile) {
+  const { weight, height, age, gender, experience } = profile;
+  const bmi = calculateBMI(weight, height);
+  const classification = classifyBMI(bmi);
+  const healthyRange = getHealthyWeightRange(height);
+
+  // Determine ideal target weight
+  let targetWeight;
+  if (classification === 'underweight') {
+    targetWeight = healthyRange.min;
+  } else if (classification === 'normal') {
+    targetWeight = weight; // already healthy
+  } else {
+    // Overweight/obese: target the upper end of normal BMI (24.9)
+    // to be realistic and achievable
+    targetWeight = healthyRange.max;
+  }
+  targetWeight = Math.round(targetWeight * 10) / 10;
+
+  // Weight delta (positive = need to lose, negative = need to gain)
+  const weightDelta = Math.round((weight - targetWeight) * 10) / 10;
+
+  // Recommended weekly rate based on BMI classification
+  let weeklyRate = 0;
+  let recommendedGoal = 'maintain';
+  if (classification === 'underweight') {
+    weeklyRate = 0.3; // 0.3 kg/week gain
+    recommendedGoal = 'bulk';
+  } else if (classification === 'normal') {
+    weeklyRate = 0;
+    recommendedGoal = 'maintain';
+  } else if (classification === 'overweight') {
+    weeklyRate = 0.5; // 0.5 kg/week loss (moderate)
+    recommendedGoal = 'cut';
+  } else if (classification === 'obese1') {
+    weeklyRate = 0.7; // 0.7 kg/week loss
+    recommendedGoal = 'cut';
+  } else {
+    weeklyRate = 1.0; // 1 kg/week loss (obese II/III can safely lose faster)
+    recommendedGoal = 'cut';
+  }
+
+  // Estimated weeks to target
+  const weeksToTarget = weightDelta !== 0 && weeklyRate > 0
+    ? Math.round(Math.abs(weightDelta) / weeklyRate)
+    : 0;
+
+  // Daily calorie adjustment: 1 kg fat ≈ 7700 kcal
+  // weeklyRate kg/week => weeklyRate * 7700 / 7 = daily surplus/deficit
+  const dailyCalorieAdjustment = weeklyRate > 0
+    ? Math.round((weeklyRate * 7700) / 7)
+    : 0;
+
+  return {
+    bmi,
+    classification,
+    healthyRange,
+    targetWeight,
+    weightDelta,
+    weeklyRate,
+    weeksToTarget,
+    dailyCalorieAdjustment,
+    recommendedGoal,
+  };
+}
+
+/**
  * MET-based calorie burn calculation (2024 Compendium)
  * Energy Expenditure (kcal) = MET * 3.5 * weight(kg) / 200 * duration(min)
  */
@@ -620,6 +728,244 @@ const FOOD_DB = [
   { keys: ['מיץ רימונים', 'pomegranate juice'], cal: 54, p: 0.2, c: 13, f: 0, fb: 0 },
   { keys: ['חלב זהב', 'golden milk'], cal: 50, p: 1, c: 6, f: 2.5, fb: 0 },
 
+  // === Israeli Everyday Foods (Research DB - 150 items) ===
+  // Table 1: Meats, Poultry, Fish - cooked/prepared versions
+  { keys: ['שניצל עוף מטוגן', 'fried schnitzel'], cal: 260, p: 18, c: 15, f: 15, fb: 0 },
+  { keys: ['פרגית על האש', 'grilled chicken thigh'], cal: 185, p: 22, c: 0, f: 10, fb: 0 },
+  { keys: ['שווארמה הודו', 'turkey shawarma'], cal: 210, p: 24, c: 1, f: 12, fb: 0 },
+  { keys: ['שווארמה בקר', 'beef shawarma'], cal: 245, p: 25, c: 1, f: 16, fb: 0 },
+  { keys: ['מעורב ירושלמי', 'jerusalem mixed grill'], cal: 230, p: 23, c: 2, f: 15, fb: 0 },
+  { keys: ['קציצות בשר', 'meatballs', 'קציצות'], cal: 190, p: 14, c: 8, f: 12, fb: 0 },
+  { keys: ['צלי בקר', 'beef roast', 'צלי'], cal: 180, p: 24, c: 0, f: 9, fb: 0 },
+  { keys: ['כרעי עוף', 'chicken drumsticks'], cal: 215, p: 19, c: 0, f: 15, fb: 0 },
+  { keys: ['כנפיים ברוטב', 'wings in sauce'], cal: 280, p: 17, c: 8, f: 20, fb: 0 },
+  { keys: ['נקניקיות בקר', 'beef sausages'], cal: 290, p: 12, c: 4, f: 25, fb: 0 },
+  { keys: ['סלמי', 'salami'], cal: 310, p: 13, c: 2, f: 28, fb: 0 },
+  { keys: ['כבד עוף מטוגן', 'fried chicken liver'], cal: 220, p: 24, c: 2, f: 13, fb: 0 },
+  { keys: ['נסיכת הנילוס', 'nile perch'], cal: 115, p: 16, c: 0, f: 5, fb: 0 },
+  { keys: ['טונה בשמן', 'tuna in oil'], cal: 195, p: 24, c: 0, f: 10, fb: 0 },
+  { keys: ['גפילטע פיש', 'גפילטה פיש', 'gefilte fish'], cal: 140, p: 12, c: 8, f: 7, fb: 0 },
+  { keys: ['דג אמנון מטוגן', 'fried tilapia'], cal: 195, p: 18, c: 6, f: 11, fb: 0 },
+
+  // Table 2: Fast Food & Street Food
+  { keys: ['סביח', 'sabich'], cal: 240, p: 8, c: 20, f: 15, fb: 3 },
+  { keys: ['המבורגר בלחמנייה', 'burger in bun'], cal: 265, p: 12, c: 25, f: 14, fb: 1 },
+  { keys: ['בורקס גבינה', 'cheese burekas'], cal: 360, p: 8, c: 35, f: 21, fb: 1 },
+  { keys: ['בורקס תפוח אדמה', 'potato burekas'], cal: 315, p: 4.5, c: 38, f: 17, fb: 1 },
+  { keys: ['זיווה', 'ziva'], cal: 375, p: 9, c: 38, f: 21, fb: 1 },
+  { keys: ['סמבוסק', 'sambousek', 'sambusak'], cal: 330, p: 10, c: 30, f: 20, fb: 1 },
+  { keys: ['קובה סלק', 'beet kubbeh'], cal: 165, p: 7, c: 20, f: 7, fb: 2 },
+  { keys: ['קובה נבולסית', 'fried kubbeh'], cal: 310, p: 12, c: 25, f: 19, fb: 1 },
+  { keys: ['קובה', 'kubbeh'], cal: 165, p: 7, c: 20, f: 7, fb: 2 },
+  { keys: ['סיגרים מרוקאים', 'moroccan cigars'], cal: 335, p: 11, c: 28, f: 21, fb: 1 },
+  { keys: ['פסטלים', 'pastels'], cal: 315, p: 4, c: 38, f: 17, fb: 1 },
+  { keys: ['אראייס', 'arayes'], cal: 290, p: 14, c: 22, f: 17, fb: 1 },
+  { keys: ['נקניקייה בלחמנייה', 'hot dog'], cal: 280, p: 10, c: 25, f: 16, fb: 1 },
+  { keys: ['שניצל תירס', 'corn schnitzel'], cal: 215, p: 8.5, c: 22, f: 10, fb: 1 },
+  { keys: ['פוקאצ\'ה', 'focaccia'], cal: 260, p: 7, c: 35, f: 11, fb: 2 },
+  { keys: ['טבעות בצל', 'onion rings'], cal: 350, p: 4, c: 40, f: 20, fb: 1 },
+  { keys: ['נאגטס', 'nuggets', 'נגיסי עוף'], cal: 285, p: 15, c: 18, f: 18, fb: 0 },
+  { keys: ['סושי', 'sushi'], cal: 145, p: 6, c: 22, f: 3, fb: 1 },
+
+  // Table 3: Grains, Carbs & Hot Sides
+  { keys: ['פתיתים', 'ptitim', 'israeli couscous'], cal: 165, p: 4.5, c: 32, f: 2, fb: 1 },
+  { keys: ['מג\'דרה', 'מגדרה', 'mujadara'], cal: 155, p: 6, c: 25, f: 3, fb: 4 },
+  { keys: ['פירה', 'mashed potatoes', 'פירה תפוחי אדמה'], cal: 125, p: 2.2, c: 18, f: 5, fb: 1 },
+  { keys: ['פסטה ברוטב עגבניות', 'pasta with tomato sauce'], cal: 140, p: 5, c: 22, f: 3, fb: 2 },
+  { keys: ['פסטה ברוטב שמנת', 'pasta with cream sauce'], cal: 210, p: 6.5, c: 25, f: 9, fb: 1 },
+  { keys: ['פסטה פסטו', 'pesto pasta'], cal: 230, p: 6, c: 28, f: 11, fb: 1 },
+  { keys: ['נודלס מוקפץ', 'stir fry noodles'], cal: 160, p: 5.5, c: 22, f: 6, fb: 2 },
+  { keys: ['שעועית ירוקה', 'green beans'], cal: 65, p: 2, c: 10, f: 2, fb: 3 },
+  { keys: ['אפונה וגזר', 'peas and carrots'], cal: 85, p: 4, c: 13, f: 2, fb: 3 },
+  { keys: ['חמין', 'צ\'ולנט', 'cholent'], cal: 210, p: 14, c: 18, f: 10, fb: 3 },
+  { keys: ['קישלה', 'kishla'], cal: 350, p: 6, c: 45, f: 16, fb: 1 },
+  { keys: ['קוגל ירושלמי', 'jerusalem kugel', 'קוגל'], cal: 280, p: 4, c: 40, f: 12, fb: 1 },
+  { keys: ['פשטידת תירס', 'corn casserole', 'פשטידה'], cal: 185, p: 7, c: 20, f: 9, fb: 1 },
+  { keys: ['לקט ירקות מבושל', 'cooked vegetable mix'], cal: 50, p: 2.5, c: 8, f: 1, fb: 3 },
+  { keys: ['לזניה', 'lasagna'], cal: 195, p: 11, c: 18, f: 9, fb: 1 },
+  { keys: ['רביולי', 'ravioli'], cal: 220, p: 9, c: 25, f: 10, fb: 1 },
+  { keys: ['אורז אדום', 'red rice', 'אורז עם רסק'], cal: 145, p: 3, c: 28, f: 2, fb: 1 },
+
+  // Table 4: Dairy, Eggs & Spreads
+  { keys: ['שמנת חמוצה', 'sour cream'], cal: 160, p: 3, c: 4, f: 15, fb: 0 },
+  { keys: ['יוגורט יווני 7%', 'greek yogurt 7%'], cal: 105, p: 7.5, c: 5, f: 6, fb: 0 },
+  { keys: ['מעדן שוקולד', 'chocolate pudding', 'באדי'], cal: 115, p: 3.5, c: 18, f: 3, fb: 0 },
+  { keys: ['מעדן וניל', 'vanilla pudding', 'גיל'], cal: 56, p: 3, c: 8, f: 1.5, fb: 0 },
+  { keys: ['ביצה קשה', 'hard boiled egg'], cal: 155, p: 13, c: 1, f: 11, fb: 0 },
+  { keys: ['ביצת עין', 'fried egg'], cal: 210, p: 13, c: 1, f: 17, fb: 0 },
+  { keys: ['סלט ביצים', 'egg salad'], cal: 220, p: 10, c: 3, f: 19, fb: 0 },
+  { keys: ['ממרח שוקולד', 'השחר העולה', 'chocolate spread'], cal: 540, p: 3, c: 60, f: 32, fb: 1 },
+  { keys: ['מרגרינה', 'margarine'], cal: 715, p: 0.1, c: 0, f: 80, fb: 0 },
+  { keys: ['ממרח חלווה', 'halva spread'], cal: 530, p: 12, c: 50, f: 32, fb: 2 },
+  { keys: ['ריבה', 'ריבת פירות', 'jam', 'fruit jam'], cal: 260, p: 0.5, c: 65, f: 0, fb: 1 },
+
+  // Table 5: Breads, Pastries & Dough
+  { keys: ['פיתה מקמח מלא', 'whole wheat pita'], cal: 250, p: 10, c: 48, f: 2, fb: 5 },
+  { keys: ['חלה', 'challah'], cal: 290, p: 8.5, c: 50, f: 7, fb: 2 },
+  { keys: ['לאפה', 'laffa', 'לאפא'], cal: 285, p: 8, c: 50, f: 7, fb: 2 },
+  { keys: ['לחם כהה', 'dark bread'], cal: 245, p: 9, c: 45, f: 4, fb: 5 },
+  { keys: ['לחם מחמצת', 'sourdough'], cal: 240, p: 8.5, c: 45, f: 4, fb: 3 },
+  { keys: ['בייגל', 'bagel'], cal: 280, p: 10, c: 52, f: 3, fb: 2 },
+  { keys: ['לחמנייה', 'bread roll', 'לחמניה'], cal: 285, p: 9, c: 50, f: 5, fb: 2 },
+  { keys: ['טוסט', 'toast'], cal: 310, p: 12, c: 30, f: 16, fb: 1 },
+  { keys: ['מצות', 'matzo', 'מצה'], cal: 370, p: 10, c: 78, f: 2, fb: 3 },
+  { keys: ['קרקרים', 'לחמית', 'crackers'], cal: 420, p: 11, c: 65, f: 14, fb: 3 },
+  { keys: ['קורנפלקס', 'cornflakes', 'corn flakes'], cal: 380, p: 7.5, c: 80, f: 2, fb: 2 },
+  { keys: ['עוגת שוקולד', 'chocolate cake'], cal: 390, p: 5, c: 50, f: 20, fb: 2 },
+  { keys: ['עוגת גבינה', 'cheesecake'], cal: 280, p: 9, c: 25, f: 17, fb: 0 },
+  { keys: ['אוזן המן', 'hamantaschen', 'אוזני המן'], cal: 410, p: 6, c: 55, f: 18, fb: 1 },
+  { keys: ['וופלים', 'waffles', 'wafers'], cal: 520, p: 5, c: 60, f: 30, fb: 1 },
+  { keys: ['קרואסון', 'croissant'], cal: 410, p: 8, c: 45, f: 22, fb: 1 },
+  { keys: ['בצק פילו', 'phyllo', 'filo'], cal: 285, p: 6, c: 45, f: 8, fb: 1 },
+  { keys: ['בצק עלים', 'puff pastry'], cal: 480, p: 5, c: 40, f: 33, fb: 1 },
+
+  // Table 6: Snacks, Sweets & Drinks
+  { keys: ['במבה נוגט', 'bamba nougat'], cal: 515, p: 9, c: 55, f: 29, fb: 2 },
+  { keys: ['במבה פרו', 'bamba pro'], cal: 522, p: 23, c: 48, f: 30, fb: 3 },
+  { keys: ['תפוצ\'יפס', 'chips snack'], cal: 535, p: 6.5, c: 50, f: 35, fb: 2 },
+  { keys: ['אפרופו', 'apropo'], cal: 525, p: 5, c: 58, f: 30, fb: 1 },
+  { keys: ['קרמבו', 'krembo'], cal: 410, p: 3.5, c: 60, f: 17, fb: 0 },
+  { keys: ['שוקולד חלב', 'milk chocolate', 'שוקולד פרה'], cal: 545, p: 7, c: 58, f: 32, fb: 2 },
+  { keys: ['מסטיק', 'gum', 'chewing gum'], cal: 160, p: 0, c: 40, f: 0, fb: 0 },
+  { keys: ['פופקורן חמאה', 'butter popcorn'], cal: 450, p: 9, c: 50, f: 25, fb: 8 },
+  { keys: ['שוקו', 'chocolate milk', 'שוקו תנובה'], cal: 73, p: 3.1, c: 11, f: 1.5, fb: 0 },
+  { keys: ['שוקו יוטבתה', 'yotvata chocolate milk'], cal: 82, p: 3.2, c: 12, f: 2, fb: 0 },
+  { keys: ['קפה הפוך', 'latte', 'cafe latte'], cal: 45, p: 3, c: 5, f: 1.5, fb: 0 },
+  { keys: ['מיץ תפוזים', 'orange juice'], cal: 45, p: 0.7, c: 10, f: 0.1, fb: 0 },
+  { keys: ['נקטר', 'nectar', 'מיץ מעובד'], cal: 55, p: 0.2, c: 13, f: 0, fb: 0 },
+
+  // === Israeli foods — comprehensive nutrition research (2026) ===
+  // Items added from "מחקר תזונתי מקיף של סל המזון הישראלי" (300 foods).
+  // Each item below was verified against existing DB to avoid duplicates;
+  // values are Health Ministry ("Tzameret") + USDA per-100g.
+  // Bakery / standard breads
+  { keys: ['לחם אחיד', 'standard bread'], cal: 250, p: 8, c: 48, f: 1.5, fb: 4 },
+  { keys: ['חלה מתוקה', 'sweet challah'], cal: 290, p: 9, c: 52, f: 5, fb: 2 },
+  { keys: ['קרוטונים', 'croutons'], cal: 450, p: 11, c: 65, f: 15, fb: 3 },
+  // Meats / fish
+  { keys: ['אנטריקוט', 'entrecote', 'ribeye'], cal: 290, p: 25, c: 0, f: 21, fb: 0 },
+  { keys: ['דג בורי', 'mullet'], cal: 150, p: 20, c: 0, f: 8, fb: 0 },
+  { keys: ['המבורגר טבעוני', 'המבורגר צמחי', 'plant burger', 'vegan burger'], cal: 220, p: 18, c: 10, f: 12, fb: 4 },
+  // Cheeses (more specific fat-percentage variants)
+  { keys: ['גבינה בולגרית 5%'], cal: 120, p: 14, c: 2, f: 5, fb: 0 },
+  { keys: ['גבינה בולגרית 24%'], cal: 280, p: 16, c: 2, f: 24, fb: 0 },
+  { keys: ['לבאנה 10%'], cal: 160, p: 8, c: 5, f: 10, fb: 0 },
+  { keys: ['גבינת פטה', 'feta'], cal: 250, p: 14, c: 1, f: 20, fb: 0 },
+  // Home-cooked dishes
+  { keys: ['מוסקה', 'moussaka'], cal: 160, p: 12, c: 8, f: 9, fb: 2 },
+  { keys: ['פלפל ממולא', 'stuffed pepper'], cal: 130, p: 7, c: 15, f: 4, fb: 2 },
+  { keys: ['אורז עם שעועית', 'rice and beans'], cal: 140, p: 5, c: 25, f: 2.5, fb: 3 },
+  { keys: ['כרובית אפויה', 'roasted cauliflower'], cal: 65, p: 3, c: 6, f: 4, fb: 3 },
+  // Soups
+  { keys: ['מרק קובה', 'kubbeh soup'], cal: 90, p: 4, c: 12, f: 3, fb: 1 },
+  { keys: ['מרק דלעת', 'pumpkin soup'], cal: 40, p: 1, c: 8, f: 1, fb: 1 },
+  { keys: ['מרק עוף ירקות', 'מרק עוף עם ירקות', 'chicken vegetable soup'], cal: 45, p: 3, c: 4, f: 2, fb: 1 },
+  { keys: ['מרק אפונה', 'pea soup'], cal: 75, p: 5, c: 13, f: 0.5, fb: 4 },
+  { keys: ['מרק עדשים', 'lentil soup'], cal: 70, p: 5, c: 11, f: 0.5, fb: 4 },
+  // Drinks
+  { keys: ['אייס קפה', 'aroma ice', 'iced coffee'], cal: 110, p: 2, c: 18, f: 3.5, fb: 0 },
+  { keys: ['מים בטעמים', 'flavored water'], cal: 15, p: 0, c: 3.7, f: 0, fb: 0 },
+  // Snacks / sweets
+  { keys: ['מקופלת'], cal: 520, p: 6, c: 62, f: 28, fb: 1 },
+  { keys: ['וופל פסק זמן', 'pesek zman wafer'], cal: 510, p: 6, c: 60, f: 27, fb: 1 },
+  { keys: ['בראוניז', 'brownie'], cal: 450, p: 5, c: 55, f: 25, fb: 2 },
+  { keys: ['פריקסה', 'fricassee bread'], cal: 340, p: 8, c: 35, f: 18, fb: 2 },
+  { keys: ['קצפת צמחית', 'vegan whipped cream'], cal: 310, p: 1, c: 12, f: 28, fb: 0 },
+
+  // === Israeli expanded set v2 (from comprehensive 2026 nutrition research) ===
+  // Cafe / Aroma menu items (Hebrew-only — no English aliases since these
+  // are local-chain dishes). Values per-100g are derived from the menu's
+  // full-portion nutrition by scaling to the listed serving weight.
+  { keys: ['בוקר ישראלי', 'israeli breakfast'], cal: 81, p: 6.3, c: 6.6, f: 3.6, fb: 1 },
+  { keys: ['סלט ארומה', 'aroma salad'], cal: 55, p: 3.5, c: 4.1, f: 3.1, fb: 2 },
+  { keys: ['כריך טונה', 'tuna sandwich'], cal: 140, p: 9.1, c: 17, f: 4, fb: 1.5 },
+  { keys: ['כריך חלומי', 'halloumi sandwich'], cal: 192, p: 7.5, c: 18, f: 10, fb: 1 },
+  { keys: ['כריך סלט ביצים', 'egg salad sandwich'], cal: 149, p: 6.7, c: 18, f: 5.5, fb: 1 },
+  { keys: ['סלט טונה ירקות', 'tuna salad bowl'], cal: 88, p: 14, c: 2.5, f: 3.5, fb: 1.5 },
+  { keys: ['רוטב ויניגרט', 'vinaigrette'], cal: 144, p: 1.2, c: 15, f: 8.5, fb: 0 },
+  { keys: ['רוטב שמן זית ולימון', 'olive oil lemon dressing'], cal: 311, p: 0.2, c: 4.5, f: 33, fb: 0 },
+
+  // Levantine condiments / spreads
+  { keys: ['מסבחה', 'msabbaha', 'warm hummus'], cal: 175, p: 8, c: 15, f: 8, fb: 5 },
+  { keys: ['מטבוחה', 'matbucha'], cal: 90, p: 2, c: 10, f: 5, fb: 2 },
+  { keys: ['סחוג', 'זחוג', 'zhug', 'schug'], cal: 280, p: 3, c: 8, f: 27, fb: 3 },
+
+  // Asian
+  { keys: ['ניגירי סלמון', 'salmon nigiri'], cal: 233, p: 13, c: 30, f: 2, fb: 0 },
+  { keys: ['קונוס סושי', 'sushi cone', 'temaki'], cal: 230, p: 9, c: 24, f: 8, fb: 1 },
+  { keys: ['מוקפץ עוף וירקות', 'chicken stir fry'], cal: 145, p: 7, c: 18, f: 4, fb: 2 },
+  { keys: ['פאד תאי', 'pad thai'], cal: 117, p: 2.3, c: 19, f: 3.5, fb: 1 },
+  { keys: ['מרק ראמן', 'ramen', 'ramen soup'], cal: 70, p: 2.5, c: 8, f: 2, fb: 1 },
+  { keys: ['בריאני', 'biryani'], cal: 200, p: 8, c: 30, f: 5, fb: 1 },
+  { keys: ['גיוזה', 'דמפלינג', 'gyoza', 'dumpling'], cal: 230, p: 10, c: 26, f: 8, fb: 1 },
+
+  // European
+  { keys: ['ריזוטו', 'risotto'], cal: 165, p: 4, c: 22, f: 6, fb: 0 },
+  { keys: ['גולש', 'goulash'], cal: 130, p: 12, c: 8, f: 5, fb: 1 },
+  { keys: ['רוטב בולונייז', 'bolognese'], cal: 145, p: 8, c: 8, f: 9, fb: 1 },
+  { keys: ['גזפצ\'ו', 'gazpacho'], cal: 35, p: 1.5, c: 7, f: 0.5, fb: 1 },
+  { keys: ['מינסטרונה', 'minestrone'], cal: 55, p: 3, c: 9, f: 1, fb: 2 },
+
+  // Mexican
+  { keys: ['טאקו', 'taco'], cal: 220, p: 12, c: 19, f: 9, fb: 2 },
+  { keys: ['בוריטו', 'burrito'], cal: 200, p: 9, c: 27, f: 7, fb: 3 },
+  { keys: ['גואקמולי', 'guacamole'], cal: 150, p: 2, c: 8.5, f: 14, fb: 6 },
+
+  // Salads & sides
+  { keys: ['סלט גזר', 'carrot salad'], cal: 80, p: 1, c: 12, f: 3, fb: 3 },
+  { keys: ['סלט סלק', 'beet salad'], cal: 75, p: 1.5, c: 12, f: 2.5, fb: 3 },
+  { keys: ['קולסלאו', 'סלט כרוב חמוץ', 'coleslaw'], cal: 145, p: 1, c: 12, f: 10, fb: 2 },
+
+  // Snacks
+  { keys: ['צ\'יטוס', 'cheetos'], cal: 540, p: 6.5, c: 53, f: 32, fb: 1 },
+  { keys: ['פרינגלס', 'pringles'], cal: 520, p: 4, c: 53, f: 33, fb: 2 },
+  { keys: ['קליק', 'click chocolate'], cal: 525, p: 6, c: 55, f: 30, fb: 2 },
+  { keys: ['סניקרס', 'snickers'], cal: 488, p: 8, c: 61, f: 24, fb: 2 },
+  { keys: ['קיט קט', 'kit kat'], cal: 518, p: 6, c: 65, f: 26, fb: 1 },
+  { keys: ['טוויקס', 'twix'], cal: 502, p: 4.5, c: 64, f: 24, fb: 1 },
+
+  // Desserts
+  { keys: ['עוגת גזר', 'carrot cake'], cal: 415, p: 4, c: 55, f: 20, fb: 2 },
+  { keys: ['טירמיסו', 'tiramisu'], cal: 280, p: 5, c: 33, f: 14, fb: 0 },
+  { keys: ['מוס שוקולד', 'chocolate mousse'], cal: 220, p: 3.5, c: 22, f: 14, fb: 1 },
+  { keys: ['פנקייק', 'pancake'], cal: 227, p: 6, c: 28, f: 9, fb: 1 },
+  { keys: ['פרנץ\' טוסט', 'french toast'], cal: 213, p: 8, c: 19, f: 12, fb: 1 },
+
+  // Hot drinks
+  { keys: ['תה ירוק', 'green tea'], cal: 1, p: 0, c: 0.2, f: 0, fb: 0 },
+  { keys: ['תה שחור', 'black tea'], cal: 1, p: 0, c: 0.2, f: 0, fb: 0 },
+  { keys: ['אספרסו', 'espresso'], cal: 5, p: 0.1, c: 0.7, f: 0.2, fb: 0 },
+  { keys: ['אמריקנו', 'americano'], cal: 5, p: 0.1, c: 0.7, f: 0.2, fb: 0 },
+
+  // Cold drinks
+  { keys: ['מילקשייק', 'milkshake'], cal: 110, p: 3, c: 16, f: 4, fb: 0 },
+  { keys: ['שייק בננה', 'banana shake'], cal: 95, p: 3, c: 18, f: 1.5, fb: 1 },
+  { keys: ['סמודי פירות', 'fruit smoothie'], cal: 50, p: 0.6, c: 12, f: 0.2, fb: 1 },
+
+  // Alcohol
+  { keys: ['וודקה', 'vodka'], cal: 231, p: 0, c: 0, f: 0, fb: 0 },
+  { keys: ['ויסקי', 'whiskey', 'whisky'], cal: 250, p: 0, c: 0, f: 0, fb: 0 },
+  { keys: ['ג\'ין', 'gin'], cal: 263, p: 0, c: 0, f: 0, fb: 0 },
+  { keys: ['שמפניה', 'champagne'], cal: 76, p: 0.3, c: 2.6, f: 0, fb: 0 },
+
+  // Sauces
+  { keys: ['רוטב סויה', 'soy sauce'], cal: 60, p: 8, c: 5.5, f: 0, fb: 0 },
+  { keys: ['רוטב טריאקי', 'teriyaki'], cal: 165, p: 6, c: 40, f: 0, fb: 0 },
+
+  // Citrus / stone fruits
+  { keys: ['דובדבן', 'דובדבנים', 'cherry', 'cherries'], cal: 50, p: 1, c: 12, f: 0.3, fb: 1.6 },
+  { keys: ['שזיף', 'plum'], cal: 46, p: 0.7, c: 11, f: 0.3, fb: 1.4 },
+  { keys: ['נקטרינה', 'nectarine'], cal: 44, p: 1, c: 11, f: 0.3, fb: 1.7 },
+  { keys: ['משמש', 'apricot'], cal: 48, p: 1.4, c: 11, f: 0.4, fb: 2 },
+  { keys: ['קלמנטינה', 'clementine'], cal: 47, p: 0.85, c: 12, f: 0.15, fb: 1.7 },
+  { keys: ['ליים', 'lime'], cal: 30, p: 0.7, c: 10.5, f: 0.2, fb: 2.8 },
+  { keys: ['לימון', 'lemon'], cal: 29, p: 1.1, c: 9.3, f: 0.3, fb: 2.8 },
+  { keys: ['פטל', 'תות שחור', 'raspberry', 'blackberry'], cal: 52, p: 1.2, c: 12, f: 0.65, fb: 6.5 },
+
+  // Vegetables (regular artichoke vs jerusalem)
+  { keys: ['ארטישוק', 'artichoke'], cal: 47, p: 3.3, c: 11, f: 0.15, fb: 5 },
+  { keys: ['סלרי', 'celery'], cal: 14, p: 0.7, c: 3, f: 0.2, fb: 1.6 },
+
   // === Generic / catch-all (last resort) ===
   { keys: ['עוף', 'chicken'], cal: 200, p: 25, c: 0, f: 10, fb: 0 },
   { keys: ['בשר', 'meat', 'beef'], cal: 250, p: 26, c: 0, f: 15, fb: 0 },
@@ -631,23 +977,125 @@ const FOOD_DB = [
 /**
  * Estimate nutrition from food description using comprehensive USDA 2024-2026 database
  * Searches for the most specific match first (longer Hebrew terms before shorter ones)
+ * Falls back to fuzzy matching for typos when no exact match is found
  */
+
+// Levenshtein distance for fuzzy matching
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function itemToMatch(item) {
+  const englishKey = item.keys.find((key) => /^[a-zA-Z0-9 %'\-\/().]+$/.test(key));
+  return {
+    calories: Math.round(item.cal),
+    protein: Math.round(item.p),
+    carbs: Math.round(item.c),
+    fat: Math.round(item.f),
+    fiber: Math.round(item.fb || 0),
+    englishName: englishKey || null,
+  };
+}
+
 function estimateNutrition(description) {
   const text = description.toLowerCase();
-  const matches = [];
+  const rawMatches = [];
 
+  // 1. Exact substring matching - collect with matched key length for specificity
   for (const item of FOOD_DB) {
-    const matched = item.keys.some((key) => text.includes(key));
-    if (matched) {
-      const englishKey = item.keys.find((key) => /^[a-zA-Z0-9 %'\-\/().]+$/.test(key));
-      matches.push({
-        calories: Math.round(item.cal),
-        protein: Math.round(item.p),
-        carbs: Math.round(item.c),
-        fat: Math.round(item.f),
-        fiber: Math.round(item.fb || 0),
-        englishName: englishKey || null,
-      });
+    let longestMatchedKey = 0;
+    for (const key of item.keys) {
+      if (text.includes(key) && key.length > longestMatchedKey) {
+        longestMatchedKey = key.length;
+      }
+    }
+    if (longestMatchedKey > 0) {
+      rawMatches.push({ item, keyLen: longestMatchedKey, matchedKeys: item.keys.filter(k => text.includes(k)) });
+    }
+  }
+
+  // Filter out less specific matches: if item A's matched key is a substring of item B's matched key,
+  // remove item A (the generic one). E.g. "במבה" should be removed when "במבה פרו" matched.
+  const matches = [];
+  for (const m of rawMatches) {
+    const isSubsumed = rawMatches.some(other =>
+      other !== m &&
+      other.keyLen > m.keyLen &&
+      m.matchedKeys.some(mk => other.matchedKeys.some(ok => ok.includes(mk)))
+    );
+    if (!isSubsumed) {
+      matches.push(itemToMatch(m.item));
+    }
+  }
+
+  // 2. Prefix matching fallback - input is start of a key (partial word)
+  if (matches.length === 0) {
+    const words = text.split(/[\s,،.;:!?+&\-\/]+/).filter(w => w.length >= 2);
+    let bestPrefix = null;
+    let bestPrefixLen = 0;
+
+    for (const item of FOOD_DB) {
+      for (const key of item.keys) {
+        for (const word of words) {
+          // Word is a prefix of key, and at least 3 chars to avoid false positives
+          if (word.length >= 3 && key.startsWith(word) && word.length > bestPrefixLen) {
+            bestPrefixLen = word.length;
+            bestPrefix = item;
+          }
+        }
+      }
+    }
+
+    if (bestPrefix) {
+      matches.push(itemToMatch(bestPrefix));
+    }
+  }
+
+  // 3. Fuzzy matching fallback - typo tolerance
+  if (matches.length === 0) {
+    const words = text.split(/[\s,،.;:!?+&\-\/]+/).filter(w => w.length >= 2);
+    let bestMatch = null;
+    let bestDist = Infinity;
+
+    for (const item of FOOD_DB) {
+      for (const key of item.keys) {
+        // For each input word, check distance to each key
+        for (const word of words) {
+          const dist = levenshtein(word, key);
+          // Allow max distance based on word length: 1 for short words, 2 for longer
+          const maxDist = key.length <= 4 ? 1 : 2;
+          if (dist <= maxDist && dist < bestDist) {
+            bestDist = dist;
+            bestMatch = item;
+          }
+        }
+        // Also check the full input text against multi-word keys
+        if (key.includes(' ')) {
+          const dist = levenshtein(text.trim(), key);
+          const maxDist = key.length <= 6 ? 1 : 2;
+          if (dist <= maxDist && dist < bestDist) {
+            bestDist = dist;
+            bestMatch = item;
+          }
+        }
+      }
+    }
+
+    if (bestMatch) {
+      matches.push(itemToMatch(bestMatch));
     }
   }
 
@@ -834,6 +1282,13 @@ function generateWorkoutPlan(profile) {
   // Maintenance plans - Full Body focus, 3x/week regardless of user preference
   // If user selected more days, cap at 3 strength + optional light cardio
   const maintenancePlans = {
+    1: [
+      { day: 'יום א\' - Full Body (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyA },
+    ],
+    2: [
+      { day: 'יום א\' - Full Body A (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyA },
+      { day: 'יום ב\' - Full Body B (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyB },
+    ],
     3: [
       { day: 'יום א\' - Full Body A (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyA },
       { day: 'יום ב\' - Full Body B (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyB },
@@ -860,11 +1315,45 @@ function generateWorkoutPlan(profile) {
       ]},
       { day: 'יום ה\' - Full Body C (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyC },
     ],
+    6: [
+      { day: 'יום א\' - Full Body A (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyA },
+      { day: 'יום ב\' - אירובי קל (Zone 2)', type: 'cardio', exercises: [
+        { name: 'הליכה מהירה / אופניים (Zone 2)', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
+      ]},
+      { day: 'יום ג\' - Full Body B (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyB },
+      { day: 'יום ד\' - אירובי קל + ליבה', type: 'cardio', exercises: [
+        { name: 'הליכה מהירה / אופניים (Zone 2)', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
+        ...exercises.core,
+      ]},
+      { day: 'יום ה\' - Full Body C (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyC },
+      { day: 'יום ו\' - אירובי קל', type: 'cardio', exercises: [
+        { name: 'הליכה מהירה / אופניים (Zone 2)', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
+      ]},
+    ],
   };
 
   // ===== BULK / CUT / RECOMP PLANS =====
   // Upper/Lower split, 10-20 sets/muscle/week for hypertrophy
   const plans = {
+    1: [
+      {
+        day: 'יום א\' - Full Body (כוח)',
+        type: 'strength',
+        exercises: adjustSets(exercises.fullBody),
+      },
+    ],
+    2: [
+      {
+        day: 'יום א\' - פלג גוף עליון (כוח)',
+        type: 'strength',
+        exercises: adjustSets(exercises.upperStrength),
+      },
+      {
+        day: 'יום ב\' - פלג גוף תחתון (כוח)',
+        type: 'strength',
+        exercises: adjustSets(exercises.lowerStrength),
+      },
+    ],
     3: [
       {
         day: 'יום א\' - פלג גוף עליון (כוח)',
@@ -977,19 +1466,12 @@ function generateWorkoutPlan(profile) {
   let plan;
 
   if (goal === 'maintain') {
-    // Maintenance: Full Body 3x/week, minimal volume, high intensity
-    let planKey = workoutsPerWeek;
-    if (planKey <= 3) planKey = 3;
-    else if (planKey <= 4) planKey = 4;
-    else planKey = 5;
+    // Maintenance: Full Body, minimal volume, high intensity
+    let planKey = Math.max(1, Math.min(6, workoutsPerWeek));
     plan = maintenancePlans[planKey];
   } else {
     // Bulk / Cut / Recomp: Upper/Lower split
-    let planKey = workoutsPerWeek;
-    if (planKey <= 3) planKey = 3;
-    else if (planKey <= 4) planKey = 4;
-    else if (planKey <= 5) planKey = 5;
-    else planKey = 6;
+    let planKey = Math.max(1, Math.min(6, workoutsPerWeek));
     plan = plans[planKey];
   }
 
@@ -1016,6 +1498,26 @@ function generateWorkoutPlan(profile) {
   return { days: plan, notes };
 }
 
+// ── Sleep Recommendations (based on NSF/CDC research) ──────────
+function getSleepRecommendation(age, hadWorkoutToday) {
+  // Age-based recommended range (hours) - app minimum age is 13
+  let min, max;
+  if (age <= 17) { min = 8; max = 10; }
+  else if (age <= 25) { min = 7; max = 9; }
+  else if (age <= 64) { min = 7; max = 9; }
+  else { min = 7; max = 8; }
+
+  // Workout day bonus: resistance/strength training adds 1-2 hours need
+  const workoutBonus = hadWorkoutToday ? 1 : 0;
+
+  return {
+    min,
+    max,
+    recommended: max + workoutBonus,
+    workoutBonus,
+  };
+}
+
 module.exports = {
   calculateREE,
   calculateREE_KatchMcArdle,
@@ -1025,7 +1527,12 @@ module.exports = {
   calculateMacros,
   calculateWeeklyWeightTarget,
   calculateExerciseCalories,
+  calculateBMI,
+  classifyBMI,
+  getHealthyWeightRange,
+  generateBMIAnalysis,
   estimateNutrition,
   estimateNutritionAI,
   generateWorkoutPlan,
+  getSleepRecommendation,
 };

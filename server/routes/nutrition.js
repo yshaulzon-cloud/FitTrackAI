@@ -1,7 +1,10 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const Nutrition = require('../models/Nutrition');
-const { estimateNutrition, estimateNutritionAI } = require('../utils/calculations');
+const { estimateNutrition, estimateNutritionAI, calculateTDEE, calculateCalorieTarget, calculateMacros } = require('../utils/calculations');
+const { checkNutritionGoals, revokeXP } = require('../utils/progression');
+const User = require('../models/User');
+const { getRandomMenu, swapMeal } = require('../data/mealPlans');
 
 const router = express.Router();
 
@@ -10,8 +13,11 @@ router.post('/log', auth, async (req, res) => {
   try {
     const { description } = req.body;
 
-    if (!description || !description.trim()) {
+    if (!description || typeof description !== 'string' || !description.trim()) {
       return res.status(400).json({ message: 'יש להזין תיאור של הארוחה' });
+    }
+    if (description.length > 500) {
+      return res.status(400).json({ message: 'תיאור ארוך מדי (מקסימום 500 תווים)' });
     }
 
     let estimated = estimateNutrition(description);
@@ -67,6 +73,20 @@ router.post('/log', auth, async (req, res) => {
       });
     }
 
+    // Check nutrition goals for XP
+    let xpResults = [];
+    try {
+      const user = await User.findById(req.userId);
+      if (user?.profile && user.onboardingComplete) {
+        const { tdee } = calculateTDEE(user.profile);
+        const calorieTarget = calculateCalorieTarget(tdee, user.profile.goal, user.profile.weight, user.profile.bodyFatPercentage);
+        const macros = calculateMacros(user.profile.weight, calorieTarget, user.profile.goal, user.profile.experience, user.profile.bodyFatPercentage);
+        xpResults = await checkNutritionGoals(req.userId, nutritionLog, { calorieTarget, macros });
+      }
+    } catch (xpErr) {
+      console.error('XP check error:', xpErr.message);
+    }
+
     res.status(201).json({
       meal,
       daily: {
@@ -76,6 +96,7 @@ router.post('/log', auth, async (req, res) => {
         totalFat: nutritionLog.totalFat,
         totalFiber: nutritionLog.totalFiber || 0,
       },
+      xp: xpResults,
     });
   } catch (error) {
     console.error('Nutrition log error:', error);
@@ -115,6 +136,26 @@ router.delete('/meal/:mealId', auth, async (req, res) => {
     // Remove the meal
     nutritionLog.meals.pull(req.params.mealId);
     await nutritionLog.save();
+
+    // Revoke nutrition XP if goals no longer met after deletion
+    try {
+      const user = await User.findById(req.userId);
+      if (user?.profile && user.onboardingComplete) {
+        const { tdee } = calculateTDEE(user.profile);
+        const calorieTarget = calculateCalorieTarget(tdee, user.profile.goal, user.profile.weight, user.profile.bodyFatPercentage);
+        const macros = calculateMacros(user.profile.weight, calorieTarget, user.profile.goal, user.profile.experience, user.profile.bodyFatPercentage);
+        const calRatio = nutritionLog.totalCalories / calorieTarget;
+        if (calRatio < 0.9 || calRatio > 1.1) {
+          await revokeXP(req.userId, 'calorie_goal');
+        }
+        const protRatio = nutritionLog.totalProtein / (macros?.protein || 1);
+        if (protRatio < 0.9) {
+          await revokeXP(req.userId, 'protein_goal');
+        }
+      }
+    } catch (xpErr) {
+      console.error('XP revoke error:', xpErr.message);
+    }
 
     res.json({ message: 'Meal deleted', daily: {
       totalCalories: nutritionLog.totalCalories,
@@ -183,6 +224,58 @@ router.get('/history', auth, async (req, res) => {
   } catch (error) {
     console.error('Nutrition history error:', error);
     res.status(500).json({ message: 'שגיאה בטעינת היסטוריית תזונה' });
+  }
+});
+
+// GET /nutrition/daily-menu - Get a suggested daily menu based on calorie target
+router.get('/daily-menu', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user?.profile || !user.onboardingComplete) {
+      return res.status(400).json({ message: 'Profile not complete' });
+    }
+
+    const { tdee } = calculateTDEE(user.profile);
+    const calorieTarget = calculateCalorieTarget(tdee, user.profile.goal, user.profile.weight, user.profile.bodyFatPercentage);
+    const macros = calculateMacros(user.profile.weight, calorieTarget, user.profile.goal, user.profile.experience, user.profile.bodyFatPercentage);
+    const excludeId = req.query.excludeId ? parseInt(req.query.excludeId) : null;
+
+    const menu = getRandomMenu(calorieTarget, excludeId, macros.protein);
+    if (!menu) {
+      return res.status(404).json({ message: 'No menu found' });
+    }
+
+    res.json({ menu, calorieTarget, proteinTarget: macros.protein });
+  } catch (error) {
+    console.error('Daily menu error:', error);
+    res.status(500).json({ message: 'Error getting daily menu' });
+  }
+});
+
+// GET /nutrition/swap-meal - Get an alternative meal of the same type with similar calories
+router.get('/swap-meal', auth, async (req, res) => {
+  try {
+    const validTypes = ['breakfast', 'snack', 'lunch', 'dinner'];
+    const type = req.query.type;
+    const calories = parseInt(req.query.calories);
+    const excludeText = req.query.excludeText || null;
+
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({ message: 'Invalid meal type' });
+    }
+    if (!calories || calories < 50 || calories > 2000) {
+      return res.status(400).json({ message: 'Invalid calories' });
+    }
+
+    const meal = swapMeal(type, calories, excludeText);
+    if (!meal) {
+      return res.status(404).json({ message: 'No alternative meal found' });
+    }
+
+    res.json({ meal });
+  } catch (error) {
+    console.error('Swap meal error:', error);
+    res.status(500).json({ message: 'Error swapping meal' });
   }
 });
 

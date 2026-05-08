@@ -1,15 +1,27 @@
 services:
   - type: web
-    name: fittrack-ai
+    name: bodysync-api
     runtime: node
     region: frankfurt
     plan: free
-    buildCommand: npm install --prefix client && npm run build --prefix client && npm install --prefix server
+    buildCommand: npm install --prefix server
     startCommand: node server/server.js
+    healthCheckPath: /health
     envVars:
+      # Sensitive vars — set the actual values in Render dashboard
+      # (Settings → Environment) so they are not committed to Git.
       - key: MONGODB_URI
-        value: mongodb+srv://yyotube1487:Yn9MIAfrxokvkaXy@clusteryedid.zfna7jv.mongodb.net/fittrack-ai?retryWrites=true&w=majority
+        sync: false
       - key: JWT_SECRET
-        value: fittrack-ai-super-secret-key-2026
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      # Public configuration — safe to commit.
+      - key: CORS_ORIGIN
+        value: https://app.digtal-c.co.il
       - key: NODE_VERSION
         value: 20.11.0

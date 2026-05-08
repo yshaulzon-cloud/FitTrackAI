@@ -2,7 +2,9 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
-const API_BASE = import.meta.env.DEV ? 'http://localhost:3001' : '';
+// Production: VITE_API_URL points to the Render deployment (e.g. https://bodysync-api.onrender.com)
+// Dev: falls back to local Express on port 3001
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
