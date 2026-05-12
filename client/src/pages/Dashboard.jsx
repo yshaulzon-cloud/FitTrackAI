@@ -11,6 +11,12 @@ import AdminPanel from '../components/AdminPanel';
 import ProgressionPanel from '../components/ProgressionPanel';
 import XPToast from '../components/XPToast';
 import SleepTracker from '../components/SleepTracker';
+import {
+  applyWorkoutReminder,
+  applyMealReminder,
+  applyStreakReminder,
+  applyWeeklyReport,
+} from '../lib/notifications';
 
 export default function Dashboard() {
   const { user, logout, api } = useAuth();
@@ -568,14 +574,26 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
   const [notifMeal,    setNotifMealState]    = useState(() => loadNotifPref('meal',    true));
   const [notifStreak,  setNotifStreakState]  = useState(() => loadNotifPref('streak',  true));
   const [notifWeekly,  setNotifWeeklyState]  = useState(() => loadNotifPref('weekly',  false));
-  const persist = (key, setter) => (val) => {
+  const persist = (key, setter, applyFn) => (val) => {
     localStorage.setItem(`notif:${key}`, val ? '1' : '0');
     setter(val);
+    if (applyFn) applyFn(val, lang === 'he').catch(() => {});
   };
-  const setNotifWorkout = persist('workout', setNotifWorkoutState);
-  const setNotifMeal    = persist('meal',    setNotifMealState);
-  const setNotifStreak  = persist('streak',  setNotifStreakState);
-  const setNotifWeekly  = persist('weekly',  setNotifWeeklyState);
+  const setNotifWorkout = persist('workout', setNotifWorkoutState, applyWorkoutReminder);
+  const setNotifMeal    = persist('meal',    setNotifMealState,    applyMealReminder);
+  const setNotifStreak  = persist('streak',  setNotifStreakState,  applyStreakReminder);
+  const setNotifWeekly  = persist('weekly',  setNotifWeeklyState,  applyWeeklyReport);
+
+  // On native startup, ensure scheduled notifications match the saved prefs.
+  // Runs once on mount; on web, the helpers are no-ops.
+  useEffect(() => {
+    const isHe = lang === 'he';
+    applyWorkoutReminder(notifWorkout, isHe).catch(() => {});
+    applyMealReminder(notifMeal, isHe).catch(() => {});
+    applyStreakReminder(notifStreak, isHe).catch(() => {});
+    applyWeeklyReport(notifWeekly, isHe).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');

@@ -5,7 +5,7 @@ const LanguageContext = createContext(null);
 const translations = {
   he: {
     // App name
-    appName: 'BodySync',
+    appName: 'Areto',
 
     // Tabs
     tabOverview: 'סקירה כללית',
@@ -460,7 +460,7 @@ const translations = {
   },
 
   en: {
-    appName: 'BodySync',
+    appName: 'Areto',
 
     tabOverview: 'Overview',
     tabWorkout: 'Workout Plan',

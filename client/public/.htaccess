@@ -1,4 +1,4 @@
-# BodySync — Apache config for the static SPA on app.digtal-c.co.il
+# Areto — Apache config for the static SPA on app.digtal-c.co.il
 # Ships with the build (Vite copies public/ to dist/).
 
 # ─── 1. Force HTTPS ───────────────────────────────────────────

@@ -123,6 +123,35 @@ function AuthRoute({ children }) {
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
 
+  // Native (Capacitor) bootstrap — runs only on Android/iOS, no-op on web.
+  // Hides the native splash, sets the status bar style, and wires the Android
+  // hardware back button to React Router instead of immediately exiting.
+  useEffect(() => {
+    let backHandler;
+    (async () => {
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        if (!Capacitor.isNativePlatform()) return;
+
+        const { SplashScreen } = await import('@capacitor/splash-screen');
+        const { StatusBar, Style } = await import('@capacitor/status-bar');
+        const { App: NativeApp } = await import('@capacitor/app');
+
+        await StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+        await StatusBar.setBackgroundColor({ color: '#0a0e1a' }).catch(() => {});
+        await SplashScreen.hide().catch(() => {});
+
+        backHandler = await NativeApp.addListener('backButton', ({ canGoBack }) => {
+          if (canGoBack) window.history.back();
+          else NativeApp.exitApp();
+        });
+      } catch {
+        // Plugins missing or web mode — ignore
+      }
+    })();
+    return () => { if (backHandler && backHandler.remove) backHandler.remove(); };
+  }, []);
+
   if (showSplash) {
     return <SplashScreen onDone={() => setShowSplash(false)} />;
   }

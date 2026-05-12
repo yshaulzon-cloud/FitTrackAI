@@ -72,7 +72,7 @@ if (fs.existsSync(path.join(clientDist, 'index.html'))) {
   });
 } else {
   app.get('/', (_req, res) => {
-    res.json({ name: 'BodySync API', status: 'ok' });
+    res.json({ name: 'Areto API', status: 'ok' });
   });
 }
 

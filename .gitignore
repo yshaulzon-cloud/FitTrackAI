@@ -27,3 +27,19 @@ screenshot-extras.mjs.bin
 
 # Build cache
 .cache/
+
+# Android signing — NEVER commit keystores or their passwords
+keystores/
+*.keystore
+*.jks
+key.properties
+
+# Capacitor build artifacts (regenerated on every build)
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+
+# Claude Code worktrees and local agent state
+.claude/worktrees/
+.claude/settings.local.json

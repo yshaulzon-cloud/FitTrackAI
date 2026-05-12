@@ -1,7 +1,7 @@
 {
-  "name": "bodysync-server",
+  "name": "areto-server",
   "version": "1.0.0",
-  "description": "BodySync Backend Server",
+  "description": "Areto Backend Server",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -16,6 +16,7 @@
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.4.0",
     "express-validator": "^7.2.0",
+    "google-auth-library": "^10.6.2",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.7.0",

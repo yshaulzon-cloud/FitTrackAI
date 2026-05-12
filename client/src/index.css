@@ -1,5 +1,5 @@
 /* ============================================================
-   BodySync — Design Tokens & Global Styles
+   Areto — Design Tokens & Global Styles
    Refined teal + violet palette, RTL Hebrew, Heebo + Assistant
    ============================================================ */
 
@@ -244,7 +244,14 @@ html, body {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* Native (Capacitor) safe-area: status bar / nav bar / iOS notch */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* Sidebar + mobile nav respect safe-area too */
+.sidebar { top: env(safe-area-inset-top); }
+.mobile-nav { padding-bottom: env(safe-area-inset-bottom); }
 
 a {
   color: var(--accent);

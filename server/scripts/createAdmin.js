@@ -5,7 +5,7 @@ const User = require('../models/User');
 async function createAdmin() {
   await mongoose.connect(process.env.MONGODB_URI);
 
-  const email = 'admin@bodysync.com';
+  const email = 'admin@areto.app';
   const password = 'Admin123!';
 
   // Check if admin already exists

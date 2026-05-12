@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Areto</string>
+    <string name="title_activity_main">Areto</string>
+    <string name="package_name">com.areto.app</string>
+    <string name="custom_url_scheme">com.areto.app</string>
+    <string name="server_client_id">674273831957-r79t2lo52fpddlairlldu9gvihkjvf7h.apps.googleusercontent.com</string>
+</resources>

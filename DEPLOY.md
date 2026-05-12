@@ -1,4 +1,7 @@
-# BodySync — Deployment Runbook (Stage 1: Web)
+# Areto — Deployment Runbook (Stage 1: Web)
+
+> Note: the Render service URL (`bodysync-api*.onrender.com`) and the contact Gmail (`bodysync11@gmail.com`) below were set up under the previous app name. They still work and are documented here as-is. Renaming them requires creating a new Render service and a new Gmail address — see the bottom of this doc.
+
 
 End state:
 - Backend running on Render (free tier) at `https://bodysync-api.onrender.com`
@@ -100,7 +103,7 @@ Two options:
 ### C.5 Verify
 
 Visit `https://app.digtal-c.co.il` in a browser:
-- Splash screen should appear with the BS logo.
+- Splash screen should appear with the Areto logo.
 - After ~2 seconds, the Login page should render.
 - Try logging in. If you get a CORS error, check that:
   - `CORS_ORIGIN` on Render = `https://app.digtal-c.co.il` (exactly, no trailing slash)

@@ -1,5 +1,24 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLang } from '../context/LanguageContext';
+import { scanBarcode, lookupBarcode } from '../lib/barcode';
+
+function isNativeShell() {
+  try {
+    return typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true;
+  } catch { return false; }
+}
+
+function ScanIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
+      <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+      <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+      <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+      <path d="M7 8v8M11 8v8M15 8v8M19 8v8"/>
+    </svg>
+  );
+}
 
 const MEAL_TYPE_TIMES = {
   breakfast: '07:30',
@@ -104,6 +123,8 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
 
   const [foodInput, setFoodInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const isNative = isNativeShell();
   const [message, setMessage] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [lastDeletedMeal, setLastDeletedMeal] = useState(null);
@@ -231,6 +252,31 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       setMessage(t.errorSaving);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleScan() {
+    setMessage('');
+    setScanning(true);
+    try {
+      const code = await scanBarcode();
+      if (!code) return;
+      const name = await lookupBarcode(code, lang);
+      if (!name) {
+        setMessage(isHe
+          ? `המוצר ${code} לא נמצא במאגר. תוכל להקליד אותו ידנית.`
+          : `Product ${code} not found. You can type it manually.`);
+        setTimeout(() => setMessage(''), 4000);
+        return;
+      }
+      setFoodInput(name);
+      setMessage(isHe ? `נסרק: ${name}` : `Scanned: ${name}`);
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      setMessage(err.message || (isHe ? 'הסריקה נכשלה' : 'Scan failed'));
+      setTimeout(() => setMessage(''), 4000);
+    } finally {
+      setScanning(false);
     }
   }
 
@@ -382,6 +428,19 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
                 disabled={loading}
               />
             </div>
+            {isNative && (
+              <button
+                type="button"
+                onClick={handleScan}
+                disabled={loading || scanning}
+                className="btn"
+                title={isHe ? 'סרוק ברקוד' : 'Scan barcode'}
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                <ScanIcon />
+                {scanning ? (isHe ? 'סורק…' : 'Scanning…') : (isHe ? 'סרוק' : 'Scan')}
+              </button>
+            )}
             <button
               type="submit"
               className="btn btn-accent"

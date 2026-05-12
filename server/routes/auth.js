@@ -4,9 +4,14 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 
 const router = express.Router();
+
+// Google OAuth verifier — uses the Web Client ID as audience.
+// Set GOOGLE_CLIENT_ID in Render environment.
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Rate limiters
 const authLimiter = rateLimit({
@@ -72,6 +77,118 @@ router.post(
     } catch (error) {
       console.error('Register error:', error);
       res.status(500).json({ message: 'שגיאה בהרשמה, נסה שנית' });
+    }
+  }
+);
+
+// POST /auth/google — Google Sign-In (mobile + web)
+// Mobile (Android via @codetrix-studio/capacitor-google-auth) sends `idToken`.
+// Web (Google Identity Services popup flow) sends `accessToken`.
+// We verify whichever was sent against our Web Client ID, then log the user
+// in or create a new account using the verified email.
+router.post(
+  '/google',
+  authLimiter,
+  async (req, res) => {
+    try {
+      if (!process.env.GOOGLE_CLIENT_ID) {
+        return res.status(500).json({ message: 'Google Sign-In לא מוגדר בשרת' });
+      }
+
+      const { idToken, accessToken } = req.body || {};
+      if (!idToken && !accessToken) {
+        return res.status(400).json({ message: 'idToken או accessToken חסר' });
+      }
+
+      let email;
+      let name = null;
+
+      if (idToken) {
+        const ticket = await googleClient.verifyIdToken({
+          idToken,
+          audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        if (!payload?.email_verified) {
+          return res.status(401).json({ message: 'האימייל של Google לא מאומת' });
+        }
+        email = payload.email.toLowerCase();
+        name = payload.given_name || payload.name || null;
+      } else {
+        // Verify the access token via Google's tokeninfo endpoint. This
+        // returns the audience the token was issued to and the user's email.
+        const tokenInfoRes = await fetch(
+          `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`
+        );
+        if (!tokenInfoRes.ok) {
+          return res.status(401).json({ message: 'אימות Google נכשל' });
+        }
+        const info = await tokenInfoRes.json();
+        if (info.aud !== process.env.GOOGLE_CLIENT_ID) {
+          return res.status(401).json({ message: 'Google token audience mismatch' });
+        }
+        if (info.email_verified !== 'true' && info.email_verified !== true) {
+          return res.status(401).json({ message: 'האימייל של Google לא מאומת' });
+        }
+        if (!info.email) {
+          // tokeninfo doesn't always include email; fall back to userinfo
+          const userInfoRes = await fetch(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          if (!userInfoRes.ok) {
+            return res.status(401).json({ message: 'לא ניתן לקבל פרטי משתמש מ-Google' });
+          }
+          const userInfo = await userInfoRes.json();
+          if (!userInfo.email_verified) {
+            return res.status(401).json({ message: 'האימייל של Google לא מאומת' });
+          }
+          email = userInfo.email.toLowerCase();
+          name = userInfo.given_name || userInfo.name || null;
+        } else {
+          email = info.email.toLowerCase();
+          // tokeninfo doesn't always include name fields — fetch userinfo for the name
+          try {
+            const userInfoRes = await fetch(
+              'https://www.googleapis.com/oauth2/v3/userinfo',
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
+            if (userInfoRes.ok) {
+              const userInfo = await userInfoRes.json();
+              name = userInfo.given_name || userInfo.name || null;
+            }
+          } catch { /* name is optional */ }
+        }
+      }
+
+      let user = await User.findOne({ email });
+      if (!user) {
+        // First-time Google sign-in → create account with a random password
+        // (the user authenticates only via Google; password is unreachable).
+        user = await User.create({
+          email,
+          password: crypto.randomBytes(32).toString('hex'),
+          name,
+        });
+      } else if (name && !user.name) {
+        user.name = name;
+        await user.save();
+      }
+
+      const token = generateToken(user._id);
+      res.json({
+        token,
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name || null,
+          onboardingComplete: user.onboardingComplete,
+          isAdmin: user.isAdmin || false,
+        },
+      });
+    } catch (error) {
+      console.error('Google auth error:', error.message);
+      res.status(401).json({ message: 'אימות Google נכשל' });
     }
   }
 );
@@ -158,12 +275,12 @@ router.post(
       });
 
       await transporter.sendMail({
-        from: `"BodySync" <${process.env.EMAIL_USER}>`,
+        from: `"Areto" <${process.env.EMAIL_USER}>`,
         to: email,
-        subject: 'BodySync - קוד איפוס סיסמה',
+        subject: 'Areto - קוד איפוס סיסמה',
         html: `
           <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #6c5ce7; text-align: center;">BodySync</h2>
+            <h2 style="color: #2dd4bf; text-align: center;">Areto</h2>
             <p style="text-align: center; color: #333;">קוד האיפוס שלך:</p>
             <div style="text-align: center; margin: 20px 0;">
               <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #00cec9; background: #f0f0f0; padding: 12px 24px; border-radius: 8px;">

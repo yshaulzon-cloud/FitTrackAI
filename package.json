@@ -1,5 +1,5 @@
 {
-  "name": "bodysync",
+  "name": "areto",
   "version": "1.0.0",
   "scripts": {
     "install-all": "cd client && npm install && cd ../server && npm install",

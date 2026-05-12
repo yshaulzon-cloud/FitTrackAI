@@ -176,7 +176,7 @@ export default function Onboarding() {
         {/* Header: brand + skip placeholder for symmetry */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
           <div className="brand">
-            <div className="brand__mark">BS</div>
+            <div className="brand__mark" aria-label="Areto">A</div>
             <div className="brand__name">{t.appName}</div>
           </div>
           <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>

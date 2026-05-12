@@ -3,7 +3,7 @@ import { useLang } from '../context/LanguageContext';
 
 /* ===========================================================
    Privacy Policy + Terms of Service.
-   Both are intentionally short, honest, and specific to BodySync.
+   Both are intentionally short, honest, and specific to Areto.
    They are not a substitute for review by an Israeli attorney
    before public launch — but they correctly describe what the
    app actually does today.
@@ -184,13 +184,13 @@ const TERMS_HE = {
     {
       h: '1. קבלת התנאים',
       p: [
-        'בעצם השימוש ב-BodySync, אתה מסכים לתנאים האלה. אם אינך מסכים — אל תשתמש בשירות.',
+        'בעצם השימוש ב-Areto, אתה מסכים לתנאים האלה. אם אינך מסכים — אל תשתמש בשירות.',
       ],
     },
     {
       h: '2. השירות',
       p: [
-        'BodySync היא אפליקציית מעקב כושר אישית שמחשבת יעדי תזונה וכושר על בסיס נתונים שאתה מזין. השירות ניתן "כפי שהוא" (As-Is).',
+        'Areto היא אפליקציית מעקב כושר אישית שמחשבת יעדי תזונה וכושר על בסיס נתונים שאתה מזין. השירות ניתן "כפי שהוא" (As-Is).',
       ],
     },
     {
@@ -208,7 +208,7 @@ const TERMS_HE = {
     {
       h: '5. שימוש מותר',
       p: [
-        'מותר להשתמש ב-BodySync לצרכים אישיים. אסור:',
+        'מותר להשתמש ב-Areto לצרכים אישיים. אסור:',
       ],
       list: [
         'לנסות לעקוף, לתקוף או לפרוץ את השרת או שרת ה-AI.',
@@ -232,7 +232,7 @@ const TERMS_HE = {
     {
       h: '8. הגבלת אחריות',
       p: [
-        'BodySync, היזמים והמשתפים לא יישאו באחריות לכל נזק ישיר או עקיף שייגרם משימוש בשירות, לרבות שינויים במצב הבריאותי או הגופני שלך כתוצאה מהמלצות באפליקציה.',
+        'Areto, היזמים והמשתפים לא יישאו באחריות לכל נזק ישיר או עקיף שייגרם משימוש בשירות, לרבות שינויים במצב הבריאותי או הגופני שלך כתוצאה מהמלצות באפליקציה.',
       ],
     },
     {
@@ -256,12 +256,12 @@ const TERMS_EN = {
   sections: [
     {
       h: '1. Acceptance',
-      p: ['By using BodySync, you agree to these terms. If you do not agree, do not use the service.'],
+      p: ['By using Areto, you agree to these terms. If you do not agree, do not use the service.'],
     },
     {
       h: '2. The service',
       p: [
-        'BodySync is a personal fitness-tracking app that computes nutrition and training targets based on data you provide. The service is provided "as is".',
+        'Areto is a personal fitness-tracking app that computes nutrition and training targets based on data you provide. The service is provided "as is".',
       ],
     },
     {
@@ -278,7 +278,7 @@ const TERMS_EN = {
     },
     {
       h: '5. Acceptable use',
-      p: ['BodySync is for personal use. You may not:'],
+      p: ['Areto is for personal use. You may not:'],
       list: [
         'Attempt to bypass, attack, or breach our servers or the AI provider.',
         'Create fake accounts in bulk.',
@@ -301,7 +301,7 @@ const TERMS_EN = {
     {
       h: '8. Limitation of liability',
       p: [
-        'BodySync, its founders, and contributors are not liable for any direct or indirect damage resulting from your use of the service, including changes to your physical or health condition based on in-app recommendations.',
+        'Areto, its founders, and contributors are not liable for any direct or indirect damage resulting from your use of the service, including changes to your physical or health condition based on in-app recommendations.',
       ],
     },
     {
