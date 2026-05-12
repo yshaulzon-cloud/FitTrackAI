@@ -68,7 +68,7 @@ function MacroRingSmall({ pct = 0 }) {
 }
 
 
-function MealRow({ time, emoji, name, desc, cal, p, c, f, status, onLog, onDelete, isHe, t }) {
+function MealRow({ time, emoji, name, desc, cal, p, c, f, status, onLog, onDelete, onSwap, swapping, isHe, t }) {
   return (
     <div className={`meal-row meal-row--${status}`}>
       <div className="meal-row__time-block">
@@ -109,7 +109,19 @@ function MealRow({ time, emoji, name, desc, cal, p, c, f, status, onLog, onDelet
             onClick={onLog}
             type="button"
           >
-            {status === 'now' ? (isHe ? 'סמן שאכלתי' : 'Mark eaten') : (isHe ? 'לוג' : 'Log')}
+            {isHe ? 'סמן שאכלתי' : 'Mark eaten'}
+          </button>
+        )}
+        {status !== 'done' && onSwap && (
+          <button
+            className="meal-row__swap"
+            onClick={onSwap}
+            disabled={swapping}
+            type="button"
+            title={isHe ? 'החלף ארוחה' : 'Swap meal'}
+            aria-label={isHe ? 'החלף ארוחה' : 'Swap meal'}
+          >
+            {swapping ? '…' : (isHe ? '🔄 החלף' : '🔄 Swap')}
           </button>
         )}
       </div>
@@ -567,48 +579,23 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
             : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[meal.type] || meal.type);
 
           return (
-            <div key={`menu-${idx}`} style={{ position: 'relative' }}>
-              <MealRow
-                time={time}
-                emoji={emoji}
-                name={typeLabel}
-                desc={isHe ? meal.he : (meal.en || meal.he)}
-                cal={meal.calories}
-                p={meal.protein}
-                c={meal.carbs}
-                f={meal.fat}
-                status={status}
-                isHe={isHe}
-                t={t}
-                onLog={loggingIdx === idx ? null : () => logMenuMeal(idx)}
-              />
-              {/* Tiny swap action overlay */}
-              <button
-                type="button"
-                onClick={() => swapMealAtIndex(idx)}
-                disabled={swappingIdx === idx}
-                title={isHe ? 'החלף ארוחה' : 'Swap meal'}
-                style={{
-                  position: 'absolute',
-                  top: 12,
-                  insetInlineEnd: 12,
-                  background: 'rgba(45, 212, 191, 0.12)',
-                  color: 'var(--accent)',
-                  border: '1px solid rgba(45, 212, 191, 0.3)',
-                  borderRadius: 8,
-                  width: 28,
-                  height: 28,
-                  fontSize: 13,
-                  cursor: swappingIdx === idx ? 'wait' : 'pointer',
-                  opacity: swappingIdx === idx ? 0.5 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {swappingIdx === idx ? '…' : '🔄'}
-              </button>
-            </div>
+            <MealRow
+              key={`menu-${idx}`}
+              time={time}
+              emoji={emoji}
+              name={typeLabel}
+              desc={isHe ? meal.he : (meal.en || meal.he)}
+              cal={meal.calories}
+              p={meal.protein}
+              c={meal.carbs}
+              f={meal.fat}
+              status={status}
+              isHe={isHe}
+              t={t}
+              onLog={loggingIdx === idx ? null : () => logMenuMeal(idx)}
+              onSwap={() => swapMealAtIndex(idx)}
+              swapping={swappingIdx === idx}
+            />
           );
         })}
 
