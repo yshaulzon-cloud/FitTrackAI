@@ -624,7 +624,9 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
         )}
       </div>
 
-      {/* Daily summary card (kept for completeness with the new visual) */}
+      {/* Daily summary — only useful once something has been logged.
+          On an empty day, 4 zero-progress bars are noise (audit). */}
+      {calorieProgress > 0 && (
       <div className="card" style={{ marginTop: 20 }}>
         <div className="card-header">
           <h3>{t.dailySummary}</h3>
@@ -651,6 +653,7 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
           );
         })}
       </div>
+      )}
 
       {/* Footer hint card */}
       {targets?.macros?.proteinPerMeal && (

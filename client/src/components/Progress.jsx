@@ -111,6 +111,13 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
   const [sleepHistory, setSleepHistory] = useState([]);
   const [sleepRec, setSleepRec] = useState(null);
 
+  // ─── Time range filter (audit: range tabs) ─────────────────
+  // The charts still show ~7 columns regardless — wider ranges aggregate
+  // into weekly buckets so the visuals stay readable on mobile.
+  const [range, setRange] = useState(7); // 7 | 30 | 90
+  const bucketsCount = range === 7 ? 7 : range === 30 ? 4 : 9;
+  const daysPerBucket = Math.max(1, Math.round(range / bucketsCount));
+
   useEffect(() => {
     if (!api) return;
     api('/nutrition/history').then(setNutritionHistory).catch(() => {});
@@ -126,49 +133,75 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
   const dayLabels = isHe ? dayLabelsHe : dayLabelsEn;
 
   const last7Workouts = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(today.getDate() - (6 - i));
-      d.setHours(0, 0, 0, 0);
-      const next = new Date(d);
-      next.setDate(d.getDate() + 1);
+    // For 7-day range: one bucket per day. For 30/90: each bucket aggregates
+    // daysPerBucket days so the chart stays readable.
+    return Array.from({ length: bucketsCount }, (_, i) => {
+      const bucketEnd = new Date(today);
+      bucketEnd.setDate(today.getDate() - (bucketsCount - 1 - i) * daysPerBucket);
+      bucketEnd.setHours(0, 0, 0, 0);
+      const bucketStart = new Date(bucketEnd);
+      bucketStart.setDate(bucketEnd.getDate() - daysPerBucket + 1);
+      const next = new Date(bucketEnd);
+      next.setDate(bucketEnd.getDate() + 1);
       const w = workouts.filter(w => {
         const dt = new Date(w.date);
-        return dt >= d && dt < next;
+        return dt >= bucketStart && dt < next;
       });
+      const label = range === 7
+        ? dayLabels[bucketEnd.getDay()]
+        : `${bucketEnd.getDate()}/${bucketEnd.getMonth() + 1}`;
       return {
-        date: d,
-        label: dayLabels[d.getDay()],
+        date: bucketEnd,
+        label,
         count: w.length,
         calories: w.reduce((sum, x) => sum + (x.caloriesBurned || 0), 0),
       };
     });
-  }, [workouts]); // eslint-disable-line
+  }, [workouts, range, bucketsCount, daysPerBucket]); // eslint-disable-line
 
   const maxBar = Math.max(2, ...last7Workouts.map(d => d.count));
 
-  // 7-day calorie line (real data)
+  // Calorie line — same bucket strategy as workouts. For >7-day ranges we
+  // average daily totals within each bucket so the line stays a "typical
+  // day" estimate rather than a sum (which would shoot up).
   const last7Calories = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(today.getDate() - (6 - i));
-      d.setHours(0, 0, 0, 0);
-      const next = new Date(d);
-      next.setDate(d.getDate() + 1);
-      // Today's value comes from todayNutrition (more recent than the history snapshot)
-      let value = 0;
-      if (i === 6) {
-        value = todayCalories;
+    return Array.from({ length: bucketsCount }, (_, i) => {
+      const bucketEnd = new Date(today);
+      bucketEnd.setDate(today.getDate() - (bucketsCount - 1 - i) * daysPerBucket);
+      bucketEnd.setHours(0, 0, 0, 0);
+      const bucketStart = new Date(bucketEnd);
+      bucketStart.setDate(bucketEnd.getDate() - daysPerBucket + 1);
+      const next = new Date(bucketEnd);
+      next.setDate(bucketEnd.getDate() + 1);
+
+      const isLatest = i === bucketsCount - 1;
+      let total = 0;
+      let count = 0;
+      if (isLatest && range === 7) {
+        // Match the legacy 7-day flow exactly: latest bucket = today's live value
+        total = todayCalories;
+        count = 1;
       } else {
-        const log = nutritionHistory.find(l => {
+        nutritionHistory.forEach(l => {
           const ld = new Date(l.date);
-          return ld >= d && ld < next;
+          if (ld >= bucketStart && ld < next) {
+            total += l.totalCalories || 0;
+            count += 1;
+          }
         });
-        value = log?.totalCalories || 0;
+        // Fold today's live value into the latest bucket for ranges > 7
+        if (isLatest && todayCalories > 0) {
+          total += todayCalories;
+          count += 1;
+        }
       }
-      return { label: dayLabels[d.getDay()], value };
+      const value = count > 0 ? Math.round(total / count) : 0;
+      const label = range === 7
+        ? dayLabels[bucketEnd.getDay()]
+        : `${bucketEnd.getDate()}/${bucketEnd.getMonth() + 1}`;
+      return { label, value };
     });
-  }, [nutritionHistory, todayCalories]); // eslint-disable-line
+  }, [nutritionHistory, todayCalories, range, bucketsCount, daysPerBucket]); // eslint-disable-line
 
   // 7-day sleep entries (real data)
   const last7Sleep = useMemo(() => {
@@ -323,6 +356,25 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
         <p>{t.trackProgress}</p>
       </div>
 
+      {/* ─── Range tabs (audit: 7d/30d/90d quick filter) ────── */}
+      <div className="range-tabs" role="tablist" aria-label={isHe ? 'טווח זמן' : 'Time range'}>
+        {[
+          { v: 7,  label: isHe ? '7 ימים' : '7 days' },
+          { v: 30, label: isHe ? '30 ימים' : '30 days' },
+          { v: 90, label: isHe ? '90 ימים' : '90 days' },
+        ].map((r) => (
+          <button
+            key={r.v}
+            role="tab"
+            aria-selected={range === r.v}
+            className={`range-tabs__btn${range === r.v ? ' range-tabs__btn--active' : ''}`}
+            onClick={() => setRange(r.v)}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
       {/* ─── Insight headline ────────────────────────────────── */}
       <div className="insight-headline">
         <div className={`insight-headline__delta insight-headline__delta--${headline.cls}`}>
@@ -409,7 +461,7 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
       <div className="chart-card">
         <div className="chart-card__header">
           <div className="chart-card__title">
-            {isHe ? 'אימונים · 7 ימים אחרונים' : 'Workouts · last 7 days'}
+            {isHe ? `אימונים · ${range} ימים אחרונים` : `Workouts · last ${range} days`}
           </div>
           <div className="chart-card__meta">
             {workoutsThisWeek}/{workoutTarget} {isHe ? `(${workoutPct}%)` : `(${workoutPct}%)`}
@@ -438,7 +490,7 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
       <div className="chart-card">
         <div className="chart-card__header">
           <div className="chart-card__title">
-            {isHe ? 'קלוריות · 7 ימים אחרונים' : 'Calories · last 7 days'}
+            {isHe ? `קלוריות · ${range} ימים אחרונים` : `Calories · last ${range} days`}
           </div>
           <div className="chart-card__meta" style={{ color: 'var(--c-cal)' }}>
             {avgCalories > 0
