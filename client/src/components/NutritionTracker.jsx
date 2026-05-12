@@ -223,8 +223,8 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       setTimeout(() => setMessage(''), 3000);
       onUpdate();
     } catch (err) {
-      setMessage(t.errorSaving);
-      setTimeout(() => setMessage(''), 3000);
+      setMessage(err.message || t.errorSaving);
+      setTimeout(() => setMessage(''), 5000);
     } finally {
       setLoggingIdx(null);
     }
@@ -249,7 +249,8 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       setTimeout(() => setMessage(''), 4000);
       onUpdate();
     } catch (err) {
-      setMessage(t.errorSaving);
+      setMessage(err.message || t.errorSaving);
+      setTimeout(() => setMessage(''), 5000);
     } finally {
       setLoading(false);
     }
@@ -295,8 +296,8 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       setTimeout(() => setMessage(''), 3000);
       onUpdate();
     } catch (err) {
-      setMessage(t.errorSaving);
-      setTimeout(() => setMessage(''), 3000);
+      setMessage(err.message || t.errorSaving);
+      setTimeout(() => setMessage(''), 5000);
     } finally {
       setLoading(false);
     }

@@ -37,9 +37,9 @@ const PRIVACY_HE = {
       ],
     },
     {
-      h: '3. בינה מלאכותית והערכת ארוחות',
+      h: '3. הערכת ארוחות',
       p: [
-        'כשאתה רושם ארוחה במילים חופשיות (לדוגמה "סטייק עם אורז"), השאילתה נשלחת ל-Anthropic Claude כדי להעריך את ערכי התזונה. השאילתה לא כוללת את כתובת האימייל שלך או מזהים אישיים — רק את תיאור הארוחה.',
+        'הזנת ארוחות מתבצעת מול מאגר מזון מקומי שמותקן בשרת. כל מאכל שאתה מזין מחושב לפי הערכים השמורים במאגר. לא נשלחות שאילתות לשירות AI חיצוני להערכת ערכי תזונה.',
       ],
     },
     {
@@ -54,7 +54,6 @@ const PRIVACY_HE = {
         'אנחנו לא מוכרים את המידע שלך. שירותים חיצוניים שאיתם יש לנו אינטראקציה הם:',
       ],
       list: [
-        'Anthropic (Claude) — לצורך הערכת ארוחות בלבד.',
         'Gmail SMTP — לשליחת קוד איפוס סיסמה.',
         'MongoDB Atlas — אחסון בענן.',
       ],
@@ -121,9 +120,9 @@ const PRIVACY_EN = {
       ],
     },
     {
-      h: '3. AI and meal estimation',
+      h: '3. Meal estimation',
       p: [
-        'When you log a meal in free text ("steak with rice"), the description is sent to Anthropic Claude to estimate nutrition values. The request does not include your email or any personal identifier — only the meal description.',
+        'Meal logging is performed against a local food database stored on the server. Every meal you enter is matched and computed using the values held in that database. No queries are sent to an external AI service for nutrition estimation.',
       ],
     },
     {
@@ -136,7 +135,6 @@ const PRIVACY_EN = {
       h: '5. Third-party services',
       p: ['We do not sell your data. The external services we interact with are:'],
       list: [
-        'Anthropic (Claude) — for meal estimation only.',
         'Gmail SMTP — to send password reset codes.',
         'MongoDB Atlas — cloud storage.',
       ],

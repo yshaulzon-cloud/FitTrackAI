@@ -1,7 +1,7 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const Nutrition = require('../models/Nutrition');
-const { estimateNutrition, estimateNutritionAI, calculateTDEE, calculateCalorieTarget, calculateMacros } = require('../utils/calculations');
+const { estimateNutrition, calculateTDEE, calculateCalorieTarget, calculateMacros } = require('../utils/calculations');
 const { checkNutritionGoals, revokeXP } = require('../utils/progression');
 const User = require('../models/User');
 const { getRandomMenu, swapMeal } = require('../data/mealPlans');
@@ -20,19 +20,14 @@ router.post('/log', auth, async (req, res) => {
       return res.status(400).json({ message: 'תיאור ארוך מדי (מקסימום 500 תווים)' });
     }
 
-    let estimated = estimateNutrition(description);
+    const estimated = estimateNutrition(description);
 
-    // If no match in local database, try AI estimation
+    // Strict mode: only foods that match the local FOOD_DB are accepted.
+    // Unknown items are rejected so we never log a meal with guessed values.
     if (!estimated) {
-      try {
-        estimated = await estimateNutritionAI(description);
-      } catch (aiErr) {
-        console.error('AI estimation failed, using defaults:', aiErr.message);
-        estimated = {
-          calories: 300, protein: 15, carbs: 35, fat: 10, fiber: 2,
-          source: 'default',
-        };
-      }
+      return res.status(404).json({
+        message: 'המאכל לא נמצא במאגר. נסה שם אחר או חיפוש קצר יותר.',
+      });
     }
 
     // Find today's nutrition log or create one
