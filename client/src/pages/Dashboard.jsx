@@ -40,6 +40,16 @@ export default function Dashboard() {
     ...(isAdmin ? [{ id: 'admin', label: t.tabAdmin, icon: '🛡️' }] : []),
   ];
 
+  // Mobile bottom nav: 5 primary tabs only (audit recommendation).
+  // Goals + XP are accessible from within Overview cards / Progress sections.
+  const mobileTabs = [
+    { id: 'overview', label: t.tabOverview, icon: '🏠' },
+    { id: 'workout', label: t.tabWorkout, icon: '🏋️' },
+    { id: 'nutrition', label: t.tabNutrition, icon: '🍽️' },
+    { id: 'progress', label: t.tabProgress, icon: '📈' },
+    { id: 'settings', label: t.tabSettings, icon: '⚙️' },
+  ];
+
   const goalLabels = {
     bulk: t.goalBulk,
     cut: t.goalCut,
@@ -198,17 +208,25 @@ export default function Dashboard() {
         )}
       </main>
 
-      <nav className="mobile-nav">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            className={activeTab === tab.id ? 'active' : ''}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            <span className="nav-icon">{tab.icon}</span>
-            {tab.label}
-          </button>
-        ))}
+      <nav className="mobile-nav" aria-label={lang === 'he' ? 'ניווט ראשי' : 'Primary navigation'}>
+        {mobileTabs.map((tab) => {
+          // Progress tab is "active" when user is on progress, goals, or xp screens
+          // (goals/xp are accessed via cards from within their grouped tab).
+          const isActive = tab.id === 'progress'
+            ? ['progress', 'goals', 'xp'].includes(activeTab)
+            : activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              className={isActive ? 'active' : ''}
+              onClick={() => setActiveTab(tab.id)}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              <span className="nav-icon" aria-hidden="true">{tab.icon}</span>
+              <span className="nav-label">{tab.label}</span>
+            </button>
+          );
+        })}
       </nav>
     </div>
   );
@@ -555,6 +573,12 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
   const isHe = lang === 'he';
 
   const [section, setSection] = useState('body');
+  // Mobile push-navigation: when user taps a section item, we go into "detail
+  // view" (only the section content is shown, with a back button). On
+  // desktop both list and content are visible side-by-side (CSS).
+  const [showingDetail, setShowingDetail] = useState(false);
+  const openSection = (id) => { setSection(id); setShowingDetail(true); };
+  const closeDetail = () => setShowingDetail(false);
   const [weight, setWeight] = useState(profile?.weight || '');
   const [height, setHeight] = useState(profile?.height || '');
   const [goal, setGoal] = useState(profile?.goal || '');
@@ -879,24 +903,34 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
         <p>{t.settingsSubtitle}</p>
       </div>
 
-      <div className="settings-layout">
+      <div className={`settings-layout${showingDetail ? ' settings-layout--in-detail' : ''}`}>
         {/* ── Internal side-nav ────────────────────────────── */}
-        <aside className="settings-nav">
+        <aside className="settings-nav" aria-label={isHe ? 'קטגוריות הגדרות' : 'Settings categories'}>
           {sections.map((s) => (
             <button
               key={s.id}
               type="button"
               className={`settings-nav__item${section === s.id ? ' settings-nav__item--active' : ''}`}
-              onClick={() => setSection(s.id)}
+              onClick={() => openSection(s.id)}
             >
               <span className="settings-nav__icon">{s.icon}</span>
               <span>{s.label}</span>
+              <span className="settings-nav__chevron" aria-hidden="true">{isHe ? '‹' : '›'}</span>
             </button>
           ))}
         </aside>
 
         {/* ── Section content ──────────────────────────────── */}
-        <div>
+        <div className="settings-content">
+          <button
+            type="button"
+            className="settings-back"
+            onClick={closeDetail}
+            aria-label={isHe ? 'חזרה לרשימת ההגדרות' : 'Back to settings list'}
+          >
+            <span aria-hidden="true">{isHe ? '←' : '→'}</span>
+            <span>{isHe ? 'חזרה' : 'Back'}</span>
+          </button>
           {/* ─── Body data ─────────────────────────────────── */}
           {section === 'body' && (
             <div className="settings-category-card">

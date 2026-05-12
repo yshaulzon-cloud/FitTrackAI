@@ -12,6 +12,11 @@ import { useLang } from '../context/LanguageContext';
 const PRIVACY_HE = {
   title: 'מדיניות פרטיות',
   updated: 'עודכן: מאי 2026',
+  tldr: [
+    'אוספים נתוני פרופיל ופעילות (תזונה, אימונים, שינה)',
+    'לא משתפים עם צד שלישי. לא משתמשים ב-AI להערכת ארוחות',
+    'אפשר למחוק את החשבון בכל זמן — והנתונים נמחקים מהשרת',
+  ],
   sections: [
     {
       h: '1. איזה מידע אנחנו אוספים',
@@ -97,6 +102,11 @@ const PRIVACY_HE = {
 const PRIVACY_EN = {
   title: 'Privacy Policy',
   updated: 'Last updated: May 2026',
+  tldr: [
+    'We collect profile and activity data (nutrition, workouts, sleep)',
+    'We don’t share with third parties. No AI service estimates meals',
+    'You can delete your account anytime — all data is removed from our server',
+  ],
   sections: [
     {
       h: '1. What we collect',
@@ -178,6 +188,11 @@ const PRIVACY_EN = {
 const TERMS_HE = {
   title: 'תנאי שימוש',
   updated: 'עודכן: מאי 2026',
+  tldr: [
+    'Areto היא כלי כושר ולא תחליף לרופא',
+    'התייעץ עם איש מקצוע לפני שינויים מהותיים באימון או בתזונה',
+    'אסור לתקוף, לפרוץ או לאסוף נתוני משתמשים אחרים',
+  ],
   sections: [
     {
       h: '1. קבלת התנאים',
@@ -251,6 +266,11 @@ const TERMS_HE = {
 const TERMS_EN = {
   title: 'Terms of Service',
   updated: 'Last updated: May 2026',
+  tldr: [
+    'Areto is a fitness tool, not medical advice',
+    'Consult a professional before material changes to training or diet',
+    'No attacking, breaching, or harvesting data from other users',
+  ],
   sections: [
     {
       h: '1. Acceptance',
@@ -422,6 +442,52 @@ export default function LegalModal({ doc, onClose }) {
           lineHeight: 1.65,
           fontSize: 15,
         }}>
+          {data.tldr && data.tldr.length > 0 && (
+            <aside style={{
+              padding: '16px 18px',
+              marginBottom: 22,
+              borderRadius: 12,
+              background: 'rgba(45, 212, 191, 0.08)',
+              border: '1px solid rgba(45, 212, 191, 0.22)',
+            }}>
+              <div style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: 'var(--accent)',
+                marginBottom: 10,
+              }}>TL;DR</div>
+              <ul style={{
+                listStyle: 'none',
+                margin: 0,
+                padding: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}>
+                {data.tldr.map((item, i) => (
+                  <li key={i} style={{
+                    paddingInlineStart: 22,
+                    position: 'relative',
+                    color: 'var(--text-1)',
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                  }}>
+                    <span style={{
+                      position: 'absolute',
+                      insetInlineStart: 0,
+                      top: 1,
+                      color: 'var(--accent)',
+                      fontWeight: 700,
+                    }}>•</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          )}
           {data.sections.map((s, i) => (
             <section key={i} style={{ marginBottom: 24 }}>
               <h3 style={{

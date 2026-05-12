@@ -8,7 +8,7 @@ import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
 
 function SplashScreen({ onDone }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [fading, setFading] = useState(false);
 
   useEffect(() => {
@@ -16,6 +16,8 @@ function SplashScreen({ onDone }) {
     const doneTimer = setTimeout(() => onDone(), 2000);
     return () => { clearTimeout(fadeTimer); clearTimeout(doneTimer); };
   }, [onDone]);
+
+  const tagline = lang === 'he' ? 'בנה · עקוב · תשתפר' : 'Build · Track · Improve';
 
   return (
     <div style={{
@@ -74,15 +76,19 @@ function SplashScreen({ onDone }) {
           {t.appName}
         </div>
       </div>
-      <div dir="ltr" style={{
+      <div style={{
         position: 'relative',
         fontSize: 14,
         color: '#7e879d',
-        letterSpacing: '0.18em',
-        textTransform: 'uppercase',
+        letterSpacing: lang === 'he' ? '0.04em' : '0.18em',
+        textTransform: lang === 'he' ? 'none' : 'uppercase',
         fontWeight: 600,
       }}>
-        Build. Track. Improve.
+        {tagline}
+      </div>
+      {/* Pulse-dot loader — keeps the splash feeling alive while assets warm up */}
+      <div className="splash-loader" aria-hidden="true">
+        <span /><span /><span />
       </div>
     </div>
   );

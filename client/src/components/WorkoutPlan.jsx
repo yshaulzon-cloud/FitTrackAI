@@ -129,9 +129,13 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   const [homeMode, setHomeMode] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [lastDeleted, setLastDeleted] = useState(null);
+  const [selectedDayIdx, setSelectedDayIdx] = useState(0);
 
   const days = plan?.days || plan || [];
   const notes = plan?.notes || [];
+  // One-day view: render only the active day card. Audit recommendation.
+  const safeDayIdx = Math.min(selectedDayIdx, Math.max(0, days.length - 1));
+  const visibleDays = days.length > 0 ? [{ ...days[safeDayIdx], __idx: safeDayIdx }] : [];
 
   // Check if already trained today
   const today = new Date();
@@ -391,7 +395,35 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         </div>
       )}
 
-      {days.map((day, idx) => {
+      {/* Day selector (audit: one-day view, swipe/tab between days) */}
+      {days.length > 1 && (
+        <div className="workout-day-tabs" role="tablist" aria-label={lang === 'he' ? 'ימי אימון' : 'Workout days'}>
+          {days.map((d, i) => {
+            const ts = typeColors[d.type] || typeColors.strength;
+            const isActive = i === safeDayIdx;
+            return (
+              <button
+                key={i}
+                role="tab"
+                aria-selected={isActive}
+                className={`workout-day-tab${isActive ? ' workout-day-tab--active' : ''}`}
+                onClick={() => setSelectedDayIdx(i)}
+                style={isActive ? {
+                  background: ts.bg,
+                  borderColor: ts.border,
+                  color: ts.color,
+                } : undefined}
+              >
+                <span className="workout-day-tab__num">{lang === 'he' ? `יום ${i + 1}` : `Day ${i + 1}`}</span>
+                <span className="workout-day-tab__label">{ts.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {visibleDays.map((day) => {
+        const idx = day.__idx;
         const typeStyle = typeColors[day.type] || typeColors.strength;
         const isCompleting = completingDay === day.day;
         const duration = getDuration(day.day);

@@ -335,8 +335,9 @@ export default function Login() {
           )}
 
           <form onSubmit={handleSubmit}>
-            <label className="field-label">{t.email}</label>
+            <label className="field-label" htmlFor="login-email">{t.email}</label>
             <input
+              id="login-email"
               type="email"
               className="field-input"
               placeholder="you@example.com"
@@ -344,6 +345,8 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
               dir="ltr"
               autoComplete="email"
+              inputMode="email"
+              autoFocus
               style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left' }}
             />
 
