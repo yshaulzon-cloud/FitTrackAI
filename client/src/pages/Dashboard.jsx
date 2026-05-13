@@ -737,6 +737,68 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
     parseInt(workoutsPerWeek) !== profile?.workoutsPerWeek
   );
 
+  // Autosave state — shown as a tiny indicator at the top of the section.
+  //   'idle' (no recent change), 'pending' (typing), 'saving' (mid-flight),
+  //   'saved' (briefly after success), 'error'.
+  const [autoSaveStatus, setAutoSaveStatus] = useState('idle');
+
+  // Debounced auto-save for body + goal fields. Fires 800ms after the
+  // last change so the user can finish typing before we hit the server.
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    setAutoSaveStatus('pending');
+    const timer = setTimeout(async () => {
+      try {
+        setAutoSaveStatus('saving');
+        await api('/user/profile', {
+          method: 'PUT',
+          body: JSON.stringify({
+            weight: parseFloat(weight),
+            height: parseFloat(height),
+            goal,
+            gender,
+            workoutsPerWeek: parseInt(workoutsPerWeek),
+          }),
+        });
+        setAutoSaveStatus('saved');
+        onUpdate();
+        setTimeout(() => setAutoSaveStatus('idle'), 1800);
+      } catch {
+        setAutoSaveStatus('error');
+        setTimeout(() => setAutoSaveStatus('idle'), 3000);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [weight, height, goal, gender, workoutsPerWeek, hasUnsavedChanges]); // eslint-disable-line
+
+  // Same pattern for the Account section (name + age).
+  useEffect(() => {
+    const dirty = (name && name.trim() !== (userName || '')) ||
+                  (age && parseInt(age) !== profile?.age);
+    if (!dirty) return;
+    setAutoSaveStatus('pending');
+    const timer = setTimeout(async () => {
+      try {
+        setAutoSaveStatus('saving');
+        const payload = {};
+        if (name && name.trim() !== (userName || '')) payload.name = name.trim();
+        if (age && parseInt(age) !== profile?.age) payload.age = parseInt(age);
+        if (Object.keys(payload).length === 0) {
+          setAutoSaveStatus('idle');
+          return;
+        }
+        await api('/user/profile', { method: 'PUT', body: JSON.stringify(payload) });
+        setAutoSaveStatus('saved');
+        onUpdate();
+        setTimeout(() => setAutoSaveStatus('idle'), 1800);
+      } catch {
+        setAutoSaveStatus('error');
+        setTimeout(() => setAutoSaveStatus('idle'), 3000);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [name, age]); // eslint-disable-line
+
   async function handleSave(e) {
     if (e) e.preventDefault();
     setLoading(true);
@@ -922,15 +984,26 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
 
         {/* ── Section content ──────────────────────────────── */}
         <div className="settings-content">
-          <button
-            type="button"
-            className="settings-back"
-            onClick={closeDetail}
-            aria-label={isHe ? 'חזרה לרשימת ההגדרות' : 'Back to settings list'}
-          >
-            <span aria-hidden="true">{isHe ? '←' : '→'}</span>
-            <span>{isHe ? 'חזרה' : 'Back'}</span>
-          </button>
+          <div className="settings-toolbar">
+            <button
+              type="button"
+              className="settings-back"
+              onClick={closeDetail}
+              aria-label={isHe ? 'חזרה לרשימת ההגדרות' : 'Back to settings list'}
+            >
+              <span aria-hidden="true">{isHe ? '←' : '→'}</span>
+              <span>{isHe ? 'חזרה' : 'Back'}</span>
+            </button>
+            {/* Autosave indicator — visible only when something interesting is happening */}
+            {autoSaveStatus !== 'idle' && (
+              <span className={`autosave-status autosave-status--${autoSaveStatus}`}>
+                {autoSaveStatus === 'pending' && (isHe ? '… משינויים בהמתנה' : '… changes pending')}
+                {autoSaveStatus === 'saving' && (isHe ? 'שומר…' : 'Saving…')}
+                {autoSaveStatus === 'saved' && (isHe ? '✓ נשמר' : '✓ Saved')}
+                {autoSaveStatus === 'error' && (isHe ? '✗ שגיאה בשמירה' : '✗ Save failed')}
+              </span>
+            )}
+          </div>
           {/* ─── Body data ─────────────────────────────────── */}
           {section === 'body' && (
             <div className="settings-category-card">

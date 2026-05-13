@@ -14,6 +14,28 @@ function ArrowIcon() {
   );
 }
 
+// Minimal "Step N of 2" indicator for the password-reset flow.
+// Two segmented bars (current = teal, future = muted) + a label.
+function ResetStepIndicator({ current, isHe }) {
+  return (
+    <div className="reset-step-indicator" aria-label={isHe ? `שלב ${current} מתוך 2` : `Step ${current} of 2`}>
+      <div className="reset-step-indicator__bars" aria-hidden="true">
+        <span className={current >= 1 ? 'is-done' : ''} />
+        <span className={current >= 2 ? 'is-done' : ''} />
+      </div>
+      <span className="reset-step-indicator__label">
+        {isHe ? `שלב ${current} מתוך 2` : `Step ${current} of 2`}
+        {' · '}
+        <span className="reset-step-indicator__title">
+          {current === 1
+            ? (isHe ? 'הזן אימייל' : 'Enter email')
+            : (isHe ? 'אמת קוד וסיסמה חדשה' : 'Verify code & new password')}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -132,15 +154,16 @@ export default function Login() {
     return (
       <div className="auth-container">
         <div className="auth-card">
-          <div className="brand" style={{ marginBottom: 24 }}>
+          <div className="brand" style={{ marginBottom: 20 }}>
             <div className="brand__mark" aria-label="Areto">A</div>
             <div className="brand__name">{t.appName}</div>
           </div>
+          <ResetStepIndicator current={1} isHe={isHe} />
           <h1>{t.resetPassword}</h1>
           <p className="subtitle">
             {isHe
-              ? 'הזן את כתובת האימייל שלך ונשלח לך קוד איפוס.'
-              : 'Enter your email and we’ll send you a reset code.'}
+              ? 'הזן את כתובת האימייל שלך ונשלח לך קוד איפוס תוך 30 שניות.'
+              : 'Enter your email and we’ll send you a reset code within 30 seconds.'}
           </p>
 
           {error && <div className="error-message">{error}</div>}
@@ -155,6 +178,8 @@ export default function Login() {
                 onChange={(e) => setResetEmail(e.target.value)}
                 dir="ltr"
                 autoComplete="email"
+                inputMode="email"
+                autoFocus
               />
             </div>
             <button type="submit" className="btn btn-primary" disabled={loading}>
@@ -177,15 +202,16 @@ export default function Login() {
     return (
       <div className="auth-container">
         <div className="auth-card">
-          <div className="brand" style={{ marginBottom: 24 }}>
+          <div className="brand" style={{ marginBottom: 20 }}>
             <div className="brand__mark" aria-label="Areto">A</div>
             <div className="brand__name">{t.appName}</div>
           </div>
+          <ResetStepIndicator current={2} isHe={isHe} />
           <h1>{t.resetPassword}</h1>
           <p className="subtitle">
             {isHe
-              ? 'הזן את הקוד שנשלח לאימייל ובחר סיסמה חדשה.'
-              : 'Enter the code we sent to your email and choose a new password.'}
+              ? 'הזן את הקוד שנשלח לאימייל ובחר סיסמה חדשה. לא קיבלת? בדוק בספאם.'
+              : 'Enter the code we sent and choose a new password. Didn’t arrive? Check spam.'}
           </p>
 
           {message && <div className="success-message">{message}</div>}

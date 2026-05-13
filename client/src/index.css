@@ -1397,6 +1397,153 @@ h1, h2, h3, h4, h5 { font-family: var(--font-display); letter-spacing: -0.01em; 
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
+/* ============================================================
+   PASSWORD-RESET STEP INDICATOR
+   ============================================================ */
+.reset-step-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.reset-step-indicator__bars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.reset-step-indicator__bars span {
+  height: 4px;
+  border-radius: 99px;
+  background: var(--bg-input);
+  transition: background 0.3s;
+}
+.reset-step-indicator__bars span.is-done {
+  background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+}
+.reset-step-indicator__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.reset-step-indicator__title {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-1);
+  font-weight: 700;
+}
+
+/* ============================================================
+   WORKOUT FAB — primary action in the thumb zone
+   ============================================================ */
+.workout-fab {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  inset-inline-end: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  min-height: 56px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+  color: var(--bg-0);
+  border: none;
+  border-radius: 28px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 90;
+  box-shadow: 0 12px 32px rgba(45, 212, 191, 0.34), 0 2px 6px rgba(0, 0, 0, 0.16);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.workout-fab:hover { transform: translateY(-1px); box-shadow: 0 16px 40px rgba(45, 212, 191, 0.42), 0 2px 6px rgba(0, 0, 0, 0.16); }
+.workout-fab:active { transform: translateY(0); }
+.workout-fab__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: 18px;
+  font-weight: 800;
+}
+@media (max-width: 768px) {
+  /* Sit above the bottom tab bar */
+  .workout-fab {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
+  }
+}
+@media (max-width: 380px) {
+  /* On very small phones, drop the label and become a pure circle */
+  .workout-fab {
+    padding: 0;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    justify-content: center;
+  }
+  .workout-fab__label { display: none; }
+}
+
+/* ============================================================
+   JOURNEY CHART — horizontal on desktop, vertical on mobile
+   ============================================================ */
+.journey-chart--vertical { display: none; }
+.journey-chart--horizontal { display: block; }
+@media (max-width: 768px) {
+  .journey-chart--horizontal { display: none; }
+  .journey-chart--vertical { display: block; }
+}
+
+/* ============================================================
+   SETTINGS AUTOSAVE STATUS
+   ============================================================ */
+.settings-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.autosave-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 99px;
+  letter-spacing: 0.02em;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+.autosave-status--pending {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-3);
+}
+.autosave-status--saving {
+  background: rgba(45, 212, 191, 0.10);
+  color: var(--accent);
+}
+.autosave-status--saved {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success, #22c55e);
+}
+.autosave-status--error {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger, #ef4444);
+}
+/* On desktop where the back button is hidden, the toolbar still aligns the
+   autosave indicator to the end. */
+@media (min-width: 901px) {
+  .settings-toolbar {
+    justify-content: flex-end;
+    min-height: 0;
+    margin-bottom: 8px;
+  }
+}
+
 .onboarding-card h1 {
   font-family: var(--font-display);
   font-size: 36px;

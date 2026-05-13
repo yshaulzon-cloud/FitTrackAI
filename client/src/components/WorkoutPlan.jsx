@@ -824,6 +824,24 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         </div>
       )}
 
+      {/* Floating action button — "Finish today's workout" (audit: keep the
+          primary action in the thumb zone, always accessible). Hidden when
+          the user is already in completion-confirmation mode (replaced by
+          the inline confirm/cancel buttons) or has already trained today. */}
+      {visibleDays.length > 0 && !completingDay && !alreadyTrainedToday && !weeklyLimitReached && (
+        <button
+          type="button"
+          className="workout-fab"
+          onClick={() => setCompletingDay(visibleDays[0].day)}
+          aria-label={lang === 'he' ? 'סיימתי אימון' : 'Finish workout'}
+        >
+          <span className="workout-fab__icon" aria-hidden="true">✓</span>
+          <span className="workout-fab__label">
+            {lang === 'he' ? 'סיימתי אימון' : 'Finish workout'}
+          </span>
+        </button>
+      )}
+
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; }

@@ -145,6 +145,101 @@ function JourneyChart({ startWeight, currentWeight, targetWeight, isHe }) {
   );
 }
 
+// ─── Vertical variant of JourneyChart (mobile audit: vertical track) ───
+// Same data, rotated 90°. Target at top, start at bottom, current pin in
+// the middle. Labels sit beside their markers so nothing overlaps even on
+// narrow phones.
+function JourneyChartVertical({ startWeight, currentWeight, targetWeight, isHe }) {
+  const W = 280, H = 460;
+  const PAD_T = 36, PAD_B = 36;
+  const TRACK_X = isHe ? W * 0.65 : W * 0.35;
+  const LABEL_X_OFFSET = isHe ? -18 : 18;
+  const LABEL_ANCHOR = isHe ? 'end' : 'start';
+  const PIN_LABEL_OFFSET = isHe ? 18 : -18;
+  const PIN_LABEL_ANCHOR = isHe ? 'start' : 'end';
+  const innerH = H - PAD_T - PAD_B;
+
+  const total = Math.abs(targetWeight - startWeight) || 0.01;
+  const covered = Math.max(0, Math.min(total, Math.abs(currentWeight - startWeight)));
+  const remaining = Math.max(0, total - covered);
+  const pct = Math.min(100, Math.round((covered / total) * 100));
+
+  const yTarget = PAD_T;
+  const yStart = PAD_T + innerH;
+  const yCurrent = yStart - (covered / total) * innerH;
+
+  const overlapThreshold = innerH * 0.09;
+  const overlapsStart  = Math.abs(yCurrent - yStart)  < overlapThreshold;
+  const overlapsTarget = Math.abs(yCurrent - yTarget) < overlapThreshold;
+  const showCurrentPin = !overlapsStart && !overlapsTarget;
+
+  const trackBase = 'rgba(125,125,125,0.18)';
+  const kg = isHe ? 'ק"ג' : 'kg';
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', maxWidth: 320, height: H, display: 'block', margin: '0 auto' }} aria-hidden="true">
+      <defs>
+        <linearGradient id="journeyFillV" x1="0" x2="0" y1="1" y2="0">
+          <stop offset="0%"   stopColor="#8b5cf6" />
+          <stop offset="100%" stopColor="#2dd4bf" />
+        </linearGradient>
+      </defs>
+
+      {/* Background track */}
+      <rect x={TRACK_X - 8} y={yTarget} width={16} height={innerH} rx="8" fill={trackBase} />
+      {/* Filled portion (from current → start, going down) */}
+      {covered > 0 && (
+        <rect x={TRACK_X - 8} y={yCurrent}
+              width={16} height={Math.max(8, yStart - yCurrent)}
+              rx="8" fill="url(#journeyFillV)" />
+      )}
+
+      {/* Target cap at the top */}
+      <circle cx={TRACK_X} cy={yTarget} r="10" fill="var(--bg-0)" stroke="#22c55e" strokeWidth="2.5" />
+      <text x={TRACK_X + LABEL_X_OFFSET} y={yTarget - 4} textAnchor={LABEL_ANCHOR} fontFamily="Heebo" fontSize="12" fontWeight="700" fill="#22c55e" letterSpacing="0.06em">
+        {isHe ? '🚩 יעד' : '🚩 TARGET'}
+      </text>
+      <text x={TRACK_X + LABEL_X_OFFSET} y={yTarget + 14} textAnchor={LABEL_ANCHOR} fontFamily="Heebo" fontSize="16" fontWeight="800" fill="var(--success)">
+        {targetWeight} {kg}
+      </text>
+
+      {/* Start cap at the bottom */}
+      <circle cx={TRACK_X} cy={yStart} r="10" fill="var(--bg-0)" stroke="#8b5cf6" strokeWidth="2.5" />
+      <text x={TRACK_X + LABEL_X_OFFSET} y={yStart + 18} textAnchor={LABEL_ANCHOR} fontFamily="Heebo" fontSize="12" fontWeight="700" fill="#8b5cf6" letterSpacing="0.06em">
+        {isHe ? 'התחלה' : 'START'}
+      </text>
+      <text x={TRACK_X + LABEL_X_OFFSET} y={yStart + 36} textAnchor={LABEL_ANCHOR} fontFamily="Heebo" fontSize="16" fontWeight="800" fill="var(--text-1)">
+        {startWeight} {kg}
+      </text>
+
+      {/* Current pin */}
+      {showCurrentPin && (
+        <g transform={`translate(${TRACK_X}, ${yCurrent})`}>
+          <circle r="16" fill="rgba(45, 212, 191, 0.20)" />
+          <circle r="11" fill="var(--bg-0)" stroke="#2dd4bf" strokeWidth="3" />
+          <circle r="3"  fill="#2dd4bf" />
+          <text x={PIN_LABEL_OFFSET} y={-4} textAnchor={PIN_LABEL_ANCHOR} fontFamily="Heebo" fontSize="12" fontWeight="700" fill="var(--accent)" letterSpacing="0.06em">
+            {isHe ? 'אתה כאן' : 'YOU ARE HERE'}
+          </text>
+          <text x={PIN_LABEL_OFFSET} y={14} textAnchor={PIN_LABEL_ANCHOR} fontFamily="Heebo" fontSize="16" fontWeight="800" fill="var(--accent)">
+            {currentWeight} {kg}
+          </text>
+        </g>
+      )}
+      {overlapsStart && (
+        <text x={TRACK_X + LABEL_X_OFFSET} y={yStart - 6} textAnchor={LABEL_ANCHOR} fontFamily="Heebo" fontSize="11" fontWeight="700" fill="var(--accent)" letterSpacing="0.06em">
+          {isHe ? '· אתה כאן ·' : '· YOU ARE HERE ·'}
+        </text>
+      )}
+      {overlapsTarget && (
+        <text x={TRACK_X + LABEL_X_OFFSET} y={yTarget + 30} textAnchor={LABEL_ANCHOR} fontFamily="Heebo" fontSize="11" fontWeight="700" fill="var(--accent)" letterSpacing="0.06em">
+          {isHe ? '· הגעת ·' : '· YOU MADE IT ·'}
+        </text>
+      )}
+    </svg>
+  );
+}
+
 // ─── Calorie balance bar chart (real 14-day energy trend) ────
 // Each bar = (consumed - target) for the day. Below 0 = deficit, above = surplus.
 // Bars are colored by whether the balance aligns with the user's goal:
@@ -473,12 +568,23 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
             </div>
           </div>
         </div>
-        <JourneyChart
-          startWeight={startWeight}
-          currentWeight={Math.round(profile.weight * 10) / 10}
-          targetWeight={targetWeight}
-          isHe={isHe}
-        />
+        {/* Horizontal chart on desktop, vertical on mobile (audit recommendation) */}
+        <div className="journey-chart journey-chart--horizontal">
+          <JourneyChart
+            startWeight={startWeight}
+            currentWeight={Math.round(profile.weight * 10) / 10}
+            targetWeight={targetWeight}
+            isHe={isHe}
+          />
+        </div>
+        <div className="journey-chart journey-chart--vertical">
+          <JourneyChartVertical
+            startWeight={startWeight}
+            currentWeight={Math.round(profile.weight * 10) / 10}
+            targetWeight={targetWeight}
+            isHe={isHe}
+          />
+        </div>
         {!progressionData?.initialWeightDelta && (
           <div style={{ fontSize: 11, color: 'var(--text-4)', marginTop: 6, fontStyle: 'italic', textAlign: 'center' }}>
             {isHe
