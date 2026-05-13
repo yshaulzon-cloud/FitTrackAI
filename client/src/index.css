@@ -1502,6 +1502,10 @@ h1, h2, h3, h4, h5 { font-family: var(--font-display); letter-spacing: -0.01em; 
 .mobile-only { display: none; }
 @media (max-width: 768px) {
   .mobile-only { display: block; }
+
+  /* The "✓ זמין / AVAILABLE" pill on the Home-workout toggle is noisy on
+     a phone — the toggle itself is self-explanatory. Hide it only there. */
+  .home-workout-tag { display: none; }
 }
 
 /* ============================================================
@@ -2950,7 +2954,13 @@ h1, h2, h3, h4, h5 { font-family: var(--font-display); letter-spacing: -0.01em; 
   .settings-layout--in-detail > .settings-content { display: block; }
   .settings-layout--in-detail .settings-back { display: inline-flex; }
 
-  .xp-hero { grid-template-columns: 1fr; text-align: center; }
+  .xp-hero {
+    grid-template-columns: 1fr;
+    text-align: center;
+    justify-items: center; /* center every cell, including the ring */
+  }
+  .xp-hero__ring-wrap { margin-inline: auto; }
+  .xp-hero__info { align-items: center; }
   .xp-hero__streak { justify-self: center; }
   .insight-headline { grid-template-columns: 1fr; gap: 10px; }
 }

@@ -335,7 +335,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               color: homeMode ? 'var(--violet)' : 'var(--text-1)',
             }}>{t.homeWorkout}</span>
             {!homeMode && (
-              <span style={{
+              <span className="home-workout-tag" style={{
                 marginInlineStart: 'auto',
                 fontSize: 10,
                 fontWeight: 700,

@@ -354,6 +354,34 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
   const barRef = useRef(null);
   const dragging = useRef(false);
 
+  // New-goal flow: when the user has hit their target, offer to pick a
+  // new direction (cut / bulk / maintain). The chosen goal flips both
+  // `profile.goal` and the BMI-driven targetWeight on the server, which
+  // cascades through calorie / macro / journey calcs across the app.
+  const [showNewGoalModal, setShowNewGoalModal] = useState(false);
+  const [newGoalChoice, setNewGoalChoice] = useState(null);
+  const [savingNewGoal, setSavingNewGoal] = useState(false);
+  const [newGoalError, setNewGoalError] = useState('');
+
+  async function handleSetNewGoal() {
+    if (!newGoalChoice) return;
+    setSavingNewGoal(true);
+    setNewGoalError('');
+    try {
+      await api('/user/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ goal: newGoalChoice }),
+      });
+      setShowNewGoalModal(false);
+      setNewGoalChoice(null);
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      setNewGoalError(err.message || (isHe ? 'שגיאה בעדכון היעד' : 'Failed to update goal'));
+    } finally {
+      setSavingNewGoal(false);
+    }
+  }
+
   // Pull last 14 days of nutrition + progression status (for initialWeightDelta)
   useEffect(() => {
     if (!api) return;
@@ -572,8 +600,8 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
         </div>
         {/* Edge case: when start ≈ target (e.g. user is already at goal or
             "maintain" mode), the track collapses to a single point and the
-            labels stack on top of each other. Show a celebratory summary
-            instead of a broken chart. */}
+            labels stack on top of each other. Show a celebratory summary +
+            a CTA to pick the next goal instead. */}
         {Math.abs(startWeight - targetWeight) < 0.5 ? (
           <div style={{
             padding: '32px 20px',
@@ -592,14 +620,22 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
               marginBottom: 6,
             }}>
               {Math.abs(profile.weight - targetWeight) < 0.5
-                ? (isHe ? 'אתה ביעד שלך' : 'You are at your goal')
+                ? (isHe ? 'הגעת ליעד שלך 🎉' : 'You hit your goal 🎉')
                 : (isHe ? 'יעדך — שמירה על המשקל הנוכחי' : 'Your goal — maintain current weight')}
             </div>
-            <div style={{ fontSize: 13, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16 }}>
               {isHe
-                ? `המשקל הנוכחי: ${Math.round(profile.weight * 10) / 10} ק"ג`
-                : `Current weight: ${Math.round(profile.weight * 10) / 10} kg`}
+                ? `המשקל הנוכחי: ${Math.round(profile.weight * 10) / 10} ק"ג. רוצה להמשיך הלאה?`
+                : `Current weight: ${Math.round(profile.weight * 10) / 10} kg. Ready for what's next?`}
             </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ width: 'auto', padding: '12px 22px', display: 'inline-flex' }}
+              onClick={() => { setNewGoalChoice(null); setShowNewGoalModal(true); }}
+            >
+              {isHe ? '🎯 בחר יעד חדש' : '🎯 Pick a new goal'}
+            </button>
           </div>
         ) : (
           <>
@@ -886,6 +922,115 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
         </div>
       )}
       </>
+      )}
+
+      {/* New-goal picker — opens from the "you hit your goal" celebration */}
+      {showNewGoalModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={isHe ? 'בחר יעד חדש' : 'Pick a new goal'}
+          onClick={() => !savingNewGoal && setShowNewGoalModal(false)}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(10, 14, 26, 0.78)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 20, zIndex: 10000,
+            animation: 'fadeIn 0.18s ease',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--r-xl)',
+              width: '100%', maxWidth: 440,
+              padding: 28,
+              boxShadow: 'var(--shadow-3)',
+            }}
+          >
+            <h2 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 24, fontWeight: 700, margin: '0 0 6px',
+              letterSpacing: '-0.02em',
+            }}>
+              {isHe ? 'מה הלאה?' : 'What’s next?'}
+            </h2>
+            <p style={{ fontSize: 14, color: 'var(--text-3)', margin: '0 0 20px', lineHeight: 1.55 }}>
+              {isHe
+                ? 'הגעת ליעד הנוכחי שלך. בחר את הכיוון הבא — נחדש את חישוב הקלוריות, המאקרו והתוכנית.'
+                : 'You reached your current goal. Pick your next direction — we’ll re-tune calories, macros, and your plan.'}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { value: 'cut',      icon: '🔥',  label: t.goalCut,      desc: t.goalCutDesc,      accent: '#f59e0b' },
+                { value: 'bulk',     icon: '💪',  label: t.goalBulk,     desc: t.goalBulkDesc,     accent: '#2dd4bf' },
+                { value: 'maintain', icon: '⚖️', label: t.goalMaintain, desc: t.goalMaintainDesc, accent: '#8b5cf6' },
+              ].map((g) => {
+                const sel = newGoalChoice === g.value;
+                return (
+                  <button
+                    key={g.value}
+                    type="button"
+                    onClick={() => setNewGoalChoice(g.value)}
+                    disabled={savingNewGoal}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 14,
+                      padding: '14px 16px',
+                      borderRadius: 'var(--r-md)',
+                      border: `1.5px solid ${sel ? g.accent : 'var(--border)'}`,
+                      background: sel ? `linear-gradient(135deg, ${g.accent}1f, ${g.accent}08)` : 'var(--bg-input)',
+                      boxShadow: sel ? `0 0 0 3px ${g.accent}22` : 'none',
+                      color: 'var(--text-1)',
+                      cursor: 'pointer',
+                      textAlign: isHe ? 'right' : 'left',
+                      fontFamily: 'inherit',
+                      minHeight: 60,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <span style={{ fontSize: 26, lineHeight: 1 }}>{g.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{g.label}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{g.desc}</div>
+                    </div>
+                    {sel && <span style={{ color: g.accent, fontSize: 20, fontWeight: 800 }}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {newGoalError && (
+              <div className="error-message" style={{ marginTop: 14 }}>{newGoalError}</div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setShowNewGoalModal(false)}
+                disabled={savingNewGoal}
+                style={{ flex: '0 0 auto' }}
+              >
+                {isHe ? 'ביטול' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleSetNewGoal}
+                disabled={!newGoalChoice || savingNewGoal}
+                style={{ flex: 1 }}
+              >
+                {savingNewGoal
+                  ? (isHe ? 'מעדכן…' : 'Updating…')
+                  : (isHe ? 'אשר ועדכן את התוכנית' : 'Confirm and update plan')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
