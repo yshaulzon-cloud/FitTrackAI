@@ -3058,23 +3058,34 @@ h1, h2, h3, h4, h5 { font-family: var(--font-display); letter-spacing: -0.01em; 
 }
 .mobile-nav button {
   flex: 1;
+  min-width: 0;
   min-height: 56px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 3px;
-  padding: 6px 4px;
+  padding: 6px 2px;
   background: none;
   border: none;
   color: var(--text-3);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   font-family: inherit;
   border-radius: 12px;
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
   -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+.mobile-nav button .nav-label {
+  font-size: 10px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .mobile-nav button:active { background: rgba(255, 255, 255, 0.04); }
 .mobile-nav button.active {
@@ -3088,10 +3099,16 @@ h1, h2, h3, h4, h5 { font-family: var(--font-display); letter-spacing: -0.01em; 
   line-height: 1;
   transition: transform 0.15s;
 }
+/* Override: this one is wider than the per-button .nav-label rule above
+   so we leave it intact, but keep ellipsis behavior consistent. */
 .mobile-nav .nav-label {
-  font-size: 11px;
-  line-height: 1.2;
-  letter-spacing: 0.01em;
+  font-size: 10px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 [data-theme="light"] .mobile-nav {
   background: rgba(255, 255, 255, 0.92);

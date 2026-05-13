@@ -40,12 +40,13 @@ export default function Dashboard() {
     ...(isAdmin ? [{ id: 'admin', label: t.tabAdmin, icon: '🛡️' }] : []),
   ];
 
-  // Mobile bottom nav: 5 primary tabs only (audit recommendation).
-  // Goals + XP are accessible from within Overview cards / Progress sections.
+  // Mobile bottom nav. 6 tabs — XP was requested back after the initial
+  // 5-tab cut because the screen was unreachable from the phone.
   const mobileTabs = [
     { id: 'overview', label: t.tabOverview, icon: '🏠' },
     { id: 'workout', label: t.tabWorkout, icon: '🏋️' },
     { id: 'nutrition', label: t.tabNutrition, icon: '🍽️' },
+    { id: 'xp', label: t.tabProgression, icon: '⚔️' },
     { id: 'progress', label: t.tabProgress, icon: '📈' },
     { id: 'settings', label: t.tabSettings, icon: '⚙️' },
   ];
@@ -210,10 +211,10 @@ export default function Dashboard() {
 
       <nav className="mobile-nav" aria-label={lang === 'he' ? 'ניווט ראשי' : 'Primary navigation'}>
         {mobileTabs.map((tab) => {
-          // Progress tab is "active" when user is on progress, goals, or xp screens
-          // (goals/xp are accessed via cards from within their grouped tab).
+          // Progress tab is also active when on the goals screen — goals
+          // lives within progress now, not in the bottom nav.
           const isActive = tab.id === 'progress'
-            ? ['progress', 'goals', 'xp'].includes(activeTab)
+            ? ['progress', 'goals'].includes(activeTab)
             : activeTab === tab.id;
           return (
             <button
@@ -410,28 +411,6 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
     nextAction = () => setActiveTab && setActiveTab('workout');
   }
 
-  // Insight card (data-driven)
-  let insightBody;
-  if (proteinProgress > 0 && proteinPct < 80) {
-    insightBody = isHe ? (
-      <>היום צרכת <strong>{Math.round(proteinProgress)}g חלבון</strong>. עוד שייק חלבון אחרי האימון יקרב אותך ל-{proteinTarget}g היעד.</>
-    ) : (
-      <>You've had <strong>{Math.round(proteinProgress)}g protein</strong> today. A post-workout shake gets you to your {proteinTarget}g target.</>
-    );
-  } else if (streak >= 3) {
-    insightBody = isHe ? (
-      <>אתה ב<strong>{streak} ימים ברצף</strong>. כל יום נוסף שומר על המומנטום שבנית.</>
-    ) : (
-      <>You're on a <strong>{streak}-day streak</strong>. Each day keeps the momentum going.</>
-    );
-  } else {
-    insightBody = isHe ? (
-      <>הקפד על <strong>~{nutrition?.macros?.proteinPerMeal || 38}g חלבון לארוחה</strong> ב-{nutrition?.macros?.mealsPerDay || 4} ארוחות — זה ממקסם בניית שריר.</>
-    ) : (
-      <>Aim for <strong>~{nutrition?.macros?.proteinPerMeal || 38}g protein per meal</strong> across {nutrition?.macros?.mealsPerDay || 4} meals — maximizes muscle building.</>
-    );
-  }
-
   const fullDays = week.filter(d => d.status === 'full').length;
 
   return (
@@ -518,17 +497,6 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
               )
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Insight card */}
-      <div className="insight-card">
-        <div className="insight-card__icon">💡</div>
-        <div style={{ flex: 1 }}>
-          <div className="insight-card__eyebrow">
-            {isHe ? 'תובנת היום' : 'Today\'s insight'}
-          </div>
-          <div className="insight-card__body">{insightBody}</div>
         </div>
       </div>
 
