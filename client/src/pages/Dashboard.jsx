@@ -184,13 +184,28 @@ export default function Dashboard() {
         )}
 
         {activeTab === 'progress' && (
-          <Progress
-            nutrition={nutrition}
-            todayNutrition={todayNutrition}
-            workoutHistory={workoutHistory}
-            profile={profileData?.profile}
-            api={api}
-          />
+          <>
+            {/* Mobile-only: surface the journey-to-goal hero card from Goals
+                so phone users see weight progress alongside the other charts
+                without having to switch tabs. Hidden on desktop via CSS. */}
+            <div className="mobile-only">
+              <BMICard
+                bmiAnalysis={profileData?.bmiAnalysis}
+                profile={profileData?.profile}
+                calorieTarget={nutrition?.calorieTarget}
+                api={api}
+                onUpdate={loadData}
+                heroOnly
+              />
+            </div>
+            <Progress
+              nutrition={nutrition}
+              todayNutrition={todayNutrition}
+              workoutHistory={workoutHistory}
+              profile={profileData?.profile}
+              api={api}
+            />
+          </>
         )}
 
         {activeTab === 'admin' && isAdmin && (

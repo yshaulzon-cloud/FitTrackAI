@@ -343,7 +343,7 @@ function BalanceChart({ days, goal, isHe }) {
   );
 }
 
-export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTargetProp, api, onUpdate }) {
+export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTargetProp, api, onUpdate, heroOnly = false }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
   const [applying, setApplying] = useState(false);
@@ -540,10 +540,12 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
 
   return (
     <>
-      <div className="page-header">
-        <h1>{t.tabGoals}</h1>
-        <p>{t.bmiAnalysis}</p>
-      </div>
+      {!heroOnly && (
+        <div className="page-header">
+          <h1>{t.tabGoals}</h1>
+          <p>{t.bmiAnalysis}</p>
+        </div>
+      )}
 
       {/* ─── Hero: Journey to goal — start → you → target ─────── */}
       <div className="forecast-card">
@@ -594,6 +596,8 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
         )}
       </div>
 
+      {heroOnly ? null : (
+      <>
       {/* ─── Supporting: 14-day energy balance ──────────────────
            Tells the "why" behind the journey: are your daily calories
            actually moving you toward the target? */}
@@ -845,6 +849,8 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </>
   );
