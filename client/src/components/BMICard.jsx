@@ -570,23 +570,58 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
             </div>
           </div>
         </div>
-        {/* Horizontal chart on desktop, vertical on mobile (audit recommendation) */}
-        <div className="journey-chart journey-chart--horizontal">
-          <JourneyChart
-            startWeight={startWeight}
-            currentWeight={Math.round(profile.weight * 10) / 10}
-            targetWeight={targetWeight}
-            isHe={isHe}
-          />
-        </div>
-        <div className="journey-chart journey-chart--vertical">
-          <JourneyChartVertical
-            startWeight={startWeight}
-            currentWeight={Math.round(profile.weight * 10) / 10}
-            targetWeight={targetWeight}
-            isHe={isHe}
-          />
-        </div>
+        {/* Edge case: when start ≈ target (e.g. user is already at goal or
+            "maintain" mode), the track collapses to a single point and the
+            labels stack on top of each other. Show a celebratory summary
+            instead of a broken chart. */}
+        {Math.abs(startWeight - targetWeight) < 0.5 ? (
+          <div style={{
+            padding: '32px 20px',
+            textAlign: 'center',
+            background: 'rgba(34, 197, 94, 0.06)',
+            border: '1px solid rgba(34, 197, 94, 0.18)',
+            borderRadius: 'var(--r-md)',
+            marginTop: 8,
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>🎯</div>
+            <div style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 18,
+              fontWeight: 700,
+              color: 'var(--success, #22c55e)',
+              marginBottom: 6,
+            }}>
+              {Math.abs(profile.weight - targetWeight) < 0.5
+                ? (isHe ? 'אתה ביעד שלך' : 'You are at your goal')
+                : (isHe ? 'יעדך — שמירה על המשקל הנוכחי' : 'Your goal — maintain current weight')}
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)' }}>
+              {isHe
+                ? `המשקל הנוכחי: ${Math.round(profile.weight * 10) / 10} ק"ג`
+                : `Current weight: ${Math.round(profile.weight * 10) / 10} kg`}
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Horizontal chart on desktop, vertical on mobile (audit recommendation) */}
+            <div className="journey-chart journey-chart--horizontal">
+              <JourneyChart
+                startWeight={startWeight}
+                currentWeight={Math.round(profile.weight * 10) / 10}
+                targetWeight={targetWeight}
+                isHe={isHe}
+              />
+            </div>
+            <div className="journey-chart journey-chart--vertical">
+              <JourneyChartVertical
+                startWeight={startWeight}
+                currentWeight={Math.round(profile.weight * 10) / 10}
+                targetWeight={targetWeight}
+                isHe={isHe}
+              />
+            </div>
+          </>
+        )}
         {!progressionData?.initialWeightDelta && (
           <div style={{ fontSize: 11, color: 'var(--text-4)', marginTop: 6, fontStyle: 'italic', textAlign: 'center' }}>
             {isHe

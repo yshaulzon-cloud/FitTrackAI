@@ -57,9 +57,14 @@ router.post(
 
       const { email, password } = req.body;
 
+      // Account enumeration mitigation: do NOT disclose whether the email
+      // is already registered. A user who already has an account can
+      // recover it via the "forgot password" flow.
+      const genericError = 'לא ניתן להשלים את ההרשמה. אם כבר יש לך חשבון — נסה להיכנס או לאפס סיסמה.';
+
       const existingUser = await User.findOne({ email });
       if (existingUser) {
-        return res.status(400).json({ message: 'כתובת האימייל כבר רשומה במערכת' });
+        return res.status(400).json({ message: genericError });
       }
 
       const user = await User.create({ email, password });
@@ -260,7 +265,9 @@ router.post(
       }
 
       // Generate 6-digit code
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      // Cryptographically secure 6-digit code. crypto.randomInt uses the
+      // OS CSPRNG (vs Math.random which is V8's predictable Mulberry32).
+      const code = crypto.randomInt(100000, 1000000).toString();
       user.resetCode = code;
       user.resetCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
       await user.save();

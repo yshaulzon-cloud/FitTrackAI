@@ -35,8 +35,18 @@ app.use(cors({
     if (corsAllowlist.length === 0) return callback(null, true); // dev mode
     const allowed = [...corsAllowlist, ...NATIVE_ORIGINS];
     if (allowed.includes(origin)) return callback(null, true);
-    // Allow any subdomain of an allowlisted host (e.g. app.example.com)
-    if (allowed.some((o) => origin.endsWith(new URL(o).host))) return callback(null, true);
+    // Allow subdomains of an allowlisted host only — match against the
+    // origin's *parsed* hostname with a leading-dot suffix check, so an
+    // allowlist of "example.com" does not match "evilexample.com".
+    let originHost;
+    try { originHost = new URL(origin).hostname; }
+    catch { return callback(new Error(`CORS blocked: ${origin}`)); }
+    const ok = allowed.some((o) => {
+      let allowHost;
+      try { allowHost = new URL(o).hostname; } catch { return false; }
+      return originHost === allowHost || originHost.endsWith('.' + allowHost);
+    });
+    if (ok) return callback(null, true);
     return callback(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
