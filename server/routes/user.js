@@ -151,6 +151,9 @@ router.put(
       const { weight, height, goal, workoutsPerWeek, gender, name, age } = req.body;
       const user = req.user;
 
+      // Detect a goal direction change so we can reset the journey baseline.
+      const goalChanged = goal !== undefined && goal !== user.profile.goal;
+
       if (weight !== undefined) user.profile.weight = weight;
       if (height !== undefined) user.profile.height = height;
       if (goal !== undefined) user.profile.goal = goal;
@@ -160,6 +163,16 @@ router.put(
       if (name !== undefined) user.name = name;
 
       await user.save();
+
+      // When the user picks a new goal, the journey "start line" must reset
+      // to their current weight — otherwise the BMICard chart keeps drawing
+      // the old start point and the progress percentage looks wrong.
+      if (goalChanged) {
+        await Progression.updateOne(
+          { userId: user._id },
+          { $set: { initialWeightDelta: null } }
+        ).catch(() => {});
+      }
 
       const { tdee, ree, formulaUsed } = calculateTDEE(user.profile);
       const calorieTarget = calculateCalorieTarget(

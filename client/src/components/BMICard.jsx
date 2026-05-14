@@ -382,12 +382,15 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
     }
   }
 
-  // Pull last 14 days of nutrition + progression status (for initialWeightDelta)
+  // Pull last 14 days of nutrition + progression status (for initialWeightDelta).
+  // Re-fetch when the user's goal changes so the journey baseline updates
+  // after a goal swap (PUT /user/profile resets initialWeightDelta server-side
+  // on goal change; we re-pull it here so the BMICard chart re-anchors).
   useEffect(() => {
     if (!api) return;
     api('/nutrition/history').then(setNutritionHistory).catch(() => {});
     api('/progression/status').then(setProgressionData).catch(() => {});
-  }, []); // eslint-disable-line
+  }, [profile?.goal]); // eslint-disable-line
 
   if (!bmiAnalysis || !profile) return null;
 

@@ -284,46 +284,68 @@ function getHealthyWeightRange(heightCm) {
  * weight delta, recommended weekly rate, and daily calorie adjustment
  */
 function generateBMIAnalysis(profile) {
-  const { weight, height, age, gender, experience } = profile;
+  const { weight, height, age, gender, experience, goal } = profile;
   const bmi = calculateBMI(weight, height);
   const classification = classifyBMI(bmi);
   const healthyRange = getHealthyWeightRange(height);
 
-  // Determine ideal target weight
-  let targetWeight;
+  // BMI-based health recommendation (what the body "needs")
+  let recommendedGoal;
+  let healthBasedRate;
   if (classification === 'underweight') {
-    targetWeight = healthyRange.min;
+    recommendedGoal = 'bulk';
+    healthBasedRate = 0.3;
   } else if (classification === 'normal') {
-    targetWeight = weight; // already healthy
+    recommendedGoal = 'maintain';
+    healthBasedRate = 0;
+  } else if (classification === 'overweight') {
+    recommendedGoal = 'cut';
+    healthBasedRate = 0.5;
+  } else if (classification === 'obese1') {
+    recommendedGoal = 'cut';
+    healthBasedRate = 0.7;
   } else {
-    // Overweight/obese: target the upper end of normal BMI (24.9)
-    // to be realistic and achievable
-    targetWeight = healthyRange.max;
+    recommendedGoal = 'cut';
+    healthBasedRate = 1.0;
+  }
+
+  // Target weight follows the USER'S chosen goal (with health-based fallbacks
+  // when the goal is unset or contradicts the BMI direction). This is what
+  // lets a user at a normal BMI explicitly pick "bulk" and have the app
+  // generate a higher target — instead of saying "you're already at your goal".
+  const userGoal = goal || recommendedGoal;
+  let targetWeight;
+  let weeklyRate;
+
+  if (userGoal === 'maintain' || userGoal === 'recomp') {
+    targetWeight = weight;
+    weeklyRate = 0;
+  } else if (userGoal === 'bulk') {
+    // Underweight: get into the healthy range. Otherwise: +5kg muscle bulk.
+    targetWeight = classification === 'underweight'
+      ? healthyRange.min
+      : weight + 5;
+    weeklyRate = healthBasedRate > 0 && recommendedGoal === 'bulk'
+      ? healthBasedRate
+      : 0.3;
+  } else if (userGoal === 'cut') {
+    // Overweight/obese: drop into the healthy range. Otherwise: -5kg, but
+    // never below the bottom of the healthy band.
+    targetWeight = (classification === 'overweight' || classification === 'obese1'
+      || classification === 'obese2' || classification === 'obese3')
+      ? healthyRange.max
+      : Math.max(healthyRange.min, weight - 5);
+    weeklyRate = healthBasedRate > 0 && recommendedGoal === 'cut'
+      ? healthBasedRate
+      : 0.5;
+  } else {
+    targetWeight = weight;
+    weeklyRate = 0;
   }
   targetWeight = Math.round(targetWeight * 10) / 10;
 
   // Weight delta (positive = need to lose, negative = need to gain)
   const weightDelta = Math.round((weight - targetWeight) * 10) / 10;
-
-  // Recommended weekly rate based on BMI classification
-  let weeklyRate = 0;
-  let recommendedGoal = 'maintain';
-  if (classification === 'underweight') {
-    weeklyRate = 0.3; // 0.3 kg/week gain
-    recommendedGoal = 'bulk';
-  } else if (classification === 'normal') {
-    weeklyRate = 0;
-    recommendedGoal = 'maintain';
-  } else if (classification === 'overweight') {
-    weeklyRate = 0.5; // 0.5 kg/week loss (moderate)
-    recommendedGoal = 'cut';
-  } else if (classification === 'obese1') {
-    weeklyRate = 0.7; // 0.7 kg/week loss
-    recommendedGoal = 'cut';
-  } else {
-    weeklyRate = 1.0; // 1 kg/week loss (obese II/III can safely lose faster)
-    recommendedGoal = 'cut';
-  }
 
   // Estimated weeks to target
   const weeksToTarget = weightDelta !== 0 && weeklyRate > 0
