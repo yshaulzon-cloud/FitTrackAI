@@ -132,7 +132,6 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
 
   const days = plan?.days || plan || [];
-  const notes = plan?.notes || [];
   // One-day view: render only the active day card. Audit recommendation.
   const safeDayIdx = Math.min(selectedDayIdx, Math.max(0, days.length - 1));
   const visibleDays = days.length > 0 ? [{ ...days[safeDayIdx], __idx: safeDayIdx }] : [];
@@ -603,29 +602,6 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           </div>
         );
       })}
-
-      {notes.length > 0 && (
-        <div
-          className="card"
-          style={{
-            background: 'rgba(253, 203, 110, 0.05)',
-            borderColor: 'rgba(253, 203, 110, 0.2)',
-          }}
-        >
-          <div className="card-header">
-            <h3 style={{ color: 'var(--warning)' }}>{t.importantPrinciples}</h3>
-          </div>
-          <ul style={{ paddingRight: lang === 'he' ? '20px' : '0', paddingLeft: lang === 'en' ? '20px' : '0', fontSize: '14px', color: 'var(--text-secondary)' }}>
-            {notes.map((note, idx) => (
-              <li key={idx} style={{ marginBottom: '6px' }}>
-                {t[note] || note}
-              </li>
-            ))}
-            <li>{t.minSetsPerWeek}</li>
-            <li>{t.consistencyMatters}</li>
-          </ul>
-        </div>
-      )}
 
       {/* Recent Workouts with delete */}
       {workouts.length > 0 && (
