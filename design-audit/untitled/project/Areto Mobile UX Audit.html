@@ -1,0 +1,1949 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Areto · Mobile UX Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:        #07101f;
+    --bg-2:      #0c1729;
+    --surface:   #121f36;
+    --surface-2: #182a47;
+    --line:      rgba(255,255,255,0.08);
+    --line-2:    rgba(255,255,255,0.14);
+    --ink:       #eaf2ff;
+    --ink-2:     #b6c4dc;
+    --ink-3:     #7d8ba8;
+    --teal:      #14d3b0;
+    --teal-2:    #2af0c9;
+    --teal-dim:  rgba(20,211,176,0.12);
+    --red:       #ff6f7a;
+    --red-dim:   rgba(255,111,122,0.12);
+    --amber:     #ffb648;
+    --amber-dim: rgba(255,182,72,0.12);
+    --violet:    #a78bff;
+    --shadow:    0 30px 80px -30px rgba(0,0,0,0.6);
+    --r:         18px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:"Heebo","Helvetica Neue",system-ui,sans-serif;font-weight:400;line-height:1.55;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  body{
+    background:
+      radial-gradient(60% 50% at 85% -10%,rgba(20,211,176,0.10),transparent 60%),
+      radial-gradient(40% 40% at 0% 30%,rgba(167,139,255,0.06),transparent 60%),
+      var(--bg);
+    min-height:100vh;
+  }
+  ::selection{background:var(--teal);color:#001b15}
+  .wrap{max-width:1180px;margin:0 auto;padding:48px 32px 120px}
+  @media (max-width:720px){.wrap{padding:28px 18px 80px}}
+
+  /* ───────────────── COVER ───────────────── */
+  .cover{
+    position:relative;
+    border:1px solid var(--line);
+    border-radius:28px;
+    padding:64px 56px;
+    background:
+      radial-gradient(120% 100% at 100% 0%,rgba(20,211,176,0.15),transparent 50%),
+      linear-gradient(180deg,#0e1a2e,#0a1424);
+    overflow:hidden;
+    margin-bottom:64px;
+  }
+  .cover::before{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px);
+    background-size:48px 48px;
+    mask-image:radial-gradient(80% 60% at 50% 30%,#000,transparent 70%);
+    pointer-events:none;
+  }
+  .cover .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:13px;letter-spacing:0.18em;text-transform:uppercase;color:var(--teal);font-weight:600;margin-bottom:24px;border:1px solid rgba(20,211,176,0.3);background:rgba(20,211,176,0.07);padding:8px 14px;border-radius:999px}
+  .cover .eyebrow .dot{width:8px;height:8px;background:var(--teal);border-radius:50%;box-shadow:0 0 0 4px rgba(20,211,176,0.18)}
+  .cover h1{font-size:clamp(40px,6vw,72px);line-height:1.02;letter-spacing:-0.02em;margin:0 0 24px;font-weight:800}
+  .cover h1 .accent{color:var(--teal)}
+  .cover .lede{font-size:20px;color:var(--ink-2);max-width:620px;margin:0 0 36px}
+  .cover .meta{display:flex;gap:32px;flex-wrap:wrap;color:var(--ink-3);font-size:14px;font-family:"JetBrains Mono",monospace;padding-top:28px;border-top:1px solid var(--line);position:relative;z-index:1}
+  .cover .meta b{color:var(--ink);font-weight:500}
+  .verdict-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:18px;overflow:hidden;margin-top:40px;position:relative;z-index:1}
+  .verdict-strip > div{background:linear-gradient(180deg,#0d1828,#0a1322);padding:20px 22px}
+  .verdict-strip .k{font-size:12px;color:var(--ink-3);letter-spacing:0.1em;text-transform:uppercase;font-weight:500}
+  .verdict-strip .v{font-size:32px;font-weight:800;margin-top:6px;letter-spacing:-0.02em}
+  .verdict-strip .v.red{color:var(--red)}
+  .verdict-strip .v.amb{color:var(--amber)}
+  .verdict-strip .v.tl{color:var(--teal)}
+  .verdict-strip .s{font-size:12px;color:var(--ink-3);margin-top:4px}
+  @media (max-width:720px){
+    .cover{padding:36px 24px;border-radius:22px}
+    .verdict-strip{grid-template-columns:repeat(2,1fr)}
+    .cover .lede{font-size:16px}
+  }
+
+  /* ───────────────── SECTIONS ───────────────── */
+  section{margin:96px 0}
+  .section-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:32px;border-bottom:1px solid var(--line);padding-bottom:24px}
+  .section-header h2{margin:0;font-size:clamp(28px,3.6vw,44px);font-weight:800;letter-spacing:-0.02em;line-height:1.05}
+  .section-header .num{font-family:"JetBrains Mono",monospace;color:var(--teal);font-size:14px;letter-spacing:0.16em;display:block;margin-bottom:10px;font-weight:500}
+  .section-header .sub{color:var(--ink-3);font-size:14px;max-width:280px;text-align:start}
+  @media (max-width:720px){.section-header{flex-direction:column;align-items:flex-start}.section-header .sub{max-width:none}}
+
+  /* ───────────────── SCREEN BLOCK ───────────────── */
+  .screen{
+    background:linear-gradient(180deg,#0e1a2e,#0a1424);
+    border:1px solid var(--line);
+    border-radius:24px;
+    overflow:hidden;
+    margin-bottom:32px;
+  }
+  .screen-head{
+    display:grid;grid-template-columns:auto 1fr auto;gap:20px;
+    align-items:center;padding:22px 28px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(90deg,rgba(20,211,176,0.05),transparent 60%);
+  }
+  .screen-id{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--teal);border:1px solid rgba(20,211,176,0.3);background:rgba(20,211,176,0.06);padding:6px 12px;border-radius:8px;font-weight:600}
+  .screen-head h3{margin:0;font-size:24px;font-weight:700;letter-spacing:-0.01em}
+  .screen-head h3 small{display:block;color:var(--ink-3);font-size:13px;font-weight:400;margin-top:4px;letter-spacing:0}
+  .severity{font-family:"JetBrains Mono",monospace;font-size:11px;padding:6px 10px;border-radius:8px;font-weight:600;letter-spacing:0.06em}
+  .sev-crit{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,111,122,0.3)}
+  .sev-high{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(255,182,72,0.3)}
+  .sev-med{background:rgba(167,139,255,0.12);color:var(--violet);border:1px solid rgba(167,139,255,0.3)}
+  .sev-ok{background:var(--teal-dim);color:var(--teal);border:1px solid rgba(20,211,176,0.3)}
+
+  .screen-body{display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:32px;padding:28px}
+  @media (max-width:920px){.screen-body{grid-template-columns:1fr}}
+
+  .current{
+    background:#070d18;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px;
+    position:sticky;top:24px;align-self:start;
+  }
+  .current h4{margin:0 0 12px;font-size:11px;color:var(--ink-3);letter-spacing:0.16em;text-transform:uppercase;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+  .current h4 span.tag{font-family:"JetBrains Mono",monospace;color:var(--red);background:var(--red-dim);padding:3px 8px;border-radius:6px;letter-spacing:0.04em;text-transform:none;font-size:10px}
+  .current img{width:100%;display:block;border-radius:8px;border:1px solid var(--line)}
+
+  .analysis{display:flex;flex-direction:column;gap:24px}
+  .block{background:var(--bg-2);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+  .block h5{margin:0 0 12px;font-size:11px;color:var(--ink-3);letter-spacing:0.16em;text-transform:uppercase;font-weight:600;display:flex;align-items:center;gap:8px}
+  .block h5 .ic{width:18px;height:18px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:"JetBrains Mono",monospace}
+  .block.problem h5 .ic{background:var(--red-dim);color:var(--red)}
+  .block.why h5 .ic{background:var(--amber-dim);color:var(--amber)}
+  .block.fix h5 .ic{background:var(--teal-dim);color:var(--teal)}
+  .block.wire h5 .ic{background:rgba(167,139,255,0.18);color:var(--violet)}
+  .block p{margin:0 0 10px;color:var(--ink-2);font-size:15px}
+  .block p:last-child{margin:0}
+  .block ul{margin:0;padding-inline-start:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+  .block ul li{font-size:15px;color:var(--ink-2);padding-inline-start:22px;position:relative}
+  .block ul li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ink-3);position:absolute;inset-inline-start:8px;top:11px}
+  .block.problem ul li::before{background:var(--red)}
+  .block.fix ul li::before{background:var(--teal)}
+  .block.why ul li::before{background:var(--amber)}
+  .block ul li b{color:var(--ink);font-weight:600}
+  .spec{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--teal);background:rgba(20,211,176,0.08);padding:2px 8px;border-radius:5px;font-weight:500;display:inline-block}
+  .spec.red{color:var(--red);background:var(--red-dim)}
+  .spec.amb{color:var(--amber);background:var(--amber-dim)}
+
+  /* tiny mobile wireframe SVG */
+  .wirepair{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .phone{
+    background:#040912;
+    border:1px solid var(--line);
+    border-radius:24px;
+    padding:14px 12px;
+    aspect-ratio:9/19;
+    display:flex;flex-direction:column;gap:6px;
+    position:relative;
+    font-size:9px;color:var(--ink-3);
+    overflow:hidden;
+  }
+  .phone .notch{width:50%;height:18px;background:#040912;border-radius:0 0 12px 12px;margin:-14px auto 4px}
+  .phone .label{position:absolute;top:6px;inset-inline-end:10px;font-size:9px;font-family:"JetBrains Mono",monospace;color:var(--ink-3);letter-spacing:0.06em}
+  .phone.before .label{color:var(--red)}
+  .phone.after .label{color:var(--teal)}
+  .phone .row{background:var(--surface);border-radius:6px;height:14px}
+  .phone .row.tall{height:24px}
+  .phone .row.h1{height:18px;background:var(--ink-2)}
+  .phone .row.h2{height:14px;background:#243958}
+  .phone .row.cta{height:30px;background:var(--teal);border-radius:10px}
+  .phone .row.cta-ghost{height:30px;background:transparent;border:1px solid var(--line-2);border-radius:10px}
+  .phone .row.input{height:26px;background:#0c1729;border:1px solid var(--line);border-radius:7px}
+  .phone .row.chip{height:14px;width:50%;background:var(--teal-dim);border:1px solid rgba(20,211,176,0.3);border-radius:99px}
+  .phone .row.small{height:10px;width:60%;background:var(--surface-2);opacity:0.5}
+  .phone .row.dot{height:6px;width:6px;border-radius:50%;background:var(--teal-dim);display:inline-block}
+  .phone .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .phone .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px}
+  .phone .stack{display:flex;flex-direction:column;gap:6px}
+  .phone .spacer{flex:1}
+  .phone .nav{height:36px;background:#0a1322;border-radius:10px;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:6px;margin-top:auto}
+  .phone .nav i{background:var(--surface-2);border-radius:5px;display:block}
+  .phone .nav i.active{background:var(--teal-dim);border:1px solid rgba(20,211,176,0.3)}
+  .phone .pad{padding:4px}
+
+  /* spec card */
+  .specs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px}
+  @media (max-width:520px){.specs{grid-template-columns:1fr}}
+  .specs .sp{background:#070d18;border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--ink-2);display:flex;justify-content:space-between;gap:12px}
+  .specs .sp .k{color:var(--ink-3)}
+  .specs .sp .v{color:var(--teal);font-weight:600}
+
+  /* layout suggestion big text wireframe block */
+  .textwire{font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.85;color:var(--ink-2);background:#04090f;border:1px solid var(--line);border-radius:12px;padding:18px 22px;white-space:pre;overflow-x:auto;direction:ltr;text-align:start}
+  .textwire .hl{color:var(--teal)}
+  .textwire .dim{color:var(--ink-3)}
+  .textwire .warn{color:var(--red)}
+
+  /* ───────────────── SUMMARY ───────────────── */
+  .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;counter-reset:s}
+  @media (max-width:520px){.summary-grid{grid-template-columns:1fr}}
+  .sumcard{position:relative;background:linear-gradient(180deg,#0e1a2e,#0a1424);border:1px solid var(--line);border-radius:16px;padding:24px 22px;counter-increment:s;min-height:200px;display:flex;flex-direction:column;gap:8px}
+  .sumcard::before{content:"0" counter(s);font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--teal);letter-spacing:0.12em;font-weight:600;opacity:0.8}
+  .sumcard h6{margin:0;font-size:17px;font-weight:700;color:var(--ink);line-height:1.3}
+  .sumcard p{margin:0;font-size:13px;color:var(--ink-3);line-height:1.55}
+  .sumcard.crit{border-color:rgba(255,111,122,0.3)}
+  .sumcard.crit::before{color:var(--red)}
+  .sumcard .tag{font-size:10px;font-family:"JetBrains Mono",monospace;color:var(--ink-3);padding:3px 7px;border:1px solid var(--line);border-radius:5px;align-self:flex-start;margin-top:auto;letter-spacing:0.04em}
+  .sumcard.crit .tag{color:var(--red);border-color:rgba(255,111,122,0.3)}
+  .sumcard.win .tag{color:var(--teal);border-color:rgba(20,211,176,0.3)}
+
+  .why-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:24px}
+  @media (max-width:720px){.why-grid{grid-template-columns:1fr}}
+  .why-card{background:#070d18;border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+  .why-card .k{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--ink-3);letter-spacing:0.12em;text-transform:uppercase;font-weight:600;margin-bottom:8px}
+  .why-card h6{margin:0 0 8px;font-size:16px;font-weight:700;color:var(--ink)}
+  .why-card p{margin:0;font-size:14px;color:var(--ink-2);line-height:1.6}
+  .why-card .verdict{display:inline-block;margin-top:12px;font-size:12px;font-family:"JetBrains Mono",monospace;color:var(--teal);background:var(--teal-dim);padding:4px 9px;border-radius:6px;font-weight:500}
+
+  /* cross-cutting */
+  .cc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media (max-width:920px){.cc-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:520px){.cc-grid{grid-template-columns:1fr}}
+  .cc{background:linear-gradient(180deg,#0e1a2e,#0a1424);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:8px}
+  .cc .ic{width:32px;height:32px;border-radius:8px;background:var(--teal-dim);color:var(--teal);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;font-family:"JetBrains Mono",monospace}
+  .cc h6{margin:6px 0 0;font-size:15px;font-weight:700}
+  .cc p{margin:0;font-size:13px;color:var(--ink-3);line-height:1.55}
+
+  hr.div{border:0;border-top:1px solid var(--line);margin:32px 0}
+
+  /* footer */
+  footer{margin-top:120px;border-top:1px solid var(--line);padding-top:32px;color:var(--ink-3);font-size:13px;font-family:"JetBrains Mono",monospace;display:flex;justify-content:space-between;flex-wrap:wrap;gap:20px}
+
+  /* scroll indicator */
+  .toc{position:sticky;top:0;background:rgba(7,16,31,0.85);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:12px 0;z-index:50;margin-bottom:-1px}
+  .toc-inner{max-width:1180px;margin:0 auto;padding:0 32px;display:flex;gap:6px;overflow-x:auto;font-family:"JetBrains Mono",monospace;font-size:12px;scrollbar-width:none}
+  .toc-inner::-webkit-scrollbar{display:none}
+  .toc-inner a{padding:6px 12px;border-radius:6px;color:var(--ink-3);text-decoration:none;border:1px solid transparent;white-space:nowrap;transition:all .15s}
+  .toc-inner a:hover{color:var(--ink);background:var(--surface);border-color:var(--line)}
+  @media (max-width:720px){.toc-inner{padding:0 18px}}
+</style>
+</head>
+<body>
+
+<nav class="toc">
+  <div class="toc-inner">
+    <a href="#cover">00 · סקירה</a>
+    <a href="#cross">01 · בעיות רוחביות</a>
+    <a href="#splash">02 · Splash</a>
+    <a href="#login">03 · Login</a>
+    <a href="#forgot">04 · איפוס סיסמה</a>
+    <a href="#register">05 · הרשמה</a>
+    <a href="#onboard">06 · Onboarding</a>
+    <a href="#dashboard">07 · Dashboard</a>
+    <a href="#workout">08 · תוכנית אימונים</a>
+    <a href="#nutrition">09 · תזונה</a>
+    <a href="#menu">10 · תפריט יומי</a>
+    <a href="#goals">11 · יעדים / BMI</a>
+    <a href="#xp">12 · XP / מסע</a>
+    <a href="#progress">13 · התקדמות</a>
+    <a href="#settings">14 · הגדרות</a>
+    <a href="#legal">15 · משפטי</a>
+    <a href="#top5">16 · 5 בעיות קריטיות</a>
+    <a href="#wins">17 · 5 שיפורים מנצחים</a>
+    <a href="#why">18 · למה לא מותאם</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- ═════════════════ COVER ═════════════════ -->
+<header id="cover" class="cover">
+  <span class="eyebrow"><span class="dot"></span>Mobile UX Audit · 12 May 2026</span>
+  <h1>Areto — <span class="accent">Mobile-First</span><br/>Audit ועיצוב מחדש.</h1>
+  <p class="lede">בדיקה מקיפה של 9 מסכים: היכן הדסקטופ-לוגיק נשבר במובייל, ואיך לעצב מחדש כל סקשן כדי לעבוד באגודל אחד — עם המרות גבוהות יותר ועומס קוגניטיבי נמוך יותר.</p>
+
+  <div class="meta">
+    <span><b>17</b> מסכים נבדקו</span>
+    <span><b>78</b> ממצאים</span>
+    <span><b>7</b> קריטיים</span>
+    <span>Senior UX · CRO · Mobile Product</span>
+  </div>
+
+  <div class="verdict-strip">
+    <div>
+      <div class="k">Mobile readiness</div>
+      <div class="v red">38<small style="font-size:18px;color:var(--ink-3)">/100</small></div>
+      <div class="s">מבוסס דסקטופ, לא מובייל</div>
+    </div>
+    <div>
+      <div class="k">Above-the-fold</div>
+      <div class="v amb">חלש</div>
+      <div class="s">CTA נחתך, סטטיסטיקה נדחפת למטה</div>
+    </div>
+    <div>
+      <div class="k">Thumb zone</div>
+      <div class="v red">ירוד</div>
+      <div class="s">פעולות מרכזיות באזור הקשה להגעה</div>
+    </div>
+    <div>
+      <div class="k">Conversion risk</div>
+      <div class="v amb">בינוני–גבוה</div>
+      <div class="s">Login + Onboarding מאבדים משתמשים</div>
+    </div>
+  </div>
+</header>
+
+<!-- ═════════════════ CROSS-CUTTING ═════════════════ -->
+<section id="cross">
+  <div class="section-header">
+    <div>
+      <span class="num">01 / CROSS-CUTTING</span>
+      <h2>בעיות שחוזרות בכל המסכים</h2>
+    </div>
+    <p class="sub">הדפוסים האלה לא של מסך בודד — הם של כל המערכת. תקנו אותם פעם אחת ברמת ה-design system, התיקון יחלחל לכולם.</p>
+  </div>
+
+  <div class="cc-grid">
+    <div class="cc"><div class="ic">01</div><h6>Layout נבנה לדסקטופ ונדחס למובייל</h6><p>Split-screen 50/50, כותרת ענקית בצד ימין וטופס בצד שמאל — במובייל זה הופך לסטאק עם 1.5 מסך גלילה לפני שמגיעים לפעולה.</p></div>
+    <div class="cc"><div class="ic">02</div><h6>CTA חי באמצע המסך</h6><p>הכפתור הראשי לא נשאר ב-thumb zone (השליש התחתון). המשתמש צריך למתוח אגודל / לאחוז ביד שנייה.</p></div>
+    <div class="cc"><div class="ic">03</div><h6>Padding דסקטופי על carded surfaces</h6><p>קלטים ברוחב 800px בדסקטופ הופכים לקלטים ברוחב מסך מלא ללא breathing room; קצוות נדבקים לטלפון.</p></div>
+    <div class="cc"><div class="ic">04</div><h6>גדלי טקסט לא היררכיים</h6><p>כותרות 32px ותתי כותרות 14px יוצרים נפילה חדה; גודל ממוצע (16–18) חסר לקריאה רגועה.</p></div>
+    <div class="cc"><div class="ic">05</div><h6>היעדר Sticky Bottom Bar</h6><p>בכל מסך פעולה (Login, Onboarding, Workout) הכפתור הראשי לא נעול לתחתית — גולש עם התוכן.</p></div>
+    <div class="cc"><div class="ic">06</div><h6>אזורי תוכן מסיביים בלי breathing</h6><p>Workout = כל הימים על מסך אחד. במובייל זה 6+ גלילות רציפות בלי קצב או נשימה ויזואלית.</p></div>
+    <div class="cc"><div class="ic">07</div><h6>Sidebar שלא קיים במובייל</h6><p>הניווט בצד (Dashboard) חייב להיות Bottom Tab Bar במובייל. כרגע צפוי שיהפוך ל-Hamburger — חוויה גרועה.</p></div>
+    <div class="cc"><div class="ic">08</div><h6>Form fields צרים ובלי autofill hints</h6><p>קלטים בגובה ~48px נראים סבירים אך type="email" / inputMode / autocomplete חסרים — מקלדת לא מותאמת בעת ההקלדה.</p></div>
+    <div class="cc"><div class="ic">09</div><h6>Trust signals מתחת ל-fold</h6><p>"+10,000 ספורטאים", "★ 4.8" מופיעים אחרי הטופס. במובייל הם נדחקים מתחת לקיפול — אפס תועלת ב-CRO.</p></div>
+  </div>
+</section>
+
+<!-- ═════════════════ 02 SPLASH ═════════════════ -->
+<section id="splash">
+  <div class="section-header">
+    <div>
+      <span class="num">02 / SPLASH</span>
+      <h2>מסך פתיחה</h2>
+    </div>
+    <p class="sub">המסך הראשון שהמשתמש רואה. הזדמנות יחידה לבסס אמינות ולתת תחושה של אפליקציה איכותית.</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-00</span>
+      <h3>Splash · "Areto · BUILD. TRACK. IMPROVE."<small>ריק מדי. לא מנצל את הזמן של שניית הטעינה.</small></h3>
+      <span class="severity sev-med">MEDIUM</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">סטטי</span></h4>
+        <img src="assets/00-splash.png" alt="splash">
+      </div>
+      <div class="analysis">
+        <div class="block problem">
+          <h5><span class="ic">!</span>בעיות עיקריות</h5>
+          <ul>
+            <li>הלוגו <b>קטן יחסית למסך</b> — בערך 70×70px על מובייל. אין נוכחות.</li>
+            <li>אין <b>indicator טעינה</b>. המשתמש לא יודע אם משהו קורה.</li>
+            <li>הטאגליין באנגלית באתר עברי — <b>שבירת קונסיסטנטיות</b>.</li>
+            <li>הרקע ריק לחלוטין — <b>הזדמנות שאבדה</b> לבסס brand atmosphere.</li>
+          </ul>
+        </div>
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע במשתמש</h5>
+          <p>Splash שמרגיש "ריק" בשנייה הראשונה יוצר תחושה של אפליקציית חינם / לא-מקצועית — לפני שבכלל ראו ממשק. במובייל זה חשוב הרבה יותר מבדסקטופ כי הטעינה ארוכה יותר.</p>
+        </div>
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש</h5>
+          <ul>
+            <li><b>הגדל לוגו</b> ל-120–140px, ממוקם 38% מלמעלה (לא מרכז).</li>
+            <li>הוסף <b>Loader דק</b> מתחת לטאגליין — 3 נקודות פולסיות או מילוי הדרגתי באות "A".</li>
+            <li>תרגם הטאגליין: <span class="spec">"בנה. עקוב. תשתפר."</span> — אותה ארכיטקטורה כמו ההירו במסך התחברות, יצירת המשכיות.</li>
+            <li>הוסף <b>gradient atmosphere</b> ברקע — orb טורקיז מטושטש שזז אט-אט (לא עומס, בקושי נראה).</li>
+            <li><b>Max time: 1.5 שניות</b>. אחרי זה — חיתוך כפוי למסך הבא.</li>
+          </ul>
+        </div>
+        <div class="block wire">
+          <h5><span class="ic">◫</span>Wireframe מובייל</h5>
+          <div class="wirepair">
+            <div class="phone before">
+              <div class="notch"></div>
+              <span class="label">לפני</span>
+              <div class="spacer"></div>
+              <div style="width:40%;height:40px;background:var(--surface);border-radius:8px;margin:0 auto"></div>
+              <div class="row small" style="margin:8px auto 4px;width:30%"></div>
+              <div class="row small" style="margin:0 auto;width:45%"></div>
+              <div class="spacer"></div>
+              <div class="spacer"></div>
+            </div>
+            <div class="phone after">
+              <div class="notch"></div>
+              <span class="label">אחרי</span>
+              <div class="spacer"></div>
+              <div style="width:55%;aspect-ratio:1;background:linear-gradient(135deg,var(--teal-dim),transparent);border:1px solid rgba(20,211,176,0.3);border-radius:18px;margin:0 auto;display:flex;align-items:center;justify-content:center;color:var(--teal);font-weight:700">A</div>
+              <div class="row" style="height:14px;background:var(--ink-2);width:40%;margin:14px auto 6px"></div>
+              <div class="row small" style="margin:0 auto;width:55%"></div>
+              <div class="spacer"></div>
+              <div style="height:3px;width:60%;background:rgba(255,255,255,0.06);border-radius:99px;margin:0 auto;position:relative;overflow:hidden">
+                <div style="width:40%;height:100%;background:var(--teal);border-radius:99px"></div>
+              </div>
+              <div class="spacer"></div>
+            </div>
+          </div>
+          <div class="specs">
+            <div class="sp"><span class="k">Logo size</span><span class="v">140px</span></div>
+            <div class="sp"><span class="k">Position</span><span class="v">38% from top</span></div>
+            <div class="sp"><span class="k">Tagline</span><span class="v">15px / 0.2em</span></div>
+            <div class="sp"><span class="k">Max duration</span><span class="v">1.5s</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ 03 LOGIN ═════════════════ -->
+<section id="login">
+  <div class="section-header">
+    <div>
+      <span class="num">03 / LOGIN</span>
+      <h2>מסך התחברות</h2>
+    </div>
+    <p class="sub">המסך הקריטי ביותר ל-CRO. כל איבוד פוקוס פה = משתמש שלא חוזר.</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-01</span>
+      <h3>Login · Split-screen<small>"בנה גוף. עקוב. תשתפר. בלי לנחש." + טופס</small></h3>
+      <span class="severity sev-crit">CRITICAL</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">דסקטופ-מתורגם</span></h4>
+        <img src="assets/01-login-empty.png" alt="login">
+      </div>
+      <div class="analysis">
+
+        <div class="block problem">
+          <h5><span class="ic">!</span>הבעיות במובייל</h5>
+          <ul>
+            <li><b>Split-screen לא עובד במובייל.</b> ההירו ("בנה גוף...") יורד לסטאק מעל הטופס — המשתמש חייב לגלול 60–70% מהמסך לפני שמגיע ל-CTA.</li>
+            <li><b>סדר אלמנטים הפוך.</b> משתמש שחוזר רוצה <i>קודם להתחבר</i>, ההירו רק רלוונטי למשתמש חדש — והוא מועבר ל-Register.</li>
+            <li><b>הסטטיסטיקות (2.4M, 4.8★, 10K)</b> מתחת לקיפול — חסר ערך CRO.</li>
+            <li><b>"ברוך שובך" pill</b> בצד שמאל, ניתוק מהכותרת — במובייל יראה תלוש.</li>
+            <li><b>"עדיין אין לך חשבון? הירשם כאן"</b> מופיע <i>מתחת</i> לכותרת — אבל זה שייך לתחתית הטופס, לא מעליה.</li>
+            <li><b>חסר biometric / "Remember me"</b> — במובייל, Face ID / טביעת אצבע הם חובה.</li>
+            <li><b>Forgot password</b> מופיע רק כ-Label "שכחת?" קטן ליד "סיסמה" — אזור הקשה זעיר.</li>
+          </ul>
+        </div>
+
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע במשתמש</h5>
+          <p><b>Drop-off של 25–40%</b> בלוגין מתרחש בדיוק כאשר משתמש חוזר רואה תוכן שיווקי לפני הטופס. במובייל עם יד אחת — כל גלילה נוספת מורידה את ההסתברות שיגיע ל-CTA.</p>
+          <p>בנוסף, ה-Hero טקסט גדול ושיווקי <b>מבלבל את ההיררכיה</b>: המוח חושב "נחתי בלנדינג פייג'" במקום "אני במסך לוגין".</p>
+        </div>
+
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש</h5>
+          <ul>
+            <li><b>Above the fold</b>: לוגו + שם משתמש + סיסמה + CTA. ההירו <i>נעלם</i> במובייל — או הופך לכרטיסיית-טאב אופציונלית.</li>
+            <li><b>Biometric כפתור ראשי</b> אם זוהה חזרה (Face ID 64×64px במרכז, מעל הטופס).</li>
+            <li><b>Google SSO</b> ראשון, מתחתיו "או", ואז email+password.</li>
+            <li>הזז <b>סטטיסטיקות (Trust band)</b> למסך הרשמה — לא ללוגין. משתמש חוזר לא צריך לראות "+10,000 פעילים".</li>
+            <li>הפוך <b>"שכחת סיסמה?"</b> ללינק נפרד תחת השדה, padding 12px, hit area 44×44px.</li>
+            <li>CTA "היכנס" נעול <b>בתחתית המסך</b>, ברוחב מלא, 56px גובה — bottom safe-area inset.</li>
+            <li><b>Auto-focus</b> על שדה האימייל מיד עם פתיחת המסך (אם אין biometric).</li>
+            <li>הוסף <span class="spec">inputmode="email"</span> + <span class="spec">autocomplete="username"</span> + <span class="spec">autocomplete="current-password"</span>.</li>
+          </ul>
+        </div>
+
+        <div class="block wire">
+          <h5><span class="ic">◫</span>Layout חדש למובייל</h5>
+          <div class="wirepair">
+            <div class="phone before">
+              <div class="notch"></div>
+              <span class="label">לפני</span>
+              <div class="row h1" style="width:70%"></div>
+              <div class="row h1" style="width:80%"></div>
+              <div class="row h1" style="width:60%"></div>
+              <div class="row small" style="width:90%"></div>
+              <div class="row small" style="width:75%"></div>
+              <div class="grid3" style="margin-top:6px">
+                <div><div class="row" style="height:10px"></div><div class="row small" style="margin-top:3px"></div></div>
+                <div><div class="row" style="height:10px"></div><div class="row small" style="margin-top:3px"></div></div>
+                <div><div class="row" style="height:10px"></div><div class="row small" style="margin-top:3px"></div></div>
+              </div>
+              <div class="row h1" style="width:60%;margin-top:8px"></div>
+              <div class="row input"></div>
+              <div class="row input"></div>
+              <div class="row cta"></div>
+              <div class="spacer"></div>
+            </div>
+            <div class="phone after">
+              <div class="notch"></div>
+              <span class="label">אחרי</span>
+              <div style="display:flex;justify-content:space-between;align-items:center"><div class="row" style="height:14px;width:30%;background:var(--ink-2)"></div><div class="row chip" style="width:30%;margin:0"></div></div>
+              <div style="height:8px"></div>
+              <div class="row h1" style="width:75%;height:20px"></div>
+              <div class="row small" style="width:60%"></div>
+              <div style="height:8px"></div>
+              <div class="row cta-ghost" style="border-color:#fff;background:#fff;color:#000"></div>
+              <div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:1px;background:var(--line)"></div><span style="font-size:8px">או</span><div style="flex:1;height:1px;background:var(--line)"></div></div>
+              <div class="row small" style="width:25%;margin-bottom:2px"></div>
+              <div class="row input"></div>
+              <div style="display:flex;justify-content:space-between;align-items:center"><div class="row small" style="width:25%;margin:0"></div><div class="row small" style="width:30%;margin:0;color:var(--teal);background:transparent"></div></div>
+              <div class="row input"></div>
+              <div class="spacer"></div>
+              <div class="row cta" style="height:36px"></div>
+              <div class="row small" style="width:70%;margin:0 auto"></div>
+            </div>
+          </div>
+          <div class="specs">
+            <div class="sp"><span class="k">CTA height</span><span class="v">56px sticky bottom</span></div>
+            <div class="sp"><span class="k">Inputs</span><span class="v">52px / 16px font</span></div>
+            <div class="sp"><span class="k">Spacing inter-fields</span><span class="v">14px</span></div>
+            <div class="sp"><span class="k">Hero (above-fold)</span><span class="v">Title only, 22px</span></div>
+            <div class="sp"><span class="k">"שכחת?" tap area</span><span class="v">44×44px min</span></div>
+            <div class="sp"><span class="k">Side padding</span><span class="v">20–24px</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ 04 FORGOT ═════════════════ -->
+<section id="forgot">
+  <div class="section-header">
+    <div>
+      <span class="num">04 / PASSWORD RESET</span>
+      <h2>איפוס סיסמה</h2>
+    </div>
+    <p class="sub">מסך עזר — אבל קריטי. כשלון פה = משתמש מאבד גישה לחלוטין.</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-03</span>
+      <h3>איפוס סיסמה · כרטיס ממורכז<small>קלט email בודד + כפתור "שלח קוד"</small></h3>
+      <span class="severity sev-med">MEDIUM</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">card-center</span></h4>
+        <img src="assets/03-forgot-password.png" alt="forgot">
+      </div>
+      <div class="analysis">
+        <div class="block problem">
+          <h5><span class="ic">!</span>בעיות במובייל</h5>
+          <ul>
+            <li><b>הכרטיס "צף" באמצע</b> במובייל — מעמיס שכבת border מיותרת על מסך שכבר קטן.</li>
+            <li>אין <b>הקשר/בטחון</b>: "תוך כמה זמן יגיע הקוד?" "האם תקבל גם SMS?"</li>
+            <li><b>"חזרה להתחברות"</b> טקסטואלי בלבד; אין חץ חזרה ב-top bar.</li>
+            <li>אין <b>indicator שלב</b> (Step 1 of 2) — המשתמש לא יודע אם זה מסך אחד או תהליך ארוך.</li>
+          </ul>
+        </div>
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע במשתמש</h5>
+          <p>איפוס סיסמה הוא רגע של תסכול מראש. כל חוסר בהירות מכפיל אותו. המסך הזה צריך להרגיש <b>קצר, ברור ומרגיע</b>.</p>
+        </div>
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש</h5>
+          <ul>
+            <li>בטל את ה-card border. <b>הופך למסך מלא</b> עם top bar שמכיל חץ חזרה (44×44) + כותרת מינימלית.</li>
+            <li>הוסף <b>Step indicator</b>: "1 מתוך 2 · הזן אימייל".</li>
+            <li>אחרי שליחת אימייל — מסך אישור עם <b>resend timer של 30 שניות</b>, וברירת מחדל לפתוח אפליקציית המייל ("פתח Gmail").</li>
+            <li>הוסף <b>microcopy מרגיע</b>: "הקוד יגיע תוך 30 שניות. בדוק גם בספאם."</li>
+          </ul>
+        </div>
+        <div class="block wire">
+          <h5><span class="ic">◫</span>Wireframe</h5>
+          <div class="textwire">┌──────────────────────────────┐
+│ <span class="hl">←</span>                    Areto │   <span class="dim">// top bar 56px</span>
+├──────────────────────────────┤
+│                              │
+│  <span class="dim">step 1 / 2</span>                  │
+│                              │
+│  <span class="hl">איפוס סיסמה</span>                │   <span class="dim">// 28px bold</span>
+│  הזן אימייל וקבל קוד תוך     │   <span class="dim">// 15px ink-2</span>
+│  30 שניות.                   │
+│                              │
+│  אימייל                      │
+│  ┌────────────────────────┐ │
+│  │ you@email.com           │ │   <span class="dim">// 52px input</span>
+│  └────────────────────────┘ │
+│                              │
+│  <span class="dim">לא קיבלת? נסה את הספאם.</span>  │
+│                              │
+├──────────────────────────────┤
+│ ┌────────────────────────┐ │   <span class="dim">// sticky bottom</span>
+│ │      <span class="hl">שלח קוד →</span>          │ │
+│ └────────────────────────┘ │
+└──────────────────────────────┘</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ 05 REGISTER ═════════════════ -->
+<section id="register">
+  <div class="section-header">
+    <div>
+      <span class="num">05 / REGISTER</span>
+      <h2>הרשמה</h2>
+    </div>
+    <p class="sub">נקודת הכניסה הראשית למשתמש חדש. כאן השקעת ב-Trust בהכי הרבה — וכאן זה הכי חסר.</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-04</span>
+      <h3>Create your account · כרטיס ממורכז<small>אנגלית במצב המוצג. גם השפה צריכה להיות עקבית.</small></h3>
+      <span class="severity sev-crit">CRITICAL</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">EN/HE mix</span></h4>
+        <img src="assets/04-register-empty.png" alt="register">
+      </div>
+      <div class="analysis">
+
+        <div class="block problem">
+          <h5><span class="ic">!</span>בעיות חמורות</h5>
+          <ul>
+            <li><b>שפה לא עקבית.</b> המסך באנגלית כאשר כל שאר האפליקציה בעברית. בלבול מיידי.</li>
+            <li>אין <b>Value proposition</b>. "Create your account" + "Sign up and start tracking your progress" — שיווקית חלשה. מה אני מקבל? מה זה ייקח לי?</li>
+            <li>אין <b>Social proof</b>. במסך ההרשמה זה חיוני ("הצטרף ל-10,000 ספורטאים שכבר רושמים תוצאות").</li>
+            <li><b>3 שדות סיסמה בערך</b> (Password + Confirm) — Confirm password הוא חיכוך מיותר ב-2026. אפשר להציג כפתור "הצג סיסמה" במקום.</li>
+            <li>אין <b>indicator חוזק סיסמה</b>.</li>
+            <li><b>"At least 6 characters"</b> — חלש מדי לאפליקציית בריאות שמחזיקה נתונים אישיים.</li>
+            <li>אין <b>tick checkbox</b> לתנאי שימוש — חוסר ציות משפטי.</li>
+            <li>הכרטיס ממורכז — נכון לדסקטופ. במובייל זה <b>דוחה את החלק העליון</b> עם מרווח לבן.</li>
+          </ul>
+        </div>
+
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע</h5>
+          <p>מסך הרשמה במובייל מתפקד כ-conversion funnel קצר. כל חיכוך = drop. כפילות של סיסמה לבדה מורידה המרות ב-10–15%. שפה לא עקבית פוגעת באמון באופן מיידי.</p>
+        </div>
+
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש</h5>
+          <ul>
+            <li><b>תרגם לעברית מלאה</b>: "צור חשבון. תוך 60 שניות תקבל תוכנית מותאמת."</li>
+            <li><b>הוסף Value strip</b> מתחת לכותרת — 3 ✓ קצרים: "תוכנית מותאמת · מעקב יומי · ללא פרסומות".</li>
+            <li><b>בטל "Confirm password"</b>. הוסף <span class="spec">show/hide</span> טוגל.</li>
+            <li>הוסף <b>password strength meter</b> ויזואלי (3 פסי צבע).</li>
+            <li>העלה דרישה מינימלית: <span class="spec">8+ chars, 1 number</span>.</li>
+            <li>הוסף <b>checkbox מינימלי</b>: "אני מאשר את תנאי השימוש ומדיניות הפרטיות". לינקים פנימיים.</li>
+            <li>פירוק לשני שלבים: <b>שלב 1 = פרטי גישה</b> (Google או email+password). <b>שלב 2 = Onboarding</b> (כבר קיים, רק לאחר ההרשמה).</li>
+            <li>הוסף <b>Trust band תחתון</b>: "★ 4.8 App Store · +10,000 ספורטאים פעילים".</li>
+          </ul>
+        </div>
+
+        <div class="block wire">
+          <h5><span class="ic">◫</span>Layout מובייל מומלץ</h5>
+          <div class="textwire">┌──────────────────────────────┐
+│ <span class="hl">←</span>          Areto    🟢      │   <span class="dim">// top bar קל</span>
+├──────────────────────────────┤
+│                              │
+│  <span class="hl">צור חשבון</span>                  │   <span class="dim">// 32px bold</span>
+│  תוכנית מותאמת תוך 60        │   <span class="dim">// 15px</span>
+│  שניות.                      │
+│                              │
+│  <span class="hl">✓</span> תוכנית מותאמת אישית        │   <span class="dim">// value strip</span>
+│  <span class="hl">✓</span> מעקב יומי אוטומטי           │
+│  <span class="hl">✓</span> ללא פרסומות                 │
+│                              │
+│  ┌──────────────────────────┐ │
+│  │ G  המשך עם Google         │ │   <span class="dim">// 52px white btn</span>
+│  └──────────────────────────┘ │
+│  ─────────── או ───────────  │
+│                              │
+│  אימייל                      │
+│  ┌────────────────────────┐ │
+│  │ you@email.com           │ │
+│  └────────────────────────┘ │
+│                              │
+│  סיסמה            <span class="dim">👁 הצג</span>      │
+│  ┌────────────────────────┐ │
+│  │ ••••••••                │ │
+│  └────────────────────────┘ │
+│  <span class="hl">▰▰▰</span>▱▱  חזקה                 │   <span class="dim">// strength bar</span>
+│                              │
+│  ☐ אני מאשר את <span class="hl">תנאי השימוש</span>  │
+│                              │
+├──────────────────────────────┤
+│ ┌────────────────────────┐ │   <span class="dim">// sticky bottom</span>
+│ │     <span class="hl">צור חשבון →</span>            │ │
+│ └────────────────────────┘ │
+│ <span class="dim">★ 4.8 · +10,000 ספורטאים פעילים</span> │
+└──────────────────────────────┘</div>
+          <div class="specs">
+            <div class="sp"><span class="k">Confirm field</span><span class="v">remove</span></div>
+            <div class="sp"><span class="k">Steps</span><span class="v">1 only (no progress bar)</span></div>
+            <div class="sp"><span class="k">Password min</span><span class="v">8 chars + 1 num</span></div>
+            <div class="sp"><span class="k">CTA</span><span class="v">sticky, 56px, full-width</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ 06 ONBOARDING ═════════════════ -->
+<section id="onboard">
+  <div class="section-header">
+    <div>
+      <span class="num">06 / ONBOARDING</span>
+      <h2>אונבורדינג — המסך הכי בעייתי</h2>
+    </div>
+    <p class="sub">4 שלבים על דף אחד = drop-off מהקצוות. צריך פירוק.</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-06</span>
+      <h3>"בוא נכיר אותך" · 4 stages on one page<small>אתה → מטרה → תוכנית → גוף</small></h3>
+      <span class="severity sev-crit">CRITICAL</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">single-page</span></h4>
+        <img src="assets/06-onboarding-empty.png" alt="onboarding">
+      </div>
+      <div class="analysis">
+
+        <div class="block problem">
+          <h5><span class="ic">!</span>הבעיה המרכזית</h5>
+          <ul>
+            <li><b>4 שלבים מוצגים יחד במסך אחד.</b> במובייל זה ~5 מסכי גלילה. תחושת "טופס אינסופי".</li>
+            <li><b>פס ההתקדמות (0% · שלב 0 מתוך 4)</b> אומר שיש 4 שלבים — אבל מציג את כולם פתוחים. מתסכל את מטרת ה-progress.</li>
+            <li><b>"גובה · גיל · משקל"</b> בשורה אחת של 2 עמודות — במובייל ה-2 עמודות יורדות לטוב, אבל זה <i>4 inputs ברצף</i> עם labels באותו משקל.</li>
+            <li><b>"מטרה" — 3 כרטיסים בשורה</b>. במובייל הם הופכים לעמוד; עדיף שיהיו 1 בולט (recommended) ו-2 secondary.</li>
+            <li><b>"מין"</b> כ-select dropdown — anti-pattern במובייל. צריך להיות 2 כפתורי טוגל.</li>
+            <li><b>"רמת ניסיון"</b> 3 כרטיסים עם טקסט קטן — קשה להבנה ב-glance.</li>
+            <li>CTA <b>"התחל את המסע שלך"</b> רק בסוף — אחרי גלילה ארוכה. drop-off ענק לפניו.</li>
+          </ul>
+        </div>
+
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע במשתמש</h5>
+          <p><b>כלל ה-One Decision Per Screen.</b> במובייל, מסך אחד = שאלה אחת. כשמעמיסים 4 שלבים, המוח עובר ל-"avoidance mode" — הוא רואה את העומס לפני שמתחיל למלא. ב-CRO אקדמי, פיצול של form ארוך ל-screens קצרים מעלה השלמה ב-20–35%.</p>
+        </div>
+
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש (Mobile-First)</h5>
+          <ul>
+            <li><b>פצל ל-4 מסכים נפרדים</b> — אחד לשלב. progress bar בולט למעלה.</li>
+            <li>כל מסך = <b>שאלה אחת + CTA אחד</b>. כפתור "המשך" נעול בתחתית.</li>
+            <li><b>שלב 1 (אתה)</b>: מין → גיל → גובה → משקל. <b>4 מיקרו-מסכים מקוננים</b> או מסך אחד עם 4 שדות גדולים — אבל לא יחד עם מטרה+תוכנית.</li>
+            <li><b>"מין"</b>: שני כרטיסים גדולים (גבר / אישה) עם אייקון, 50/50, hit area ענק.</li>
+            <li><b>"גיל / גובה / משקל"</b>: <span class="spec">stepper</span> או <span class="spec">wheel picker</span> במקום keyboard input. שווה ל-Apple Health UX.</li>
+            <li><b>"מטרה"</b>: 3 כרטיסים <i>אנכיים</i> (לא רוחביים) — full-width, אייקון גדול בצד, כותרת + תיאור.</li>
+            <li>הצג <b>"מומלץ"</b> badge דינמי על המטרה שמתאימה ל-BMI שלו.</li>
+            <li>הסר את ה-<b>BMI gauge מיד אחרי משקל</b> — זה צריך להופיע <i>אחרי בחירת מטרה</i> כ-"validation positive feedback".</li>
+            <li><b>"רמת ניסיון"</b>: 3 כפתורי toggle ענקיים (לא card). מתחת — אקורדיון "מה זה?".</li>
+            <li>בסוף — מסך סיכום: "תוכנית 4 ימים, פוקוס על עלייה במסה. מתחילים?" + כפתור.</li>
+          </ul>
+        </div>
+
+        <div class="block wire">
+          <h5><span class="ic">◫</span>4 מסכים נפרדים — Wireframe</h5>
+          <div class="wirepair" style="grid-template-columns:repeat(4,1fr);gap:8px">
+
+            <div class="phone after">
+              <div class="notch"></div>
+              <span class="label">1/4 · אתה</span>
+              <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:99px;display:flex"><div style="width:25%;height:100%;background:var(--teal);border-radius:99px"></div></div>
+              <div class="row small" style="width:35%;margin-top:4px"></div>
+              <div class="row h1" style="width:80%;height:14px"></div>
+              <div class="row small" style="width:90%"></div>
+              <div style="height:6px"></div>
+              <div class="grid2">
+                <div style="aspect-ratio:1;background:var(--teal-dim);border:1px solid rgba(20,211,176,0.3);border-radius:8px"></div>
+                <div style="aspect-ratio:1;background:var(--surface);border-radius:8px"></div>
+              </div>
+              <div class="row small" style="width:25%"></div>
+              <div class="row input" style="height:18px"></div>
+              <div class="grid2"><div class="row input" style="height:18px"></div><div class="row input" style="height:18px"></div></div>
+              <div class="spacer"></div>
+              <div class="row cta" style="height:24px"></div>
+            </div>
+
+            <div class="phone after">
+              <div class="notch"></div>
+              <span class="label">2/4 · מטרה</span>
+              <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:99px;display:flex"><div style="width:50%;height:100%;background:var(--teal);border-radius:99px"></div></div>
+              <div class="row small" style="width:35%;margin-top:4px"></div>
+              <div class="row h1" style="width:75%;height:14px"></div>
+              <div class="stack">
+                <div style="display:flex;gap:6px;align-items:center;background:var(--teal-dim);border:1px solid rgba(20,211,176,0.3);border-radius:8px;padding:6px"><div style="width:14px;height:14px;background:var(--teal);border-radius:4px"></div><div style="flex:1"><div class="row" style="height:6px;width:50%;background:var(--ink-2);margin-bottom:2px"></div><div class="row" style="height:4px;width:80%"></div></div></div>
+                <div style="display:flex;gap:6px;align-items:center;background:var(--surface);border-radius:8px;padding:6px"><div style="width:14px;height:14px;background:var(--surface-2);border-radius:4px"></div><div style="flex:1"><div class="row" style="height:6px;width:40%;background:var(--ink-2);margin-bottom:2px"></div><div class="row" style="height:4px;width:60%"></div></div></div>
+                <div style="display:flex;gap:6px;align-items:center;background:var(--surface);border-radius:8px;padding:6px"><div style="width:14px;height:14px;background:var(--surface-2);border-radius:4px"></div><div style="flex:1"><div class="row" style="height:6px;width:45%;background:var(--ink-2);margin-bottom:2px"></div><div class="row" style="height:4px;width:70%"></div></div></div>
+              </div>
+              <div class="spacer"></div>
+              <div class="row cta" style="height:24px"></div>
+            </div>
+
+            <div class="phone after">
+              <div class="notch"></div>
+              <span class="label">3/4 · גוף</span>
+              <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:99px;display:flex"><div style="width:75%;height:100%;background:var(--teal);border-radius:99px"></div></div>
+              <div class="row small" style="width:35%;margin-top:4px"></div>
+              <div class="row h1" style="width:65%;height:14px"></div>
+              <div style="background:var(--surface);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:4px"><div style="font-size:7px;color:var(--ink-3)">BMI</div><div style="font-size:14px;color:var(--teal);font-weight:700">23.7</div><div style="height:4px;background:linear-gradient(90deg,#4a8cff,#22c55e,#fbbf24,#ef4444);border-radius:99px;position:relative"><div style="position:absolute;top:-2px;left:35%;width:6px;height:8px;background:#fff;border-radius:99px"></div></div></div>
+              <div style="background:var(--teal-dim);border:1px solid rgba(20,211,176,0.3);border-radius:8px;padding:6px;font-size:7px;color:var(--teal);font-weight:600">💡 מומלץ: שמירה</div>
+              <div class="spacer"></div>
+              <div class="row cta" style="height:24px"></div>
+            </div>
+
+            <div class="phone after">
+              <div class="notch"></div>
+              <span class="label">4/4 · תוכנית</span>
+              <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:99px;display:flex"><div style="width:100%;height:100%;background:var(--teal);border-radius:99px"></div></div>
+              <div class="row small" style="width:35%;margin-top:4px"></div>
+              <div class="row h1" style="width:80%;height:14px"></div>
+              <div class="row small" style="width:50%"></div>
+              <div class="grid3" style="gap:4px"><div style="aspect-ratio:1;background:var(--surface);border-radius:6px"></div><div style="aspect-ratio:1;background:var(--teal-dim);border:1px solid rgba(20,211,176,0.3);border-radius:6px"></div><div style="aspect-ratio:1;background:var(--surface);border-radius:6px"></div></div>
+              <div class="row small" style="width:40%;margin-top:4px"></div>
+              <div class="grid3" style="gap:4px"><div style="aspect-ratio:1;background:var(--surface);border-radius:6px"></div><div style="aspect-ratio:1;background:var(--teal-dim);border:1px solid rgba(20,211,176,0.3);border-radius:6px"></div><div style="aspect-ratio:1;background:var(--surface);border-radius:6px"></div></div>
+              <div class="spacer"></div>
+              <div class="row cta" style="height:24px"></div>
+            </div>
+
+          </div>
+
+          <div class="specs">
+            <div class="sp"><span class="k">Screens</span><span class="v">1 → 4</span></div>
+            <div class="sp"><span class="k">Decisions/screen</span><span class="v">1–3 max</span></div>
+            <div class="sp"><span class="k">Progress bar</span><span class="v">sticky top, 4px</span></div>
+            <div class="sp"><span class="k">BMI feedback</span><span class="v">after weight, not inline</span></div>
+            <div class="sp"><span class="k">Gender</span><span class="v">2-cards, no dropdown</span></div>
+            <div class="sp"><span class="k">Age/height/weight</span><span class="v">wheel picker</span></div>
+            <div class="sp"><span class="k">Goals</span><span class="v">vertical cards, full-width</span></div>
+            <div class="sp"><span class="k">Estimated time</span><span class="v">≤ 60s</span></div>
+          </div>
+
+          <p style="margin-top:16px;font-size:13px;color:var(--ink-3);font-style:italic">💡 פיצול ל-4 מסכים נפרדים מעלה השלמת אונבורדינג בממוצע ב-25-35% — בעיקר כי תחושת ה"קרוב לסיום" נשמרת לאורך כל הדרך.</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ 07 DASHBOARD ═════════════════ -->
+<section id="dashboard">
+  <div class="section-header">
+    <div>
+      <span class="num">07 / DASHBOARD</span>
+      <h2>סקירה כללית · Dashboard</h2>
+    </div>
+    <p class="sub">המסך שמשתמש רואה הכי הרבה. כל מילימטר חשוב.</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-08</span>
+      <h3>"לילה טוב, [שם]" · 6+ סקשנים על מסך<small>היעד הבא · השבוע · תזונה · תובנה · קיצורים · שינה</small></h3>
+      <span class="severity sev-crit">CRITICAL</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">desktop-grid</span></h4>
+        <img src="assets/08-dashboard-overview.png" alt="dashboard">
+      </div>
+      <div class="analysis">
+
+        <div class="block problem">
+          <h5><span class="ic">!</span>בעיות מובייל</h5>
+          <ul>
+            <li><b>Sidebar שמאלי</b> — לא ישרוד למובייל. צפוי להפוך ל-Hamburger או Bottom Tabs. בלי תכנון, יוסתר ויאבד פונקציונליות.</li>
+            <li><b>6 סקשנים על דף אחד</b> — עומס קוגניטיבי. במובייל, ראשון נכון = הרגלים יומיים. השאר = secondary.</li>
+            <li><b>"השבוע שלך" + "תזונה היום"</b> בעמודות צמודות — במובייל יורדים זה מעל זה ויוצרים שני בלוקים גדולים מאוד עם donut chart, progress bars וכותרות — עומס.</li>
+            <li><b>הקיצורים (התקדמות / התחל אימון / הוסף ארוחה)</b> מופיעים <i>אחרי</i> הסטטיסטיקות. במובייל הם צריכים להיות <b>קרובים לקיפול</b> — זה ה-CTA היומי.</li>
+            <li><b>"שינה של היום"</b> כסקשן בתחתית — שדרוג גודל מוגזם (slider, emoji, save button) על משהו ש-90% מהמשתמשים פותחים פעם ביום. צריך להיות גלוי אבל קומפקטי.</li>
+            <li><b>אין Bottom Tab Bar</b> — חובה במובייל.</li>
+            <li><b>"שלישי, 12 במאי"</b> טקסט קטן בצד — חסר נוכחות.</li>
+          </ul>
+        </div>
+
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע במשתמש</h5>
+          <p>Dashboard הוא מסך של <b>הרגל יומי</b>. אם בכל פתיחה צריך לסרוק 6 סקשנים, המוח עובד יותר מדי. המטרה היא שהמשתמש יראה <b>תוך 0.5 שניות</b>: "מה אני צריך לעשות עכשיו?".</p>
+        </div>
+
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש</h5>
+          <ul>
+            <li><b>Above the fold (מסך 1)</b>: ברכה קצרה + כרטיס יומי גדול ("היום: אימון פלג גוף עליון · 60 דק'") + שני progress rings קטנים (קלוריות · אימונים השבוע).</li>
+            <li><b>Hero CTA</b>: כפתור גדול אחד — "<b>התחל אימון</b>" או "הוסף ארוחה" — לפי השעה ביום (לוגיקה contextual).</li>
+            <li>הוסף <b>Bottom Tab Bar</b> 5 טאבים: דשבורד · אימונים · תזונה · התקדמות · פרופיל.</li>
+            <li>Sidebar הופך ל-<b>Drawer מהשמאל</b> דרך כפתור hamburger קטן בפינה.</li>
+            <li>הסקשנים הופכים ל-<b>horizontal scroll cards</b> במקום אנכיים: "Insights" · "השבוע" · "תזונה" · "שינה" — כל אחד carousel קטן.</li>
+            <li>שלב <b>"היום" vs "השבוע"</b> בטאב toggle (Today / Week).</li>
+            <li>הוסף <b>greeting דינמי</b>: "אחר הצהריים, יוסי 👋" עם אימוג'י שמשתנה לפי שעה.</li>
+            <li>הקטן את התובנה ("הקפד על 38g חלבון לארוחה") ל-<b>banner דק</b> בקצה העליון.</li>
+            <li><b>שינה</b> הופך ל-card קומפקטי 1-tap בתחתית הדף, ללא slider — רק "7h · 😐 · ערוך".</li>
+          </ul>
+        </div>
+
+        <div class="block wire">
+          <h5><span class="ic">◫</span>Layout מובייל חדש</h5>
+          <div class="textwire">┌──────────────────────────────┐
+│ ☰    <span class="hl">Areto</span>            🔔 👤 │   <span class="dim">// 56px header</span>
+├──────────────────────────────┤
+│                              │
+│  אחר הצהריים, יוסי 👋       │   <span class="dim">// 22px</span>
+│  שלישי · 12 במאי             │   <span class="dim">// 13px ink-3</span>
+│                              │
+│  ┌──────────────────────────┐ │
+│  │  <span class="hl">היום: פלג עליון · 60'</span> │ │   <span class="dim">// hero card</span>
+│  │  150g חלבון · 402g פחמ׳   │ │
+│  │  ┌────────────────────┐ │ │
+│  │  │ ▶  התחל אימון       │ │ │   <span class="dim">// hero CTA</span>
+│  │  └────────────────────┘ │ │
+│  └──────────────────────────┘ │
+│                              │
+│  ┌──────┐  ┌──────┐  ┌──────┐│   <span class="dim">// 3-up rings</span>
+│  │ ⭕ 0% │  │ ⭕ 2/4│  │ ⭕ 7h ││
+│  │ קלוריות│  │אימונים│  │שינה ││
+│  └──────┘  └──────┘  └──────┘│
+│                              │
+│  <span class="hl">תובנה היום</span>                   │
+│  ───────────────────────     │
+│  הקפד על 38g חלבון לארוחה.   │   <span class="dim">// dismiss-able</span>
+│                              │
+│  פעולות מהירות               │   <span class="dim">// horiz scroll</span>
+│  ┌──────┐ ┌──────┐ ┌────── →│
+│  │ ארוחה │ │התקדמות│ │סטיק   │
+│  └──────┘ └──────┘ └──────  │
+│                              │
+├──────────────────────────────┤
+│ <span class="hl">🏠</span>   💪   🍎   📊   👤        │   <span class="dim">// bottom tabs</span>
+└──────────────────────────────┘</div>
+          <div class="specs">
+            <div class="sp"><span class="k">Hero card</span><span class="v">contextual, 1 CTA</span></div>
+            <div class="sp"><span class="k">Rings</span><span class="v">3-up, 80×80px each</span></div>
+            <div class="sp"><span class="k">Insight</span><span class="v">collapsable banner</span></div>
+            <div class="sp"><span class="k">Sleep</span><span class="v">moved to detail screen</span></div>
+            <div class="sp"><span class="k">Sidebar</span><span class="v">→ drawer + bottom tabs</span></div>
+            <div class="sp"><span class="k">Sections above fold</span><span class="v">3 max</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ 08 WORKOUT ═════════════════ -->
+<section id="workout">
+  <div class="section-header">
+    <div>
+      <span class="num">08 / WORKOUT PLAN</span>
+      <h2>תוכנית אימונים</h2>
+    </div>
+    <p class="sub">הסקרין הכי עמוס באתר. במובייל = 6+ גלילות רציפות לפני סוף הרשימה.</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-09</span>
+      <h3>תוכנית אימונים · 4 ימים זה אחר זה<small>כל יום מפרט 6-8 תרגילים עם סטים, חזרות, וזמני מנוחה</small></h3>
+      <span class="severity sev-crit">CRITICAL</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">flat-list</span></h4>
+        <img src="assets/09-dashboard-workout.png" alt="workout">
+      </div>
+      <div class="analysis">
+
+        <div class="block problem">
+          <h5><span class="ic">!</span>הבעיות הקריטיות</h5>
+          <ul>
+            <li><b>כל 4 הימים פתוחים על מסך אחד.</b> משתמש שצריך את היום של היום צריך לגלול עד אליו. ב-day 4 הוא כבר התעייף.</li>
+            <li><b>תאי "זמן מנוחה"</b> חוזרים 4 פעמים — overhead ויזואלי. צריך להיות <i>פעם אחת</i> כברירת מחדל באימון.</li>
+            <li><b>"חדר כושר / אימון בית"</b> כשני כרטיסים גדולים בראש — תופסים 15-20% מהקיפול הראשון. אפשר ל-toggle bar בודד.</li>
+            <li><b>"לחץ על תרגיל לצפייה בסרטון..."</b> כשורה מודגשת — banner מיותר; הסרטון אמור להיפתח באופן טבעי.</li>
+            <li><b>שורת תרגיל</b>: "בנץ' פרס × 4 סטים × 5–8 חזרות [חזה]" — צפיפות מידע גבוהה מאוד. במובייל הטקסט נחתך, ה-tag "[חזה]" יורד שורה.</li>
+            <li><b>"עקרונות חשובים"</b> בסוף — bullet list ארוך, נחשב educational content; לא צריך להיות בכל פעם שנכנסים לתוכנית.</li>
+            <li>אין <b>"היום" indicator</b> — איזה יום אני עכשיו? איזה הבא?</li>
+          </ul>
+        </div>
+
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע במשתמש</h5>
+          <p>במובייל, כשמשתמש פותח "תוכנית אימונים" הוא רוצה 95% מהזמן את <b>אימון היום</b>. כל פעם שאני נאלץ לגלול עד היום הנכון = חיכוך. החזרתיות של גלילה ארוכה גורמת לאנשים לזכור את האפליקציה כ"איטית/מסורבלת" גם אם היא לא.</p>
+        </div>
+
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש</h5>
+          <ul>
+            <li><b>Tab navigation למעלה</b>: יום א' · ב' · ג' · ד'. עם dot ירוק על הסיום ועיגול teal על "היום".</li>
+            <li>רק <b>יום אחד מוצג בכל פעם</b>. swipe ימינה/שמאלה לעבור בין ימים.</li>
+            <li>"חדר כושר / בית" → <b>toggle bar מינימלי</b> 32px בקצה העליון, לא קופץ-לעין.</li>
+            <li><b>זמן מנוחה</b> כ-<i>הגדרה גלובלית</i> פעם אחת בראש העמוד עם chips (30/45/60/75/90).</li>
+            <li>שורת תרגיל הופכת ל-<b>card אנכי</b>: שם התרגיל גדול (17px bold) → מתחתיו: "סטים · חזרות · קבוצת שריר" בשורה אחת קטנה (12px ink-3). חץ ‹ מצד שמאל לפתיחת פרטים.</li>
+            <li><b>tap על card</b> → פותח expandable עם: וידאו (auto-play muted), הסבר, log חזרות, טיימר מנוחה.</li>
+            <li>"<b>עקרונות חשובים</b>" → לינק "למד עוד על Progressive Overload ↗" שמוביל למסך learn נפרד.</li>
+            <li><b>FAB sticky</b> תחתון: "התחל אימון ▶" — כל לחיצה מקפיצה לטיימר עם התרגיל הראשון.</li>
+          </ul>
+        </div>
+
+        <div class="block wire">
+          <h5><span class="ic">◫</span>Workout Day · Mobile-First</h5>
+          <div class="textwire">┌──────────────────────────────┐
+│ ←   <span class="hl">תוכנית אימונים</span>       ⋮  │
+├──────────────────────────────┤
+│  בית · חדר כושר              │   <span class="dim">// toggle 32px</span>
+│  ───────────────             │
+│                              │
+│  <span class="hl">א'</span>  ב'  ג'  ד'              │   <span class="dim">// day tabs</span>
+│  ━━━━                        │
+│  <span class="dim">פלג עליון · כוח · 60 דק'</span>     │
+│                              │
+│  זמן מנוחה:                   │
+│  30 [<span class="hl">45</span>] 60 75 90              │   <span class="dim">// rest chips</span>
+│                              │
+│  ┌──────────────────────────┐ │
+│  │ <span class="hl">לחיצת חזה שטוח</span>        ‹  │ │   <span class="dim">// 17px bold</span>
+│  │ 4 × 5–8 · חזה              │ │   <span class="dim">// 12px ink-3</span>
+│  └──────────────────────────┘ │
+│  ┌──────────────────────────┐ │
+│  │ <span class="hl">חתירה במוט</span>             ‹  │ │
+│  │ 4 × 5–8 · גב                │ │
+│  └──────────────────────────┘ │
+│  ┌──────────────────────────┐ │
+│  │ <span class="hl">לחיצת כתפיים</span>           ‹  │ │
+│  │ 3 × 5–8 · כתפיים            │ │
+│  └──────────────────────────┘ │
+│                              │
+│  <span class="dim">למד עוד על Progressive Overload ↗</span> │
+│                              │
+├──────────────────────────────┤
+│ ┌────────────────────────┐ │   <span class="dim">// sticky FAB</span>
+│ │     <span class="hl">▶ התחל אימון</span>          │ │
+│ └────────────────────────┘ │
+│ 🏠   💪   🍎   📊   👤        │
+└──────────────────────────────┘</div>
+
+          <div class="specs">
+            <div class="sp"><span class="k">Visible day</span><span class="v">1 of 4 (tabs+swipe)</span></div>
+            <div class="sp"><span class="k">Exercise card</span><span class="v">72px h, 2 lines</span></div>
+            <div class="sp"><span class="k">Rest time</span><span class="v">global chip group</span></div>
+            <div class="sp"><span class="k">Gym/Home</span><span class="v">32px toggle</span></div>
+            <div class="sp"><span class="k">Principles</span><span class="v">→ separate Learn screen</span></div>
+            <div class="sp"><span class="k">Start CTA</span><span class="v">FAB, sticky bottom</span></div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ 09 NUTRITION ═════════════════ -->
+<section id="nutrition">
+  <div class="section-header">
+    <div>
+      <span class="num">09 / NUTRITION (EMPTY STATE)</span>
+      <h2>תזונה · "מה אכלת היום?"</h2>
+    </div>
+    <p class="sub">המסך הראשון של תזונה. ה-Empty state יקבע אם המשתמש ימשיך או יזרוק.</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-10</span>
+      <h3>תזונה · Empty state<small>חיפוש מזון + הוסף + תפריט מומלץ + סיכום יומי ריק</small></h3>
+      <span class="severity sev-high">HIGH</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">empty</span></h4>
+        <img src="assets/10-dashboard-nutrition.png" alt="nutrition empty">
+      </div>
+      <div class="analysis">
+        <div class="block problem">
+          <h5><span class="ic">!</span>בעיות במובייל</h5>
+          <ul>
+            <li><b>שורת חיפוש + כפתור "הוסף" בראש המסך</b> — תופסת מקום יקר above-the-fold כשלמשתמש <i>אין עדיין מה לחפש</i>. ב-Empty state, ה-CTA הוא "טען תפריט מומלץ", לא "חפש".</li>
+            <li><b>סיכום יומי 4 שורות progress של 0%</b> — מציג ריקנות, מרגיש מדכא. נראה כמו "כשלון" מיידי.</li>
+            <li><b>ה-Donut "0 / 2,946 קלוריות"</b> בפינה — קטן מאוד, לא ברור שהוא ה-KPI הראשי.</li>
+            <li><b>"תפריט מומלץ" כפתור קטן</b> ליד "היום שלך" — זה אמור להיות ה-CTA המרכזי במצב הריק.</li>
+            <li><b>"מבוסס על המטרה שלך — חלוקת חלבון..."</b> banner תחתון בצבע teal — מתחבא מתחת לקיפול.</li>
+            <li><b>אין tabs בין ימים</b> (אתמול / היום / מחר) — קשה לתכנן.</li>
+          </ul>
+        </div>
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע</h5>
+          <p>Empty state במובייל הוא רגע הקריטי ביותר ב-onboarding-as-product. ראיית 4 פסים של 0% גורמת לתחושת "מרחק עצום מההצלחה". המוח מפרש זאת כ-"זה ייקח לי שעות".</p>
+        </div>
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש</h5>
+          <ul>
+            <li><b>Hero card גדול במקום ההסבר הקטן</b>: אייקון צלחת + "התחל את היום שלך · 2,946 קלוריות · 150g חלבון" + 2 כפתורים: <span class="spec">טען תפריט מומלץ</span> (primary teal) + <span class="spec">הוסף ידנית</span> (ghost).</li>
+            <li><b>הזז את שורת החיפוש</b> ל-state השני (אחרי הוספת ארוחה ראשונה). ב-Empty היא לא צריכה להיות שם.</li>
+            <li><b>Day tabs</b> למעלה: אתמול / היום / מחר — swipe-able.</li>
+            <li><b>סיכום יומי מוצג כ-Single ring</b> (קלוריות) — לא 4 progress bars שכולם ב-0%. הפירוט (חלבון/פחמ׳/שומן) הופך לצ'יפים קטנים מתחת ל-ring.</li>
+            <li><b>Microcopy חיובי</b>: "יום חדש, התחלה חדשה" במקום "0 / 2,946".</li>
+            <li><b>FAB</b> תחתון: ➕ "הוסף ארוחה".</li>
+          </ul>
+        </div>
+        <div class="block wire">
+          <h5><span class="ic">◫</span>Wireframe (Empty state)</h5>
+          <div class="textwire">┌──────────────────────────────┐
+│ ←     <span class="hl">תזונה</span>          📅 ⋮  │
+├──────────────────────────────┤
+│  אתמול   <span class="hl">היום</span>   מחר            │   <span class="dim">// day tabs</span>
+│        ━━━━                  │
+│  שלישי, 12 במאי              │
+│                              │
+│        ⭕  <span class="hl">0%</span>                  │   <span class="dim">// single ring</span>
+│      0 / 2,946 קלוריות         │
+│                              │
+│  [חלבון 0/150]  [פחמ׳ 0/402]  │   <span class="dim">// macro chips</span>
+│  [שומן 0/82]    [סיבים 0/25]  │
+│                              │
+│  ┌──────────────────────────┐ │
+│  │  🍽  יום חדש, התחל!       │ │   <span class="dim">// hero empty</span>
+│  │  ───────────────────     │ │
+│  │  ┌────────────────────┐ │ │
+│  │  │ <span class="hl">טען תפריט מומלץ</span>    │ │ │   <span class="dim">// primary CTA</span>
+│  │  └────────────────────┘ │ │
+│  │  ┌────────────────────┐ │ │
+│  │  │  הוסף ידנית          │ │ │   <span class="dim">// ghost</span>
+│  │  └────────────────────┘ │ │
+│  └──────────────────────────┘ │
+│                              │
+│  💡 <span class="hl">צריך 38g חלבון לארוחה</span>     │   <span class="dim">// insight chip</span>
+│                              │
+├──────────────────────────────┤
+│ 🏠   💪   <span class="hl">🍎</span>   📊   👤        │
+└──────────────────────────────┘</div>
+          <div class="specs">
+            <div class="sp"><span class="k">Hero CTA</span><span class="v">"טען תפריט מומלץ"</span></div>
+            <div class="sp"><span class="k">Search bar</span><span class="v">show only when items > 0</span></div>
+            <div class="sp"><span class="k">Macros</span><span class="v">chips, not bars</span></div>
+            <div class="sp"><span class="k">Day nav</span><span class="v">3-tab swipe</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ 10 DAILY MENU ═════════════════ -->
+<section id="menu">
+  <div class="section-header">
+    <div>
+      <span class="num">10 / DAILY MENU (FILLED)</span>
+      <h2>תפריט יומי מומלץ</h2>
+    </div>
+    <p class="sub">אחרי טעינת תפריט — 5 ארוחות בטבלה ארוכה. במובייל זה wall-of-content.</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-15</span>
+      <h3>תפריט יומי · 5 ארוחות<small>בוקר · חטיף · צהריים · חטיף · ערב</small></h3>
+      <span class="severity sev-crit">CRITICAL</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">grid-dense</span></h4>
+        <img src="assets/15-daily-menu.png" alt="daily menu">
+      </div>
+      <div class="analysis">
+        <div class="block problem">
+          <h5><span class="ic">!</span>בעיות במובייל</h5>
+          <ul>
+            <li><b>כל ארוחה היא שורה רחבה עם 6-7 ידיעות מידע</b> (שעה · אייקון · שם · תיאור · קלוריות · חלבון · פחמ׳ · שומן · כפתור) — במובייל זה <i>נשבר ל-2-3 שורות לכל card</i>, בלגן ויזואלי.</li>
+            <li><b>צבעי הקלוריות/חלבון/פחמ׳/שומן</b> כצבעים אחידים (teal/red/orange) — שווי-משקל. אין היררכיה.</li>
+            <li><b>"סמן שאכלתי" בארוחה הבאה</b> + "לוג" בשאר — אי-עקביות. אותה פעולה צריכה לקבל אותה label.</li>
+            <li><b>אייקון "ארוחה" מימין</b> + שעה — כפול. אפשר לבחור אחד.</li>
+            <li><b>"הבא" badge ירוק</b> על ארוחת בוקר — טוב, אבל בלי הקשר זמני בולט; שעון מציג רק "07:30".</li>
+            <li><b>אין סיכום השוואתי</b> מול היעד היומי בראש התפריט — המשתמש לא רואה שהתפריט תואם למטרה.</li>
+          </ul>
+        </div>
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע</h5>
+          <p>זה ה-screen של "מה לאכול עכשיו". המשתמש מסתכל פעמיים ביום — לפני ארוחה. הוא צריך לראות תוך 1 שנייה: "מה הארוחה הבאה" ו-"איך לסמן שאכלתי". כל מה שמעבר זה רעש.</p>
+        </div>
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש</h5>
+          <ul>
+            <li><b>Hero card בראש</b>: "ארוחה הבאה: ארוחת בוקר · 07:30 · 580 קלוריות". 1 כפתור "סמן שאכלתי" ענק (56px).</li>
+            <li><b>שאר הארוחות</b> הופכות ל-card אנכי קומפקטי: שעה + שם (17px bold) + תיאור (13px ink-3) + 3 צ'יפים קטנים: <span class="spec">580 kcal</span> <span class="spec">32g 🥩</span> <span class="spec">68g 🍞</span> — שומן נסתר ב-tap.</li>
+            <li><b>כפתור "לוג"</b> הופך לאייקון ‹ — חסכון מקום, fully tappable card.</li>
+            <li>הוסף <b>"סיכום התפריט"</b> בראש: "התפריט יספק 2,810 קלוריות · 152g חלבון · ✓ תואם למטרה".</li>
+            <li><b>תפס/החלף ארוחה</b> swipe ימינה על card.</li>
+            <li><b>אייקון ארוחה</b> יחיד בצד שמאל, צבעי-שפה לפי סוג (בוקר=צהוב, צהריים=כתום, ערב=סגול).</li>
+          </ul>
+        </div>
+        <div class="block wire">
+          <h5><span class="ic">◫</span>Wireframe</h5>
+          <div class="wirepair">
+            <div class="phone before">
+              <div class="notch"></div>
+              <span class="label">לפני</span>
+              <div class="row h1" style="width:50%;height:14px"></div>
+              <div class="stack">
+                <div class="row" style="height:46px;background:var(--surface);border-radius:6px"></div>
+                <div class="row" style="height:46px;background:var(--surface);border-radius:6px"></div>
+                <div class="row" style="height:46px;background:var(--surface);border-radius:6px"></div>
+                <div class="row" style="height:46px;background:var(--surface);border-radius:6px"></div>
+                <div class="row" style="height:46px;background:var(--surface);border-radius:6px"></div>
+              </div>
+              <div class="spacer"></div>
+            </div>
+            <div class="phone after">
+              <div class="notch"></div>
+              <span class="label">אחרי</span>
+              <div class="row chip" style="width:55%;margin:0"></div>
+              <div style="background:linear-gradient(135deg,var(--teal-dim),transparent);border:1px solid rgba(20,211,176,0.3);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:4px">
+                <div class="row" style="height:6px;width:40%;background:var(--ink-3)"></div>
+                <div class="row" style="height:10px;width:60%;background:var(--ink-2)"></div>
+                <div class="row" style="height:6px;width:75%;background:rgba(255,255,255,0.1)"></div>
+                <div class="row cta" style="height:20px;margin-top:2px"></div>
+              </div>
+              <div class="row small" style="width:30%;margin-top:2px"></div>
+              <div class="stack" style="gap:4px">
+                <div style="background:var(--surface);border-radius:7px;padding:5px;display:flex;flex-direction:column;gap:2px"><div class="row" style="height:4px;width:25%;background:var(--ink-3)"></div><div class="row" style="height:7px;width:55%;background:var(--ink-2)"></div></div>
+                <div style="background:var(--surface);border-radius:7px;padding:5px;display:flex;flex-direction:column;gap:2px"><div class="row" style="height:4px;width:25%;background:var(--ink-3)"></div><div class="row" style="height:7px;width:55%;background:var(--ink-2)"></div></div>
+                <div style="background:var(--surface);border-radius:7px;padding:5px;display:flex;flex-direction:column;gap:2px"><div class="row" style="height:4px;width:25%;background:var(--ink-3)"></div><div class="row" style="height:7px;width:55%;background:var(--ink-2)"></div></div>
+                <div style="background:var(--surface);border-radius:7px;padding:5px;display:flex;flex-direction:column;gap:2px"><div class="row" style="height:4px;width:25%;background:var(--ink-3)"></div><div class="row" style="height:7px;width:55%;background:var(--ink-2)"></div></div>
+              </div>
+              <div class="spacer"></div>
+            </div>
+          </div>
+          <div class="specs">
+            <div class="sp"><span class="k">Next meal hero</span><span class="v">teal card, 1 CTA 56px</span></div>
+            <div class="sp"><span class="k">Other meals</span><span class="v">compact card, swipe</span></div>
+            <div class="sp"><span class="k">Macros</span><span class="v">3 chips, fat hidden</span></div>
+            <div class="sp"><span class="k">Label consistency</span><span class="v">"סמן" everywhere</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ 11 GOALS / BMI ═════════════════ -->
+<section id="goals">
+  <div class="section-header">
+    <div>
+      <span class="num">11 / GOALS · BMI</span>
+      <h2>יעדים · ניתוח BMI</h2>
+    </div>
+    <p class="sub">מסך אנליטי-רגשי. המספרים מספרים את "איך אני בדרך".</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-11</span>
+      <h3>יעדים · 4 בלוקים מסיביים<small>מסלול ליעד · מאזן 14 ימים · ניתוח BMI · BMI gauge</small></h3>
+      <span class="severity sev-high">HIGH</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">stacked-blocks</span></h4>
+        <img src="assets/11-dashboard-goals.png" alt="goals">
+      </div>
+      <div class="analysis">
+        <div class="block problem">
+          <h5><span class="ic">!</span>בעיות במובייל</h5>
+          <ul>
+            <li><b>4 בלוקים ענקיים זה מתחת לזה</b> — 4-5 גלילות עד הסוף. המשתמש לא יודע מה ההיררכיה.</li>
+            <li><b>"מסלול ליעד" gauge</b> אופקי עם נקודות "התחלה / יעד" — קשה לקריאה במובייל. הצריך גלילה אופקית או שבירה.</li>
+            <li><b>"מאזן אנרגטי · 14 ימים"</b> — גרף ריק עם "עדיין אין נתוני תזונה" — תופס 350px+ של גובה למסך empty.</li>
+            <li><b>"ניתוח BMI" 4 כרטיסים</b> — משקל נוכחי / משקל יעד / טווח בריא / ✓ — במובייל יורד ל-2x2; ה-✓ הענק חסר הקשר.</li>
+            <li><b>"BMI gauge"</b> נפרד מהבלוק "ניתוח BMI" — צריך להיות מאוחד.</li>
+            <li><b>"זוז את הנקודה לראות שינוי במשקל"</b> microcopy לא ברורה — מה זה אומר?</li>
+            <li><b>אין סיכום emotional</b> בראש: "אתה ב-0% מהמסע — מצוין, הרגע התחלת!" — חסר תמיכה רגשית.</li>
+          </ul>
+        </div>
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע</h5>
+          <p>מסך יעדים הוא רגשי לפני שהוא אנליטי. כשמשתמש רואה "0%" ו-"0 ימים שתועדו" — הוא מרגיש "אני לא ב-track". במובייל זה מועצם כי המסך כולו נראה ריק.</p>
+        </div>
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש</h5>
+          <ul>
+            <li><b>Hero card רגשי</b> בראש: "אתה ב-0% מהמסע · נשארו 0 ק״ג" + microcopy: "כל מסע מתחיל בצעד אחד".</li>
+            <li><b>Track טרק linear אנכי</b> במקום אופקי — דמיין rocket שעולה: ⚪ התחלה → ⚪ אתה → ⭐ יעד. מתעדכן ויזואלית.</li>
+            <li><b>BMI ו-Body stats מאוחדים</b> לתוך card יחיד: gauge + 4 נתונים + ניתוח ב-collapsible.</li>
+            <li>הפוך את <b>"מאזן אנרגטי"</b> לטאב נפרד / collapsible — לא מוצג כברירת מחדל ב-empty state.</li>
+            <li>הוסף <b>"שתף התקדמות"</b> — share screenshot של ה-track. חיזוק חיצוני.</li>
+            <li>הוסף <b>milestone markers</b>: "5 ימי רישום ברצף", "ירידה ראשונה במשקל" — gamification קטן.</li>
+            <li>השתמש ב-<b>הפעלת tab</b> "היום / שבוע / חודש / מסע" במקום הצגת כולם בפלאט.</li>
+          </ul>
+        </div>
+        <div class="block wire">
+          <h5><span class="ic">◫</span>Wireframe</h5>
+          <div class="textwire">┌──────────────────────────────┐
+│ ←     <span class="hl">יעדים</span>            ⋮  │
+├──────────────────────────────┤
+│                              │
+│  המסלול שלי                  │
+│  ┌──────────────────────────┐ │
+│  │      ⭐ <span class="hl">75 ק״ג · יעד</span>    │ │   <span class="dim">// vertical</span>
+│  │      |                    │ │   <span class="dim">// track</span>
+│  │      |                    │ │
+│  │      |  <span class="dim">נשארו 0.0 ק״ג</span>  │ │
+│  │      |                    │ │
+│  │      <span class="hl">🔵</span> 75 ק״ג · אתה כאן  │ │
+│  │      |                    │ │
+│  │      ⚪ 75 ק״ג · התחלה   │ │
+│  │                          │ │
+│  │  <span class="hl">0%</span> · "מסע ארוך מתחיל..." │ │
+│  └──────────────────────────┘ │
+│                              │
+│  היום   שבוע   חודש  <span class="hl">מסע</span>     │   <span class="dim">// tabs</span>
+│                ━━━━           │
+│                              │
+│  ┌──────────────────────────┐ │
+│  │  <span class="hl">BMI 23.7</span> · משקל תקין    │ │
+│  │  ╔════════════════════╗  │ │   <span class="dim">// gauge</span>
+│  │  18.5  ●  25  30  35    │ │
+│  │                          │ │
+│  │  טווח בריא: 58.6–78.9    │ │
+│  │  <span class="dim">▼ הצג ניתוח מלא</span>          │ │
+│  └──────────────────────────┘ │
+│                              │
+│  🏆 הישגים                   │
+│  ━━━━━━━━━━━━━━━━━━           │
+│  ▢ 5 ימי רישום ברצף           │
+│  ▢ ירידה ראשונה               │
+│  ▢ 10 אימונים                 │
+│                              │
+├──────────────────────────────┤
+│ 🏠   💪   🍎   <span class="hl">📊</span>   👤        │
+└──────────────────────────────┘</div>
+          <div class="specs">
+            <div class="sp"><span class="k">Track</span><span class="v">vertical, not horizontal</span></div>
+            <div class="sp"><span class="k">BMI + Stats</span><span class="v">unified card</span></div>
+            <div class="sp"><span class="k">Energy chart</span><span class="v">collapsed in empty</span></div>
+            <div class="sp"><span class="k">Milestones</span><span class="v">new section</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ 12 XP ═════════════════ -->
+<section id="xp">
+  <div class="section-header">
+    <div>
+      <span class="num">12 / XP · GAMIFICATION</span>
+      <h2>המסע שלך · XP</h2>
+    </div>
+    <p class="sub">המסך הכי "משחקי". פוטנציאל ענק להתמכרות — מנוצל חלקית.</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-12</span>
+      <h3>XP · Level + Streaks + Progress + Achievements<small>4 בלוקים, 36 הישגים נעולים</small></h3>
+      <span class="severity sev-high">HIGH</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">flat-blocks</span></h4>
+        <img src="assets/12-dashboard-xp.png" alt="xp">
+      </div>
+      <div class="analysis">
+        <div class="block problem">
+          <h5><span class="ic">!</span>בעיות במובייל</h5>
+          <ul>
+            <li><b>"LEVEL 1 · XP 0 · 0% לרמה הבאה"</b> — מוצג ריק. אין wow factor. במובייל זה גובה 200px לאפס מידע.</li>
+            <li><b>3 streaks ריקים (0 / 0 / 0)</b> — מציג ריקנות 3 פעמים. במקום motivation = de-motivation.</li>
+            <li><b>"אחוזי התקדמות"</b> 4 פסים: משמעת 0% / חוזק 2% / יעד 100% / שינה 0% — מבלבל. <i>למה</i> יעד משקל ב-100%? איך זה קשור ל-XP?</li>
+            <li><b>"פתחת 0 / נעולים 36"</b> — שני סקשנים עם accordion טריגרים, ריק. כל הרשת ננעלת.</li>
+            <li>אין <b>"Next milestone"</b> — מה אני בודק בשביל ה-XP הבא? מה הצעד הקרוב?</li>
+            <li>אין <b>visual reward feedback</b> — אנימציה / confetti / shimmer על המעטפת.</li>
+          </ul>
+        </div>
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע</h5>
+          <p>Gamification פועלת על dopamine loop קצר: ראייה ברורה של ה-step הבא + תחושת התקדמות. כשמשתמש רואה רק "0/0/0" + 36 נעולים — המנגנון נפגם. הוא מרגיש <i>רחוק</i> מכל ההישגים, לא <i>קרוב</i> ל-1 מהם.</p>
+        </div>
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש</h5>
+          <ul>
+            <li><b>Hero ענק עם Level + Progress ring</b>: 200×200px ring מסתובב, ב-center גודל המספר 1, מתחת "XP 0 / 100".</li>
+            <li>הוסף <b>"Next milestone"</b> card בולט: "🎯 השלם אימון ראשון = +50 XP" — pointer ברור.</li>
+            <li>הצג רק <b>1 streak פעיל</b> (האימונים), לא 3. השאר הופכים ל-stats קטנים בתחתית.</li>
+            <li>הסר את "אחוזי התקדמות" — או הפוך לחלק מ-track נפרד תחת "התקדמות", לא תחת "XP". XP זה משחק; התקדמות זה אנליזה.</li>
+            <li><b>Achievements grid</b>: 3 בשורה, אייקונים גדולים. <b>הראשונים 3 קלים</b> ("צור חשבון ✓", "השלם onboarding ✓", "אימון ראשון ▢") — תחושת הצלחה מיידית.</li>
+            <li>הוסף <b>shimmer animation</b> על ה-Level ring כשנפתח המסך.</li>
+            <li>הוסף <b>"שתף Level Up"</b> כשעולים — share card מעוצב.</li>
+          </ul>
+        </div>
+        <div class="block wire">
+          <h5><span class="ic">◫</span>Wireframe</h5>
+          <div class="textwire">┌──────────────────────────────┐
+│ ←      <span class="hl">המסע שלך</span>        ⋮ │
+├──────────────────────────────┤
+│                              │
+│         ╭─────────╮          │
+│        │  <span class="hl">LEVEL</span>    │         │   <span class="dim">// 200×200 ring</span>
+│        │    <span class="hl">1</span>     │         │
+│         ╰─────────╯          │
+│      XP <span class="hl">0 / 100</span>             │
+│                              │
+│  🎯 <span class="hl">Next milestone</span>           │
+│  ┌──────────────────────────┐ │
+│  │ השלם אימון ראשון           │ │
+│  │ = +50 XP                  │ │
+│  │ <span class="hl">[התחל עכשיו →]</span>          │ │
+│  └──────────────────────────┘ │
+│                              │
+│  🔥 רצף נוכחי                │
+│  ━━━━━━━━━━━━━━━━━━           │
+│  <span class="hl">0 ימים</span> · התחל היום!       │
+│                              │
+│  הישגים  ·  0/36              │
+│  ━━━━━━━━━━━━━━━━━━           │
+│  ✅ ✅ ✅ ▢ ▢ ▢ ▢ 🔒          │
+│  צור    onboar ראשון          │
+│  חשבון  ding   אימון          │
+│                              │
+│  <span class="dim">הצג את כל ההישגים ›</span>        │
+│                              │
+├──────────────────────────────┤
+│ 🏠   💪   🍎   📊   👤        │
+└──────────────────────────────┘</div>
+          <div class="specs">
+            <div class="sp"><span class="k">Level ring</span><span class="v">200×200, animated</span></div>
+            <div class="sp"><span class="k">Next milestone</span><span class="v">hero card, 1 CTA</span></div>
+            <div class="sp"><span class="k">Streaks</span><span class="v">only active one</span></div>
+            <div class="sp"><span class="k">Achievements</span><span class="v">3 instant wins shown</span></div>
+            <div class="sp"><span class="k">Locked</span><span class="v">→ secondary tab</span></div>
+            <div class="sp"><span class="k">Progress bars</span><span class="v">moved to "Progress" screen</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ 13 PROGRESS ═════════════════ -->
+<section id="progress">
+  <div class="section-header">
+    <div>
+      <span class="num">13 / PROGRESS</span>
+      <h2>התקדמות</h2>
+    </div>
+    <p class="sub">מסך analytics. ריק במצב הראשון, צריך לנחות יפה.</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-13</span>
+      <h3>התקדמות · 4 בלוקים<small>אימונים השבוע · שינה · 7 ימים · קלוריות</small></h3>
+      <span class="severity sev-med">MEDIUM</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">empty-charts</span></h4>
+        <img src="assets/13-dashboard-progress.png" alt="progress">
+      </div>
+      <div class="analysis">
+        <div class="block problem">
+          <h5><span class="ic">!</span>בעיות במובייל</h5>
+          <ul>
+            <li><b>4 בלוקים בעלי גובה דומה</b> (~200px each) — אחד מתחת לשני, חוסר היררכיה. כולם חשובים? אף אחד?</li>
+            <li><b>"0 אימונים השבוע" + microcopy צהוב</b> — האזהרה ("של 20 דקות סופר") חזקה מדי. מרגיש כמו ביקורת.</li>
+            <li><b>"הלילה האחרון" empty</b> — שורת טקסט שתופסת 100px ריק.</li>
+            <li><b>גרף "אימונים 7 ימים אחרונים"</b> — empty bars עם labels (א/ב/ג/...) — מציג רק כשלון. בלי קונטקסט "מי מצליח באפליקציה הזו".</li>
+            <li><b>"קלוריות · 7 ימים"</b> — קו צהוב מקווקו עם נקודות, "אין נתונים" — קצת מבלבל.</li>
+            <li>אין <b>summary card</b> בראש: "השבוע: 0 אימונים / 0 ארוחות / 0 שעות שינה — בוא נתחיל!"</li>
+            <li>אין <b>actionable suggestions</b> — מה לעשות עכשיו?</li>
+          </ul>
+        </div>
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע</h5>
+          <p>Progress screen ריק = "אני מאחור". זה לא נכון! המשתמש פשוט עוד לא תיעד. הניסוח והוויזואל צריכים להעביר "התחל את הראשון" ולא "אתה לא עומד ב-X".</p>
+        </div>
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש</h5>
+          <ul>
+            <li><b>Time range tabs</b> בראש: שבוע / חודש / 3 חודשים / שנה.</li>
+            <li><b>Summary chips</b> ב-row אופקי: <span class="spec">אימונים 0/4</span> <span class="spec">ארוחות 0/35</span> <span class="spec">שינה 0/7</span> — קומפקטי.</li>
+            <li>במצב empty — <b>onboarding banner</b> עם 3 צעדים: "1. רשום אימון ראשון · 2. הוסף ארוחה · 3. רשום שינה" — clickable, מקפיץ למסך המתאים.</li>
+            <li>הסר/מקטין את הגרפים הריקים. <b>Placeholder dotted line</b> בלבד עם "הנתונים יופיעו פה אחרי 3 ימי תיעוד".</li>
+            <li>הוסף <b>"אבן דרך הבאה"</b>: "3 ימי תיעוד → תקבל גרף ראשון!" — gamification נכון.</li>
+            <li>שנה microcopy: "<i>של 20 דקות סופר</i>" → "<i>אפילו 20 דקות עוזרות. מוכן?</i>" — חיובי.</li>
+          </ul>
+        </div>
+        <div class="block wire">
+          <h5><span class="ic">◫</span>Wireframe (empty)</h5>
+          <div class="textwire">┌──────────────────────────────┐
+│ ←     <span class="hl">📈 התקדמות</span>      ⋮ │
+├──────────────────────────────┤
+│                              │
+│  <span class="hl">שבוע</span>  חודש  3ח׳  שנה        │   <span class="dim">// range tabs</span>
+│  ━━━━                        │
+│                              │
+│  [💪 0/4] [🍎 0/35] [🌙 0/7] │   <span class="dim">// summary chips</span>
+│                              │
+│  ✨ <span class="hl">בוא נתחיל!</span>                │
+│  ━━━━━━━━━━━━━━━━━━           │
+│  ┌──────────────────────────┐ │
+│  │ ① רשום אימון ראשון        │ │
+│  │   +50 XP             ›  │ │
+│  └──────────────────────────┘ │
+│  ┌──────────────────────────┐ │
+│  │ ② הוסף ארוחה               │ │
+│  │   +25 XP             ›  │ │
+│  └──────────────────────────┘ │
+│  ┌──────────────────────────┐ │
+│  │ ③ רשום לילה ראשון          │ │
+│  │   +25 XP             ›  │ │
+│  └──────────────────────────┘ │
+│                              │
+│  <span class="dim">הגרפים יופיעו אחרי 3 ימי תיעוד</span> │
+│                              │
+│  ╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴╴       │   <span class="dim">// placeholder</span>
+│                              │
+├──────────────────────────────┤
+│ 🏠   💪   🍎   <span class="hl">📊</span>   👤        │
+└──────────────────────────────┘</div>
+          <div class="specs">
+            <div class="sp"><span class="k">Range tabs</span><span class="v">week/month/3m/year</span></div>
+            <div class="sp"><span class="k">Empty CTA</span><span class="v">3 onboarding steps</span></div>
+            <div class="sp"><span class="k">Empty charts</span><span class="v">dotted placeholder only</span></div>
+            <div class="sp"><span class="k">Microcopy</span><span class="v">positive only</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ 14 SETTINGS ═════════════════ -->
+<section id="settings">
+  <div class="section-header">
+    <div>
+      <span class="num">14 / SETTINGS</span>
+      <h2>הגדרות</h2>
+    </div>
+    <p class="sub">Sidebar בתוך sidebar — anti-pattern דסקטופי. במובייל זה מתפוצץ.</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-14</span>
+      <h3>הגדרות · 2-column layout<small>Tabs ימני (גוף/מטרה/התראות/תצוגה/חשבון/פרטיות) + תוכן</small></h3>
+      <span class="severity sev-crit">CRITICAL</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">double-sidebar</span></h4>
+        <img src="assets/14-dashboard-settings.png" alt="settings">
+      </div>
+      <div class="analysis">
+        <div class="block problem">
+          <h5><span class="ic">!</span>בעיות במובייל</h5>
+          <ul>
+            <li><b>Sub-sidebar בצד</b> (נתוני גוף / מטרה / התראות / תצוגה / חשבון / פרטיות) — לא ישרוד למובייל. צפוי להפוך ל-tabs אופקיים — אבל 6 tabs לא נכנסים על מסך 375px.</li>
+            <li><b>"מין: 2 כרטיסים גדולים"</b> — נכון לדסקטופ; במובייל הם תופסים יותר מדי גובה (~120px each).</li>
+            <li><b>"מספר אימונים בשבוע: 6 כפתורים"</b> — 1-6 ב-row. במובייל הם נדחסים, hit area יורד מתחת ל-44px.</li>
+            <li><b>"יעד הקלוריות שלך: 3,110"</b> — בולט חזק (highlighted card) אבל בלי context — איך הוא חושב, מה זה אומר?</li>
+            <li><b>"שמור שינויים"</b> ענק בתחתית — נכון. אבל מתי הוא enabled? כשמשנים משהו? אין hint.</li>
+            <li><b>השמות בעברית/אנגלית</b> ("התראות" + "תצוגה" + "פרטיות" אייקונים גנריים) — לא מספיק אינטואיטיביים.</li>
+            <li>אין <b>ניתוק קטגוריות</b>: גוף+מטרה=שייכים יחד; תצוגה+התראות=app preferences; חשבון+פרטיות=account. כיום הם flat.</li>
+          </ul>
+        </div>
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע</h5>
+          <p>הגדרות לא נפתחות כל יום, אבל כשנפתחות — המשתמש מחפש משהו ספציפי. במובייל, sub-navigation בצד הופך לחווית "איפה זה?" ארוכה. סטנדרט iOS/Android: <b>list view</b> עם section groups, push לדף פנימי, navigation שמרגישה native.</p>
+        </div>
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש</h5>
+          <ul>
+            <li><b>List view native</b>: קבוצות עם כותרת קטנה, פריטים ברוחב מלא, חץ ‹ ימני, push לדף משנה.</li>
+            <li><b>3 קבוצות לוגיות</b>:<br/>
+              <span class="spec">פרופיל</span> — נתוני גוף, מטרה, רמת ניסיון<br/>
+              <span class="spec">העדפות</span> — התראות, תצוגה (dark/light), שפה, יחידות (kg/lb)<br/>
+              <span class="spec">חשבון</span> — אימייל, סיסמה, פרטיות, מחיקת חשבון, יציאה</li>
+            <li><b>"יעד קלוריות"</b> הופך לסקשן עצמאי תחת "מטרה" עם הסבר: "הנוסחה: BMR × פעילות. ערוך ידנית?".</li>
+            <li><b>"מספר אימונים"</b>: stepper (- 4 +) במקום 6 כפתורים — חוסך מקום, hit area מלא.</li>
+            <li><b>שמור שינויים autosave</b> ברקע + toast "נשמר ✓" — בלי כפתור בולט.</li>
+            <li>הוסף <b>search bar</b> בראש ההגדרות: "חפש הגדרה" — חוסך זמן.</li>
+            <li><b>Destructive actions</b> (יציאה / מחיקת חשבון) בצבע אדום, בתחתית, מופרדים.</li>
+          </ul>
+        </div>
+        <div class="block wire">
+          <h5><span class="ic">◫</span>Wireframe Native-style</h5>
+          <div class="textwire">┌──────────────────────────────┐
+│ ←      <span class="hl">הגדרות</span>            │
+├──────────────────────────────┤
+│  🔍 חפש הגדרה                │
+│                              │
+│  <span class="dim">פרופיל</span>                       │
+│  ┌──────────────────────────┐ │
+│  │ 👤  פרטים אישיים        › │ │
+│  │ 🎯  מטרה ויעדים         › │ │
+│  │ 💪  רמת ניסיון          › │ │
+│  └──────────────────────────┘ │
+│                              │
+│  <span class="dim">העדפות</span>                       │
+│  ┌──────────────────────────┐ │
+│  │ 🔔  התראות              › │ │
+│  │ 🎨  תצוגה               › │ │
+│  │ 🌐  שפה  · עברית         › │ │
+│  │ ⚖  יחידות · kg / cm     › │ │
+│  └──────────────────────────┘ │
+│                              │
+│  <span class="dim">חשבון</span>                        │
+│  ┌──────────────────────────┐ │
+│  │ 📧  אימייל              › │ │
+│  │ 🔒  סיסמה               › │ │
+│  │ 🛡  פרטיות              › │ │
+│  └──────────────────────────┘ │
+│                              │
+│  ┌──────────────────────────┐ │
+│  │ <span class="warn">⎋  יציאה</span>                 │ │
+│  │ <span class="warn">🗑  מחק חשבון</span>            │ │
+│  └──────────────────────────┘ │
+│                              │
+│  גרסה 1.2.3                  │
+│                              │
+├──────────────────────────────┤
+│ 🏠   💪   🍎   📊   <span class="hl">👤</span>        │
+└──────────────────────────────┘</div>
+          <div class="specs">
+            <div class="sp"><span class="k">Pattern</span><span class="v">native list, push nav</span></div>
+            <div class="sp"><span class="k">Groups</span><span class="v">פרופיל · העדפות · חשבון</span></div>
+            <div class="sp"><span class="k">Save</span><span class="v">autosave + toast</span></div>
+            <div class="sp"><span class="k">Workouts/week</span><span class="v">stepper, not 6 buttons</span></div>
+            <div class="sp"><span class="k">Destructive</span><span class="v">isolated, red</span></div>
+            <div class="sp"><span class="k">Search</span><span class="v">top of screen</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ 15 LEGAL ═════════════════ -->
+<section id="legal">
+  <div class="section-header">
+    <div>
+      <span class="num">15 / LEGAL · MODALS</span>
+      <h2>מדיניות פרטיות · תנאי שימוש</h2>
+    </div>
+    <p class="sub">Modals משפטיים. רוב משתמשים יסגרו — אבל מי שיקרא יחליט אם לסמוך עליך.</p>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-16</span>
+      <h3>מדיניות פרטיות · Modal<small>טקסט ארוך, sections מספריים, "הבנתי" CTA</small></h3>
+      <span class="severity sev-med">MEDIUM</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">privacy</span></h4>
+        <img src="assets/16-privacy.png" alt="privacy">
+      </div>
+      <div class="analysis">
+        <div class="block problem">
+          <h5><span class="ic">!</span>בעיות במובייל</h5>
+          <ul>
+            <li><b>Modal ממורכז עם margin בולט</b> — במובייל זה הופך לעמוד מלא, אבל ה-X בפינה רחוק מהאגודל (top-left).</li>
+            <li><b>טקסט בגודל קטן (13-14px)</b> — קריאה ארוכה דורשת גודל 16-17px במובייל.</li>
+            <li><b>"הבנתי" CTA בתחתית הצמודה</b> — נכון, אבל היא לא sticky; חייב לגלול עד הסוף כדי לראות.</li>
+            <li><b>אין TOC / סיכום</b> — 5+ סקשנים, אין דרך לקפוץ לחלק רלוונטי.</li>
+            <li><b>"❶ ❷ ❸"</b> אין anchor links — קשה לחזור.</li>
+            <li><b>שני modals זהים לחלוטין</b> (privacy + terms) — אבל למשתמש אין דרך לעבור ביניהם דרך links פנימיים.</li>
+            <li>אין <b>"Last updated" prominent</b> — תאריך בקטן בראש בלבד.</li>
+          </ul>
+        </div>
+        <div class="block why">
+          <h5><span class="ic">?</span>למה זה פוגע</h5>
+          <p>Trust signals = legal docs. אם הם נראים זרוקים → אמון נמוך. אם הם נגישים וברורים → אמון גבוה. במובייל, גלילה אינסופית של legalese שווה ל-"זה לא מקצועי".</p>
+        </div>
+        <div class="block fix">
+          <h5><span class="ic">→</span>איך לעצב מחדש</h5>
+          <ul>
+            <li><b>Full-screen sheet</b> (לא modal) — header עם ← back + כותרת + sticky.</li>
+            <li><b>Last updated</b> bold בראש: "עודכן: מאי 2026" + chip ירוק.</li>
+            <li><b>TL;DR card</b> בראש: 3 שורות מסכמות באנגלית פשוטה: "אנחנו אוספים X. לא חולקים. תוכל למחוק בכל עת."</li>
+            <li><b>TOC חי</b>: רשימת sections clickable, sticky בצד או collapsible בראש.</li>
+            <li><b>טקסט גודל 16px</b> minimum, line-height 1.7.</li>
+            <li><b>Sections עם heading bold</b> ו-anchor.</li>
+            <li>הוסף <b>"שאלות? צור קשר"</b> כפתור בתחתית — Mail לתמיכה.</li>
+            <li>הוסף <b>links הדדיים</b>: בסוף Privacy → "→ קרא תנאי שימוש".</li>
+            <li><b>X close button</b>: 44×44 minimum, יד ימין בקצה (לא שמאל) — נוח לאגודל.</li>
+          </ul>
+        </div>
+        <div class="block wire">
+          <h5><span class="ic">◫</span>Wireframe</h5>
+          <div class="textwire">┌──────────────────────────────┐
+│ ←      <span class="hl">מדיניות פרטיות</span>    × │   <span class="dim">// sticky top</span>
+├──────────────────────────────┤
+│  <span class="hl">עודכן: מאי 2026</span>  · v3       │
+│                              │
+│  ┌──────────────────────────┐ │
+│  │ <span class="hl">TL;DR</span>                     │ │   <span class="dim">// summary</span>
+│  │ • אוספים נתוני תזונה+אימון│ │
+│  │ • לא משתפים לצד ג׳         │ │
+│  │ • מחק חשבון בכל זמן       │ │
+│  └──────────────────────────┘ │
+│                              │
+│  בסקשן זה ›                   │   <span class="dim">// TOC</span>
+│  · איזה מידע אנחנו אוספים    │
+│  · למה אנחנו משתמשים בו     │
+│  · בינה מלאכותית             │
+│  · זכויות שלך                │
+│  · יצירת קשר                 │
+│                              │
+│  <span class="hl">1. איזה מידע אנחנו אוספים</span>     │
+│  ─────────────────────       │
+│  כדי שהאפליקציה תוכל לבנות   │   <span class="dim">// 16px</span>
+│  לך תוכנית אישית, אנחנו...   │
+│                              │
+│  ...                         │
+│                              │
+│  ↗ <span class="hl">קרא גם: תנאי שימוש</span>          │
+│                              │
+├──────────────────────────────┤
+│ ✉  שאלות? צור קשר            │
+│ ┌────────────────────────┐ │
+│ │       <span class="hl">הבנתי, אשור</span>          │ │
+│ └────────────────────────┘ │
+└──────────────────────────────┘</div>
+          <div class="specs">
+            <div class="sp"><span class="k">Pattern</span><span class="v">full-screen sheet</span></div>
+            <div class="sp"><span class="k">TL;DR</span><span class="v">required at top</span></div>
+            <div class="sp"><span class="k">TOC</span><span class="v">sticky/collapsible</span></div>
+            <div class="sp"><span class="k">Body</span><span class="v">16px / 1.7 line</span></div>
+            <div class="sp"><span class="k">Cross-link</span><span class="v">privacy ↔ terms</span></div>
+            <div class="sp"><span class="k">CTA</span><span class="v">sticky bottom + contact</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <span class="screen-id">SCR-17</span>
+      <h3>תנאי שימוש · Modal זהה למבנה<small>אותו דפוס, אותן בעיות</small></h3>
+      <span class="severity sev-ok">SAME AS ABOVE</span>
+    </div>
+    <div class="screen-body">
+      <div class="current">
+        <h4>נכון להיום <span class="tag">terms</span></h4>
+        <img src="assets/17-terms.png" alt="terms">
+      </div>
+      <div class="analysis">
+        <div class="block fix">
+          <h5><span class="ic">→</span>אותו דפוס, אותו פתרון</h5>
+          <p>תנאי שימוש סובל מאותן בעיות בדיוק כמו מדיניות פרטיות. החל את אותו דפוס:</p>
+          <ul>
+            <li>Full-screen sheet עם sticky header.</li>
+            <li>TL;DR בראש: "שירות As-Is · אין ייעוץ רפואי · השתמש באחריותך".</li>
+            <li>סקציות עם anchor links.</li>
+            <li>טקסט 16px / line-height 1.7.</li>
+            <li>Sticky CTA + link הדדי ל-Privacy.</li>
+          </ul>
+          <p style="margin-top:14px;color:var(--ink-3);font-size:14px">💡 <b>טיפ נוסף</b>: ב-section "3. המידע אינו ייעוץ רפואי" — הוסף disclaimer קצר ב-Onboarding עצמו (לפני יצירת התוכנית), לא רק כאן. רוב המשתמשים <i>לא יקראו את זה</i> ולכן ה-disclaimer חייב להופיע גם ברגע הקריטי.</p>
+        </div>
+        <div class="block wire">
+          <h5><span class="ic">◫</span>TL;DR ל-Terms</h5>
+          <div class="textwire">┌──────────────────────────────┐
+│ <span class="hl">TL;DR</span>                          │
+│ ─────                          │
+│ • Areto היא כלי, לא רופא     │
+│ • התייעץ לפני שינויים גדולים │
+│ • אסור: לעקוף / לפרוץ        │
+│ • אנחנו לא אחראים לתוצאות   │
+└──────────────────────────────┘</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ TOP 5 CRITICAL ═════════════════ -->
+<section id="top5">
+  <div class="section-header">
+    <div>
+      <span class="num">09 / SUMMARY · CRITICAL</span>
+      <h2>5 הבעיות הכי קריטיות</h2>
+    </div>
+    <p class="sub">מה צריך לטפל בו <b>ראשון</b>. כל אחד מהם פוגע ב-conversion או retention באופן מדיד.</p>
+  </div>
+
+  <div class="summary-grid">
+    <div class="sumcard crit">
+      <h6>Onboarding בעמוד אחד</h6>
+      <p>4 שלבים פתוחים במקביל גורמים ל-drop-off של ~30% מהמשתמשים החדשים לפני הצעד הראשון.</p>
+      <span class="tag">SCR-06</span>
+    </div>
+    <div class="sumcard crit">
+      <h6>Login Split-screen</h6>
+      <p>ההירו השיווקי דוחה את הטופס מתחת לקיפול. משתמש חוזר מתבלבל "האם זה לנדינג?".</p>
+      <span class="tag">SCR-01</span>
+    </div>
+    <div class="sumcard crit">
+      <h6>Workout — Wall of text</h6>
+      <p>4 ימים שלמים פתוחים זה מתחת לזה. אין "מה היום" — חיכוך יומיומי גבוה.</p>
+      <span class="tag">SCR-09</span>
+    </div>
+    <div class="sumcard crit">
+      <h6>Dashboard ללא Bottom Nav</h6>
+      <p>Sidebar שמאלי לא ישרוד למובייל. בלי tab bar = הסתרה של פיצ'רים מרכזיים.</p>
+      <span class="tag">SCR-08</span>
+    </div>
+    <div class="sumcard crit">
+      <h6>אי-עקביות שפה</h6>
+      <p>Register באנגלית, שאר האפליקציה בעברית. שבירת אמון בנקודה הכי רגישה ל-CRO.</p>
+      <span class="tag">SCR-04</span>
+    </div>
+    <div class="sumcard crit">
+      <h6>הגדרות · Sidebar בתוך Sidebar</h6>
+      <p>6 sub-tabs בצד ימני בתוך עמוד דסקטופי. במובייל זה נשבר לחלוטין — צריך native list view.</p>
+      <span class="tag">SCR-14</span>
+    </div>
+    <div class="sumcard crit">
+      <h6>תפריט יומי · Wall-of-content</h6>
+      <p>5 ארוחות עם 7+ ידיעות מידע כל אחת, כולן באותו משקל ויזואלי. ה-"ארוחה הבאה" לא בולטת.</p>
+      <span class="tag">SCR-15</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ TOP 5 WINS ═════════════════ -->
+<section id="wins">
+  <div class="section-header">
+    <div>
+      <span class="num">10 / SUMMARY · WINS</span>
+      <h2>5 השיפורים שיתנו את ההשפעה הכי גדולה</h2>
+    </div>
+    <p class="sub">סדר עדיפויות לפי <b>ROI: השפעה ÷ מאמץ</b>. אם תספיק לבצע רק 5 דברים — אלה הם.</p>
+  </div>
+
+  <div class="summary-grid">
+    <div class="sumcard win">
+      <h6>פיצול ה-Onboarding ל-4 מסכים</h6>
+      <p>אחד לשלב + progress bar. צפי לעלייה של <b>+25–35%</b> בהשלמת onboarding.</p>
+      <span class="tag">+ ROI ★★★★★</span>
+    </div>
+    <div class="sumcard win">
+      <h6>Bottom Tab Bar קבוע</h6>
+      <p>5 טאבים גלובליים (דשבורד · אימונים · תזונה · התקדמות · פרופיל). שיפור Navigation X3.</p>
+      <span class="tag">+ ROI ★★★★★</span>
+    </div>
+    <div class="sumcard win">
+      <h6>Sticky CTA תחתון בכל מסך פעולה</h6>
+      <p>Login · Register · Onboarding · Workout. כפתור 56px שלא זז עם גלילה. <b>+10–15% המרות</b>.</p>
+      <span class="tag">+ ROI ★★★★</span>
+    </div>
+    <div class="sumcard win">
+      <h6>Workout: יום אחד בכל פעם</h6>
+      <p>Tabs/swipe בין ימים, FAB "התחל אימון". משתמש מוצא היום הנוכחי תוך 0.5 שניות במקום 5.</p>
+      <span class="tag">+ ROI ★★★★</span>
+    </div>
+    <div class="sumcard win">
+      <h6>Dashboard hero card הקשרי</h6>
+      <p>במקום 6 סקשנים שווי-משקל — פעולה אחת בולטת (אימון/ארוחה/שינה) לפי שעה ביום.</p>
+      <span class="tag">+ ROI ★★★★</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════ WHY NOT MOBILE ═════════════════ -->
+<section id="why">
+  <div class="section-header">
+    <div>
+      <span class="num">11 / DIAGNOSIS</span>
+      <h2>למה כרגע זה מרגיש "לא מותאם למובייל"</h2>
+    </div>
+    <p class="sub">לא בעיה אחת — אלא דפוס.</p>
+  </div>
+
+  <div class="why-grid">
+    <div class="why-card">
+      <div class="k">SYMPTOM #1</div>
+      <h6>Layout נבנה לקנבס רחב ונדחס למובייל</h6>
+      <p>Split-screen של Login, Sidebar של Dashboard, Grid 3 עמודות במטרות, 4 ימים זה מתחת לזה ב-Workout — כל אלה דפוסים שעובדים ב-1440px ומעלה ונשברים ב-375px.</p>
+      <span class="verdict">לתקן: לעצב Mobile-First, להעלות לדסקטופ</span>
+    </div>
+    <div class="why-card">
+      <div class="k">SYMPTOM #2</div>
+      <h6>אין מבנה ניווט גלובלי במובייל</h6>
+      <p>Sidebar עובד בדסקטופ. במובייל הוא נעלם או הופך ל-Hamburger — שזה anti-pattern. כל אפליקציית מובייל מצליחה (Strava, Nike, Apple Fitness) משתמשת ב-Bottom Tab Bar.</p>
+      <span class="verdict">לתקן: 5-tabs קבועים</span>
+    </div>
+    <div class="why-card">
+      <div class="k">SYMPTOM #3</div>
+      <h6>CTA לא נעול ב-Thumb Zone</h6>
+      <p>הכפתורים הראשיים גולשים עם הדף. ב-iPhone 15 Pro Max אגודל לא מגיע לחלק העליון של המסך. כפתור באמצע = משתמש מסובב טלפון או מחזיק ב-2 ידיים.</p>
+      <span class="verdict">לתקן: Sticky bottom 56px</span>
+    </div>
+    <div class="why-card">
+      <div class="k">SYMPTOM #4</div>
+      <h6>One Decision Per Screen מופר</h6>
+      <p>מסך אונבורדינג מציג 4 שאלות במקביל. Dashboard מציג 6 סקשנים. עומס קוגניטיבי תוקף את המשתמש לפני שהוא מתחיל לפעול.</p>
+      <span class="verdict">לתקן: פיצול מסכים, hero אחד</span>
+    </div>
+    <div class="why-card">
+      <div class="k">SYMPTOM #5</div>
+      <h6>אזורי הקשה קטנים מ-44×44</h6>
+      <p>"שכחת?", "חזרה להתחברות", tag-ים של "[חזה]/[גב]", chips של זמן מנוחה — קטנים מהמינימום שאפל וגוגל מגדירות כ-accessible touch target.</p>
+      <span class="verdict">לתקן: padding 12px סביב כל אינטראקציה</span>
+    </div>
+    <div class="why-card">
+      <div class="k">SYMPTOM #6</div>
+      <h6>Visual rhythm חסר</h6>
+      <p>אין הבדל ויזואלי בין סקשנים בעלי משקל שונה. ב-Workout כל יום נראה זהה לקודמו; ב-Dashboard כל card נראה כמו חברו. למשתמש קשה להבין "מה ראשי, מה משני".</p>
+      <span class="verdict">לתקן: דגשי טיפוגרפיה + צבע + סקייל</span>
+    </div>
+  </div>
+
+  <hr class="div" />
+
+  <div class="block fix" style="border:1px solid rgba(20,211,176,0.3);background:linear-gradient(180deg,rgba(20,211,176,0.04),transparent);padding:28px 32px">
+    <h5><span class="ic">✓</span>סיכום בשורה אחת</h5>
+    <p style="font-size:17px;color:var(--ink);line-height:1.6;margin:8px 0 0">
+      האפליקציה <b>נעימה ויזואלית</b> ויש לה אסתטיקה ברורה — אבל היא בנויה <b>מהפרספקטיבה של דסקטופ</b>. מסכים שנראים נהדר ב-1440px מאבדים את הרוטינה הנכונה ב-375px. השינוי הכי חשוב הוא לא של "צבע" או "פונט" — אלא של <b>היררכיה: מה ראשון, מה שני, ואיפה האגודל נח</b>.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div>AUDIT · Areto Mobile UX · 12.05.2026</div>
+  <div>17 screens · 78 findings · 7 critical</div>
+</footer>
+
+</div>
+
+</body>
+</html>
