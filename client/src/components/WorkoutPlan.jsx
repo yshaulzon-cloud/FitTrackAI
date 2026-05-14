@@ -178,6 +178,26 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     cardio: { bg: 'rgba(253, 203, 110, 0.1)', border: 'rgba(253, 203, 110, 0.2)', color: 'var(--warning)', label: t.cardio },
   };
 
+  // Day-tab labels: surface "Upper body" / "Lower body" instead of the
+  // generic "Hypertrophy" / "Strength" so the chip describes what the
+  // day actually trains. Inferred from the exercises' muscle groups.
+  const UPPER_GROUPS = new Set(['חזה', 'גב', 'כתפיים', 'זרועות']);
+  const LOWER_GROUPS = new Set(['רגליים', 'תאומים']);
+  function bodyPartLabel(day) {
+    if (day?.type === 'cardio') return null;
+    const groups = (day?.exercises || []).map((e) => e.muscleGroup).filter(Boolean);
+    if (groups.length === 0) return null;
+    let upper = 0, lower = 0;
+    for (const g of groups) {
+      if (UPPER_GROUPS.has(g)) upper++;
+      else if (LOWER_GROUPS.has(g)) lower++;
+    }
+    if (upper === 0 && lower === 0) return null;
+    if (lower > upper) return lang === 'he' ? 'פלג גוף תחתון' : 'Lower body';
+    if (upper > lower) return lang === 'he' ? 'פלג גוף עליון' : 'Upper body';
+    return lang === 'he' ? 'גוף מלא' : 'Full body';
+  }
+
   function getDuration(dayName) {
     return dayDurations[dayName] || 60;
   }
@@ -387,6 +407,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           {days.map((d, i) => {
             const ts = typeColors[d.type] || typeColors.strength;
             const isActive = i === safeDayIdx;
+            const tabLabel = bodyPartLabel(d) || ts.label;
             return (
               <button
                 key={i}
@@ -401,7 +422,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                 } : undefined}
               >
                 <span className="workout-day-tab__num">{lang === 'he' ? `יום ${i + 1}` : `Day ${i + 1}`}</span>
-                <span className="workout-day-tab__label">{ts.label}</span>
+                <span className="workout-day-tab__label">{tabLabel}</span>
               </button>
             );
           })}
