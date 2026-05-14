@@ -333,19 +333,6 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               fontSize: 16,
               color: homeMode ? 'var(--violet)' : 'var(--text-1)',
             }}>{t.homeWorkout}</span>
-            {!homeMode && (
-              <span className="home-workout-tag" style={{
-                marginInlineStart: 'auto',
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                padding: '3px 8px',
-                borderRadius: 99,
-                background: 'rgba(139, 92, 246, 0.18)',
-                color: 'var(--violet)',
-                border: '1px solid rgba(139, 92, 246, 0.30)',
-              }}>{lang === 'he' ? '✓ זמין' : '✓ AVAILABLE'}</span>
-            )}
             {homeMode && (
               <span style={{
                 marginInlineStart: 'auto',

@@ -1502,10 +1502,6 @@ h1, h2, h3, h4, h5 { font-family: var(--font-display); letter-spacing: -0.01em; 
 .mobile-only { display: none; }
 @media (max-width: 768px) {
   .mobile-only { display: block; }
-
-  /* The "✓ זמין / AVAILABLE" pill on the Home-workout toggle is noisy on
-     a phone — the toggle itself is self-explanatory. Hide it only there. */
-  .home-workout-tag { display: none; }
 }
 
 /* ============================================================
