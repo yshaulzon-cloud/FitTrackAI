@@ -1,27 +1,33 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
 
-// ─── Calorie line area chart (real 7-day history) ─────────
+// ─── Calorie line area chart (variable-length time range) ─
 function CalorieLineArea({ days, calorieTarget, isHe }) {
   const W = 720, H = 160;
   const PAD_L = 40, PAD_R = 16, PAD_T = 16, PAD_B = 30;
   const innerW = W - PAD_L - PAD_R;
   const innerH = H - PAD_T - PAD_B;
 
-  // days is an array of { label, value } for the past 7 days, today = last
+  const N = Math.max(1, days.length);
+  const lastIdx = N - 1;
   const values = days.map(d => d.value || 0);
   const minV = Math.min(...values, calorieTarget) - 200;
   const maxV = Math.max(...values, calorieTarget) + 200;
   const span = Math.max(1, maxV - minV);
 
-  const xFor = (i) => PAD_L + (i / 6) * innerW;
+  // Use N-1 (not hardcoded 6) so the chart scales to the active range.
+  const xFor = (i) => PAD_L + (N === 1 ? innerW / 2 : (i / lastIdx) * innerW);
   const yFor = (v) => PAD_T + (1 - (v - minV) / span) * innerH;
 
   const linePath = values.map((v, i) =>
     (i === 0 ? 'M' : 'L') + xFor(i).toFixed(1) + ' ' + yFor(v).toFixed(1)
   ).join(' ');
-  const areaPath = `${linePath} L ${xFor(6).toFixed(1)} ${(H - PAD_B).toFixed(1)} L ${xFor(0).toFixed(1)} ${(H - PAD_B).toFixed(1)} Z`;
+  const areaPath = `${linePath} L ${xFor(lastIdx).toFixed(1)} ${(H - PAD_B).toFixed(1)} L ${xFor(0).toFixed(1)} ${(H - PAD_B).toFixed(1)} Z`;
   const targetY = yFor(calorieTarget);
+
+  // Cap visible labels so 30d/90d don't overlap — show every kth.
+  const maxLabels = 7;
+  const labelStride = Math.max(1, Math.ceil(N / maxLabels));
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: H, display: 'block' }} aria-hidden="true">
@@ -39,17 +45,22 @@ function CalorieLineArea({ days, calorieTarget, isHe }) {
       <path d={areaPath} fill="url(#calFill)" />
       <path d={linePath} fill="none" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       {values.map((v, i) => (
-        <circle key={i} cx={xFor(i)} cy={yFor(v)} r={i === 6 ? 5 : 3}
-                fill={i === 6 ? 'currentColor' : '#fbbf24'}
-                stroke={i === 6 ? '#fbbf24' : 'none'}
-                strokeWidth={i === 6 ? 2.5 : 0}
+        <circle key={i} cx={xFor(i)} cy={yFor(v)} r={i === lastIdx ? 5 : 3}
+                fill={i === lastIdx ? 'currentColor' : '#fbbf24'}
+                stroke={i === lastIdx ? '#fbbf24' : 'none'}
+                strokeWidth={i === lastIdx ? 2.5 : 0}
                 style={{ color: 'var(--bg-0)' }} />
       ))}
-      {days.map((d, i) => (
-        <text key={i} x={xFor(i)} y={H - 10} textAnchor="middle" fontFamily="Assistant" fontSize="11" fill="#7e879d">
-          {d.label}
-        </text>
-      ))}
+      {days.map((d, i) => {
+        // Always show first + last; thin the middle to avoid overlap.
+        const showLabel = i === 0 || i === lastIdx || i % labelStride === 0;
+        if (!showLabel) return null;
+        return (
+          <text key={i} x={xFor(i)} y={H - 10} textAnchor="middle" fontFamily="Assistant" fontSize="11" fill="#7e879d">
+            {d.label}
+          </text>
+        );
+      })}
     </svg>
   );
 }
@@ -468,21 +479,27 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
           </div>
         </div>
         <div className="bar-chart">
-          {last7Workouts.map((d, i) => {
-            const heightPct = d.count > 0 ? (d.count / maxBar) * 100 : 0;
-            return (
-              <div key={i} className="bar-chart__col">
-                <div className="bar-chart__bar-wrap">
-                  <div
-                    className={`bar-chart__bar${d.count === 0 ? ' bar-chart__bar--empty' : ''}`}
-                    style={{ height: d.count === 0 ? 8 : `${heightPct}%` }}
-                    title={`${d.count} ${isHe ? 'אימונים' : 'workouts'}`}
-                  />
+          {(() => {
+            const N = last7Workouts.length;
+            const labelStride = Math.max(1, Math.ceil(N / 7));
+            return last7Workouts.map((d, i) => {
+              const heightPct = d.count > 0 ? (d.count / maxBar) * 100 : 0;
+              // Thin out labels on long ranges; always show first + last.
+              const showLabel = i === 0 || i === N - 1 || i % labelStride === 0;
+              return (
+                <div key={i} className="bar-chart__col">
+                  <div className="bar-chart__bar-wrap">
+                    <div
+                      className={`bar-chart__bar${d.count === 0 ? ' bar-chart__bar--empty' : ''}`}
+                      style={{ height: d.count === 0 ? 8 : `${heightPct}%` }}
+                      title={`${d.count} ${isHe ? 'אימונים' : 'workouts'}`}
+                    />
+                  </div>
+                  <div className="bar-chart__label">{showLabel ? d.label : ''}</div>
                 </div>
-                <div className="bar-chart__label">{d.label}</div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       </div>
 

@@ -441,19 +441,6 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
                 disabled={loading}
               />
             </div>
-            {isNative && (
-              <button
-                type="button"
-                onClick={handleScan}
-                disabled={loading || scanning}
-                className="btn"
-                title={isHe ? 'סרוק ברקוד' : 'Scan barcode'}
-                style={{ whiteSpace: 'nowrap' }}
-              >
-                <ScanIcon />
-                {scanning ? (isHe ? 'סורק…' : 'Scanning…') : (isHe ? 'סרוק' : 'Scan')}
-              </button>
-            )}
             <button
               type="submit"
               className="btn btn-accent"

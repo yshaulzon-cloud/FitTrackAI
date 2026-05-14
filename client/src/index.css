@@ -2419,9 +2419,11 @@ h1, h2, h3, h4, h5 { font-family: var(--font-display); letter-spacing: -0.01em; 
 
 .bar-chart {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* Auto-fit columns so 7-day / 30-day / 90-day ranges all lay out cleanly */
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   align-items: end;
-  gap: 8px;
+  gap: 6px;
   height: 120px;
 }
 .bar-chart__col {
@@ -2453,6 +2455,10 @@ h1, h2, h3, h4, h5 { font-family: var(--font-display); letter-spacing: -0.01em; 
   font-size: 11px;
   color: var(--text-4);
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .measurement-row {
