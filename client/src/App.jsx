@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Component } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useLang } from './context/LanguageContext';
@@ -6,6 +6,41 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
+import Welcome from './pages/Welcome';
+
+const INTRO_FLAG = 'areto:intro-seen';
+
+function shouldShowIntroSync() {
+  try {
+    if (localStorage.getItem(INTRO_FLAG) === '1') return false;
+    return true; // Show Welcome to all first-time visitors (web + native)
+  } catch { return false; }
+}
+
+class ErrorBoundary extends Component {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(err) { console.error('App error:', err); }
+  render() {
+    if (this.state.hasError) {
+      const isHe = localStorage.getItem('areto:lang') !== 'en';
+      return (
+        <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'Heebo, sans-serif' }}>
+          <p style={{ fontSize: 16, color: '#e2e8f0' }}>
+            {isHe ? 'משהו השתבש. רענן את הדף.' : 'Something went wrong. Please refresh.'}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{ marginTop: 12, padding: '8px 20px', cursor: 'pointer', borderRadius: 8, border: 'none', background: '#2dd4bf', color: '#000', fontWeight: 600 }}
+          >
+            {isHe ? 'רענן' : 'Refresh'}
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function SplashScreen({ onDone }) {
   const { t, lang } = useLang();
@@ -17,7 +52,7 @@ function SplashScreen({ onDone }) {
     return () => { clearTimeout(fadeTimer); clearTimeout(doneTimer); };
   }, [onDone]);
 
-  const tagline = lang === 'he' ? 'בנה · עקוב · תשתפר' : 'Build · Track · Improve';
+  const tagline = lang === 'he' ? 'תזונה · אימונים · תוצאות' : 'Nutrition · Training · Results';
 
   return (
     <div style={{
@@ -123,6 +158,23 @@ function AuthRoute({ children }) {
 
   if (user && user.onboardingComplete) return <Navigate to="/dashboard" />;
   if (user && !user.onboardingComplete) return <Navigate to="/onboarding" />;
+  if (!user && shouldShowIntroSync()) return <Navigate to="/welcome" />;
+  return children;
+}
+
+function OnboardingRoute({ children }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="loading">
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/login" />;
+  if (user.onboardingComplete) return <Navigate to="/dashboard" />;
   return children;
 }
 
@@ -163,6 +215,7 @@ export default function App() {
   }
 
   return (
+    <ErrorBoundary>
     <Routes>
       <Route
         path="/login"
@@ -196,23 +249,9 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/welcome" element={<Welcome />} />
       <Route path="*" element={<Navigate to="/dashboard" />} />
     </Routes>
+    </ErrorBoundary>
   );
-}
-
-function OnboardingRoute({ children }) {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="loading">
-        <div className="spinner" />
-      </div>
-    );
-  }
-
-  if (!user) return <Navigate to="/login" />;
-  if (user.onboardingComplete) return <Navigate to="/dashboard" />;
-  return children;
 }

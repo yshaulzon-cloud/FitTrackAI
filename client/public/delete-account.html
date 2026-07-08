@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Areto · מחיקת חשבון / Delete Account</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&family=Assistant:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --surface: #121826;
+      --border: #243044;
+      --text-1: #f1f5f9;
+      --text-2: #cbd5e1;
+      --text-3: #94a3b8;
+      --accent: #2dd4bf;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text-2);
+      font-family: 'Heebo', 'Assistant', system-ui, sans-serif;
+      line-height: 1.7;
+      font-size: 16px;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 40px 22px 80px; }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap; margin-bottom: 28px;
+      padding-bottom: 20px; border-bottom: 1px solid var(--border);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-name { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: var(--text-1); }
+    h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; color: var(--text-1); }
+    .updated { font-size: 13px; color: var(--text-3); margin-top: 4px; }
+    .lang-toggle button {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-2); padding: 8px 16px; border-radius: 8px;
+      cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 600;
+    }
+    .lang-toggle button.active { background: var(--accent); color: #06251f; border-color: var(--accent); }
+    .intro {
+      padding: 18px 20px; margin-bottom: 28px; border-radius: 12px;
+      background: rgba(45,212,191,0.08); border: 1px solid rgba(45,212,191,0.22);
+      color: var(--text-1);
+    }
+    h2 { font-size: 19px; font-weight: 700; color: var(--text-1); margin: 32px 0 10px; letter-spacing: -0.01em; }
+    section p { margin: 0 0 10px; }
+    ol.steps { padding-inline-start: 22px; margin: 6px 0 0; }
+    ol.steps li { margin-bottom: 10px; color: var(--text-1); }
+    code { background: rgba(239,68,68,0.12); color: var(--danger); padding: 2px 8px; border-radius: 6px; font-weight: 700; letter-spacing: 0.05em; }
+    section ul { padding-inline-start: 22px; margin: 6px 0 0; }
+    section li { margin-bottom: 6px; }
+    a { color: var(--accent); }
+    footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-3); }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div>
+          <div class="brand-name">Areto</div>
+          <div class="updated" id="updated">עודכן: יוני 2026</div>
+        </div>
+      </div>
+      <div class="lang-toggle">
+        <button id="btn-he" class="active" onclick="setLang('he')">עברית</button>
+        <button id="btn-en" onclick="setLang('en')">English</button>
+      </div>
+    </header>
+    <main id="content"></main>
+    <footer id="footer"></footer>
+  </div>
+
+  <script>
+    const DATA = {
+      he: {
+        dir: 'rtl', updated: 'עודכן: יוני 2026',
+        title: 'מחיקת חשבון ונתונים',
+        intro: 'דף זה מסביר כיצד למחוק את חשבון Areto שלך ואת כל הנתונים המשויכים אליו. ניתן לבצע זאת ישירות מתוך האפליקציה, או על ידי פנייה אלינו במייל.',
+        sections: [
+          { h: 'מחיקה מתוך האפליקציה', p: ['כדי למחוק את החשבון שלך לצמיתות:'],
+            steps: [
+              'פתח את האפליקציה והתחבר לחשבון שלך.',
+              'עבור אל <strong>הגדרות</strong> ← הקטגוריה <strong>פרטיות</strong>.',
+              'גלול אל אזור <strong>מחיקת חשבון</strong> ולחץ על <strong>"מחק חשבון"</strong>.',
+              'הקלד <code>DELETE</code> בתיבת האישור ולחץ על <strong>"אישור מחיקה"</strong>.',
+              'החשבון וכל הנתונים יימחקו מיד מהשרת והחיבור יתנתק.',
+            ] },
+          { h: 'מחיקה באמצעות מייל', p: ['אם אינך יכול לגשת לאפליקציה, שלח בקשת מחיקה ל-<a href="mailto:bodysync11@gmail.com">bodysync11@gmail.com</a> מכתובת האימייל הרשומה בחשבון. נטפל בבקשה תוך 30 יום לכל היותר.'] },
+          { h: 'מחיקת נתונים בלי מחיקת חשבון', p: ['אם ברצונך למחוק רק את היסטוריית הפעילות (תזונה, אימונים, שינה ומדידות) ולשמור על החשבון, עבור אל <strong>הגדרות</strong> ← <strong>פרטיות</strong> ← <strong>"איפוס נתונים"</strong>. פעולה זו מוחקת את כל ההיסטוריה מהשרת אך משאירה את החשבון פעיל.'] },
+          { h: 'אילו נתונים נמחקים', p: ['מחיקת החשבון מסירה לצמיתות את כל המידע הבא מהשרת:'],
+            list: [
+              'פרטי החשבון (אימייל, סיסמה מוצפנת) ופרופיל אישי (שם, גיל, מין, גובה, משקל).',
+              'כל רישומי התזונה והארוחות.',
+              'כל האימונים וההיסטוריה שלהם.',
+              'רישומי שינה ומדידות גוף.',
+              'נתוני התקדמות, נקודות (XP) והישגים.',
+            ] },
+          { h: 'תקופת שמירה', p: ['מחיקה מתוך האפליקציה היא מיידית — לא נשמר עותק של הנתונים לאחר המחיקה. בקשות מייל מטופלות תוך 30 יום. הפעולה בלתי הפיכה.'] },
+        ],
+        footer: 'Areto · תזונה. אימונים. תוצאות.',
+      },
+      en: {
+        dir: 'ltr', updated: 'Last updated: June 2026',
+        title: 'Delete Account and Data',
+        intro: 'This page explains how to delete your Areto account and all associated data. You can do this directly inside the app, or by contacting us by email.',
+        sections: [
+          { h: 'Delete from inside the app', p: ['To permanently delete your account:'],
+            steps: [
+              'Open the app and log in to your account.',
+              'Go to <strong>Settings</strong> → the <strong>Privacy</strong> category.',
+              'Scroll to the <strong>Delete account</strong> area and tap <strong>"Delete account"</strong>.',
+              'Type <code>DELETE</code> in the confirmation box and tap <strong>"Confirm delete"</strong>.',
+              'Your account and all data are immediately removed from the server and you are signed out.',
+            ] },
+          { h: 'Delete by email', p: ['If you cannot access the app, send a deletion request to <a href="mailto:bodysync11@gmail.com">bodysync11@gmail.com</a> from the email address registered to your account. We will process the request within 30 days at most.'] },
+          { h: 'Delete data without deleting the account', p: ['If you only want to erase your activity history (nutrition, workouts, sleep, and measurements) and keep your account, go to <strong>Settings</strong> → <strong>Privacy</strong> → <strong>"Reset all data"</strong>. This removes all history from the server but keeps your account active.'] },
+          { h: 'What data is deleted', p: ['Deleting your account permanently removes all of the following from the server:'],
+            list: [
+              'Account details (email, hashed password) and personal profile (name, age, gender, height, weight).',
+              'All nutrition and meal logs.',
+              'All workouts and their history.',
+              'Sleep entries and body measurements.',
+              'Progression data, XP points, and achievements.',
+            ] },
+          { h: 'Retention period', p: ['In-app deletion is immediate — no copy of your data is kept afterward. Email requests are handled within 30 days. The action is irreversible.'] },
+        ],
+        footer: 'Areto · Nutrition. Training. Results.',
+      },
+    };
+
+    function setLang(lang) {
+      const d = DATA[lang];
+      document.documentElement.lang = lang;
+      document.documentElement.dir = d.dir;
+      document.getElementById('updated').textContent = d.updated;
+      document.getElementById('btn-he').classList.toggle('active', lang === 'he');
+      document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+
+      let html = '<div class="intro">' + d.intro + '</div>';
+      html += '<h1>' + d.title + '</h1>';
+      for (const s of d.sections) {
+        html += '<section><h2>' + s.h + '</h2>';
+        if (s.p) html += s.p.map(p => '<p>' + p + '</p>').join('');
+        if (s.steps) html += '<ol class="steps">' + s.steps.map(li => '<li>' + li + '</li>').join('') + '</ol>';
+        if (s.list) html += '<ul>' + s.list.map(li => '<li>' + li + '</li>').join('') + '</ul>';
+        html += '</section>';
+      }
+      document.getElementById('content').innerHTML = html;
+      document.getElementById('footer').textContent = d.footer;
+    }
+
+    setLang('he');
+  </script>
+</body>
+</html>

@@ -14,9 +14,10 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, 'סיסמה היא שדה חובה'],
-      minlength: [6, 'הסיסמה חייבת להכיל לפחות 6 תווים'],
+      minlength: [8, 'הסיסמה חייבת להכיל לפחות 8 תווים'],
       select: false,
     },
+    passwordChangedAt: { type: Date, select: false },
     name: { type: String, trim: true, maxlength: 50 },
     profile: {
       age: { type: Number, min: 13, max: 120 },
@@ -33,19 +34,24 @@ const userSchema = new mongoose.Schema(
         enum: ['beginner', 'intermediate', 'advanced'],
       },
       bodyFatPercentage: { type: Number, min: 3, max: 60 },
+      city: { type: String, trim: true, maxlength: 60 },
     },
     onboardingComplete: { type: Boolean, default: false },
     isAdmin: { type: Boolean, default: false },
     resetCode: { type: String, default: null },
     resetCodeExpires: { type: Date, default: null },
+    resetCodeAttempts: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
-// Hash password before saving
+// Hash password before saving; stamp passwordChangedAt so old tokens are rejected
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 12);
+  if (!this.isNew) {
+    this.passwordChangedAt = new Date(Date.now() - 1000);
+  }
   next();
 });
 

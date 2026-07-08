@@ -68,9 +68,13 @@ function LevelRing({ level, percent }) {
     <div className="xp-hero__ring-wrap">
       <svg className="xp-hero__ring-svg" viewBox="0 0 130 130">
         <defs>
+          {/* Audit P06: XP ring used to fade purple→mint, which made the
+              gamification surface read as a different app (none of the
+              dashboard uses purple). Unified to the streak amber so XP and
+              streaks share one earned-progress color. */}
           <linearGradient id="levelRingGrad" x1="0" x2="1" y1="0" y2="1">
-            <stop offset="0%" stopColor="#8b5cf6" />
-            <stop offset="100%" stopColor="#2dd4bf" />
+            <stop offset="0%" stopColor="#f59e0b" />
+            <stop offset="100%" stopColor="#fbbf24" />
           </linearGradient>
         </defs>
         <circle cx="65" cy="65" r={r} stroke="rgba(255,255,255,0.06)" strokeWidth="10" fill="none" />
@@ -197,8 +201,8 @@ export default function ProgressionPanel({ api }) {
           <div className="streak-label">{t.currentStreak}</div>
         </div>
         <div className="streak-card">
-          <div className="streak-icon">⚡</div>
-          <div className="streak-value">{data.longestStreak}<span style={{ fontSize: 14, fontWeight: 400 }}> {t.days}</span></div>
+          <div className="streak-icon">🥗</div>
+          <div className="streak-value">{data.calorieStreak}<span style={{ fontSize: 14, fontWeight: 400 }}> {t.days}</span></div>
           <div className="streak-label">{t.longestStreak}</div>
         </div>
         <div className="streak-card">
@@ -218,7 +222,10 @@ export default function ProgressionPanel({ api }) {
             { key: 'discipline', label: t.statDiscipline, icon: '🎯', color: '#f59e0b' },
             { key: 'strength',   label: t.statStrength,   icon: '💪', color: '#ef4444' },
             { key: 'recovery',   label: t.statRecovery,   icon: '⚖️', color: '#22c55e' },
-            { key: 'sleep',      label: t.statSleep,      icon: '🌙', color: '#8b5cf6' },
+            // Audit P08: sleep stat was the only purple in the panel.
+            // Recolored to a muted indigo from the existing palette so it
+            // sits in the same family as the other neutrals.
+            { key: 'sleep',      label: t.statSleep,      icon: '🌙', color: '#6366f1' },
           ].map(stat => {
             const val = data.stats?.[stat.key] || 0;
             return (

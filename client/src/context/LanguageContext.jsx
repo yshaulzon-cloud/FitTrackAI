@@ -196,7 +196,7 @@ const translations = {
     minutes: 'דקות',
 
     // Settings
-    settings: 'הגדרות ⚙️',
+    settings: 'הגדרות',
     settingsSubtitle: 'עדכן את הפרטים שלך כדי לקבל יעדים מדויקים',
     updateProfile: 'עדכון פרופיל',
     saveChanges: 'שמור שינויים',
@@ -357,8 +357,8 @@ const translations = {
     levelUpMsg: 'הגעת לרמה',
     totalXP: 'סה"כ XP',
     xpToNext: 'XP לרמה הבאה',
-    currentStreak: 'רצף אימונים',
-    longestStreak: 'שיא רצף אימונים',
+    currentStreak: 'רצף פעילות',
+    longestStreak: 'רצף יעד קלוריות',
     days: 'ימים',
     weekStreaks: 'שבועות רצופים',
 
@@ -642,7 +642,7 @@ const translations = {
     workout: 'Workout',
     minutes: 'min',
 
-    settings: 'Settings ⚙️',
+    settings: 'Settings',
     settingsSubtitle: 'Update your details for accurate targets',
     updateProfile: 'Update Profile',
     saveChanges: 'Save Changes',
@@ -802,8 +802,8 @@ const translations = {
     levelUpMsg: 'You reached level',
     totalXP: 'Total XP',
     xpToNext: 'XP to next level',
-    currentStreak: 'Workout Streak',
-    longestStreak: 'Best Workout Streak',
+    currentStreak: 'Activity Streak',
+    longestStreak: 'Calorie Goal Streak',
     days: 'days',
     weekStreaks: 'Week Streaks',
 

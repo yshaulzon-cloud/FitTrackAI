@@ -1,23 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLang } from '../context/LanguageContext';
-import { scanBarcode, lookupBarcode } from '../lib/barcode';
-
+import { downloadTextFile } from '../lib/downloadFile';
 function isNativeShell() {
   try {
     return typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true;
   } catch { return false; }
-}
-
-function ScanIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-      <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-      <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-      <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-      <path d="M7 8v8M11 8v8M15 8v8M19 8v8"/>
-    </svg>
-  );
 }
 
 const MEAL_TYPE_TIMES = {
@@ -69,10 +56,15 @@ function MacroRingSmall({ pct = 0 }) {
 
 
 function MealRow({ time, emoji, name, desc, cal, p, c, f, status, onLog, onDelete, onSwap, swapping, isHe, t }) {
+  // Audit P10: macros used to render on every meal card — 5 cards × 3
+  // numbers = 15 macro chips in a single scroll. We now expand macros by
+  // default only on the *current* meal ("now"); past/planned rows show
+  // the kcal + a tiny disclosure that reveals macros on tap.
+  const [expanded, setExpanded] = useState(status === 'now');
   return (
     <div className={`meal-row meal-row--${status}`}>
       <div className="meal-row__time-block">
-        <div className="meal-row__icon">
+        <div className="meal-row__icon" role="img" aria-label={name}>
           {status === 'done' ? <CheckIcon size={18} /> : emoji}
         </div>
         <div>
@@ -87,11 +79,32 @@ function MealRow({ time, emoji, name, desc, cal, p, c, f, status, onLog, onDelet
       <div>
         <div className="meal-row__name">{name}</div>
         {desc && <div className="meal-row__desc">{desc}</div>}
-        <div className="meal-row__macros">
-          {p > 0 && <span className="m-p">{Math.round(p)}g {isHe ? 'חלבון' : 'protein'}</span>}
-          {c > 0 && <span className="m-c">{Math.round(c)}g {isHe ? 'פחמ\'' : 'carbs'}</span>}
-          {f > 0 && <span className="m-f">{Math.round(f)}g {isHe ? 'שומן' : 'fat'}</span>}
-        </div>
+        {expanded ? (
+          <div className="meal-row__macros">
+            {p > 0 && <span className="m-p">{Math.round(p)}g {isHe ? 'חלבון' : 'protein'}</span>}
+            {c > 0 && <span className="m-c">{Math.round(c)}g {isHe ? 'פחמ\'' : 'carbs'}</span>}
+            {f > 0 && <span className="m-f">{Math.round(f)}g {isHe ? 'שומן' : 'fat'}</span>}
+          </div>
+        ) : (p > 0 || c > 0 || f > 0) && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
+            style={{
+              marginTop: 4,
+              padding: '8px 0',
+              minHeight: 44,
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-3)',
+              fontSize: 11,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              textAlign: isHe ? 'right' : 'left',
+            }}
+          >
+            {isHe ? 'הצג ערכי תזונה ↓' : 'Show macros ↓'}
+          </button>
+        )}
       </div>
       <div className="meal-row__right">
         <div>
@@ -129,24 +142,144 @@ function MealRow({ time, emoji, name, desc, cal, p, c, f, status, onLog, onDelet
   );
 }
 
+// Condensed single-line row for already-eaten meals (audit: the previous
+// MealRow layout — icon block + name + desc + cal column — read as too
+// heavy for a list of things you've already logged. Tap the row to reveal
+// macros + delete instead of always showing them.
+function LoggedMealRow({ meal, isHe, t, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
+  const name = isHe ? meal.description : (meal.englishName || meal.description);
+  const tag = meal.source === 'ai' ? '🤖' : meal.source === 'default' ? '⚠️' : '';
+  return (
+    <div style={{
+      background: 'var(--surface)',
+      border: '1px solid var(--border-subtle)',
+      borderRadius: 16,
+      overflow: 'hidden',
+      display: 'flex',
+      alignItems: 'stretch',
+    }}>
+      <div style={{ width: 4, background: '#2ee6c4', flexShrink: 0, borderRadius: '99px 0 0 99px' }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+      <button
+        type="button"
+        onClick={() => setExpanded(v => !v)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '10px 14px',
+          background: 'none',
+          border: 'none',
+          color: 'var(--text-1)',
+          fontFamily: 'inherit',
+          textAlign: isHe ? 'right' : 'left',
+          cursor: 'pointer',
+        }}
+      >
+        <span style={{ color: 'var(--success)', flexShrink: 0 }}>✓</span>
+        <span style={{ flex: 1, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {name} {tag}
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-2)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+          {Math.round(meal.calories)} {t.kcal}
+        </span>
+        <span style={{ fontSize: 11, color: 'var(--text-4)', transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}>
+          ▾
+        </span>
+      </button>
+      {expanded && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          padding: '0 14px 12px',
+          borderTop: '1px solid var(--border-subtle)',
+          flexWrap: 'wrap',
+        }}>
+          <div style={{ display: 'flex', gap: 10, paddingTop: 10, fontSize: 12, color: 'var(--text-3)' }}>
+            <span className="m-p">{Math.round(meal.protein)}g {isHe ? 'חלבון' : 'protein'}</span>
+            <span className="m-c">{Math.round(meal.carbs)}g {isHe ? 'פחמ\'' : 'carbs'}</span>
+            <span className="m-f">{Math.round(meal.fat)}g {isHe ? 'שומן' : 'fat'}</span>
+          </div>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              style={{
+                marginTop: 10,
+                padding: '4px 12px',
+                borderRadius: 8,
+                border: '1px solid rgba(255,92,124,.25)',
+                background: 'rgba(255,92,124,.10)',
+                color: '#ff5c7c',
+                fontSize: 12,
+                cursor: 'pointer',
+              }}
+            >
+              {isHe ? 'מחק' : 'Delete'}
+            </button>
+          )}
+        </div>
+      )}
+      </div>
+    </div>
+  );
+}
+
 export default function NutritionTracker({ targets, todayData, api, onUpdate, showXP }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
 
   const [foodInput, setFoodInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [scanning, setScanning] = useState(false);
   const isNative = isNativeShell();
   const [message, setMessage] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [lastDeletedMeal, setLastDeletedMeal] = useState(null);
+  // Menu state persists to localStorage so navigating away and back (or
+  // restarting the app) doesn't wipe a loaded daily/weekly menu.
+  const MENU_STORAGE_KEY = 'nutrition:menuState';
   const [menuOpen, setMenuOpen] = useState(false);
   const [menu, setMenu] = useState(null);
   const [menuCalTarget, setMenuCalTarget] = useState(null);
+  const [menuMode, setMenuMode] = useState('daily'); // 'daily' | 'weekly'
+  const [weeklyMenu, setWeeklyMenu] = useState(null); // array of 7 day-menus
+  const [weeklyDayIdx, setWeeklyDayIdx] = useState(0);
   const [menuLoading, setMenuLoading] = useState(false);
   const [swappingIdx, setSwappingIdx] = useState(null);
   const [loggingIdx, setLoggingIdx] = useState(null);
   const [history, setHistory] = useState([]);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Restore any previously loaded menu once on mount.
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(MENU_STORAGE_KEY) || 'null');
+      if (saved) {
+        setMenuOpen(!!saved.menuOpen);
+        setMenu(saved.menu || null);
+        setMenuCalTarget(saved.menuCalTarget || null);
+        setMenuMode(saved.menuMode || 'daily');
+        setWeeklyMenu(saved.weeklyMenu || null);
+        setWeeklyDayIdx(saved.weeklyDayIdx || 0);
+      }
+    } catch { /* ignore corrupt storage */ }
+    setHydrated(true);
+  }, []);
+
+  // Persist on every change (after initial hydration, so we don't
+  // immediately overwrite saved state with the pre-hydration defaults).
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify({
+        menuOpen, menu, menuCalTarget, menuMode, weeklyMenu, weeklyDayIdx,
+      }));
+    } catch { /* storage full / unavailable */ }
+  }, [hydrated, menuOpen, menu, menuCalTarget, menuMode, weeklyMenu, weeklyDayIdx]);
 
   // Pull last 30 days of nutrition logs once. Today's meals come live
   // from the `todayData` prop so they react to immediate add/delete.
@@ -178,11 +311,66 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       const res = await api(url);
       setMenu(res.menu);
       setMenuCalTarget(res.calorieTarget);
+      setMenuMode('daily');
+      setWeeklyMenu(null);
       setMenuOpen(true);
     } catch (err) {
       console.error('Menu fetch error:', err);
     } finally {
       setMenuLoading(false);
+    }
+  }
+
+  async function fetchWeeklyMenu() {
+    setMenuLoading(true);
+    try {
+      const res = await api('/nutrition/weekly-menu');
+      setWeeklyMenu(res.days);
+      setWeeklyDayIdx(0);
+      setMenuCalTarget(res.calorieTarget);
+      setMenuMode('weekly');
+      setMenu(null);
+      setMenuOpen(true);
+    } catch (err) {
+      console.error('Weekly menu fetch error:', err);
+    } finally {
+      setMenuLoading(false);
+    }
+  }
+
+  // ─── Download the loaded menu as a text file ──────────────────
+  const mealTypeLabel = (type) => isHe
+    ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' }[type] || type)
+    : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[type] || type);
+
+  function formatDailyMenuText(dayMenu, heading) {
+    const lines = [heading, ''];
+    for (const meal of dayMenu.meals) {
+      lines.push(`${mealTypeLabel(meal.type)}: ${isHe ? meal.he : (meal.en || meal.he)}`);
+      lines.push(`  ${meal.calories} ${t.kcal} · ${meal.protein}g ${isHe ? 'חלבון' : 'protein'} · ${meal.carbs}g ${isHe ? 'פחמ\'' : 'carbs'} · ${meal.fat}g ${isHe ? 'שומן' : 'fat'}`);
+    }
+    lines.push('');
+    lines.push(`${isHe ? 'סה"כ' : 'Total'}: ${dayMenu.totalCalories} ${t.kcal} · ${dayMenu.totalProtein}g ${isHe ? 'חלבון' : 'protein'}`);
+    return lines.join('\n');
+  }
+
+  async function handleDownloadMenu() {
+    try {
+      if (menuMode === 'weekly' && weeklyMenu) {
+        const dayNamesHe = ['יום 1','יום 2','יום 3','יום 4','יום 5','יום 6','יום 7'];
+        const dayNamesEn = ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
+        const text = weeklyMenu
+          .map((d, i) => formatDailyMenuText(d, `=== ${isHe ? dayNamesHe[i] : dayNamesEn[i]} ===`))
+          .join('\n\n');
+        await downloadTextFile('areto-weekly-menu.txt', text);
+      } else if (menu) {
+        const text = formatDailyMenuText(menu, isHe ? 'התפריט היומי שלי — Areto' : 'My Daily Menu — Areto');
+        await downloadTextFile('areto-daily-menu.txt', text);
+      }
+    } catch (err) {
+      console.error('Download menu error:', err);
+      setMessage(isHe ? 'שגיאה בהורדת הקובץ' : 'Failed to download file');
+      setTimeout(() => setMessage(''), 4000);
     }
   }
 
@@ -213,6 +401,38 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       });
     } catch (err) {
       console.error('Swap meal error:', err);
+      setMessage(err.message || t.menuError);
+      setTimeout(() => setMessage(''), 4000);
+    } finally {
+      setSwappingIdx(null);
+    }
+  }
+
+  async function swapWeeklyMealAt(dayIdx, mealIdx) {
+    const day = weeklyMenu?.[dayIdx];
+    const current = day?.meals?.[mealIdx];
+    if (!current) return;
+    const key = `${dayIdx}-${mealIdx}`;
+    setSwappingIdx(key);
+    try {
+      const params = new URLSearchParams({
+        type: current.type,
+        calories: String(current.calories),
+        excludeText: current.he,
+      });
+      const res = await api(`/nutrition/swap-meal?${params.toString()}`);
+      const newMeal = res.meal;
+      setWeeklyMenu(prev => {
+        if (!prev) return prev;
+        return prev.map((d, di) => {
+          if (di !== dayIdx) return d;
+          const newMeals = d.meals.map((m, mi) => (mi === mealIdx ? newMeal : m));
+          const sum = (k) => newMeals.reduce((acc, m) => acc + (m[k] || 0), 0);
+          return { ...d, meals: newMeals, totalCalories: sum('calories'), totalProtein: sum('protein'), totalCarbs: sum('carbs'), totalFat: sum('fat') };
+        });
+      });
+    } catch (err) {
+      console.error('Weekly swap error:', err);
       setMessage(err.message || t.menuError);
       setTimeout(() => setMessage(''), 4000);
     } finally {
@@ -254,7 +474,9 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       });
       setFoodInput('');
       if (showXP && result?.xp) showXP(result.xp);
-      const aiTag = result.meal.source === 'ai' ? ` 🤖 ${t.aiEstimate}` : '';
+      const aiTag = result.meal.source === 'ai' ? ` 🤖 ${t.aiEstimate}`
+        : result.meal.source === 'default' ? ` ⚠️ ${isHe ? 'הערכה כללית (לא במאגר)' : 'rough estimate (not in database)'}`
+        : '';
       setMessage(
         `${t.added} ${result.meal.description} (${result.meal.calories} ${t.caloriesWord}, ${result.meal.protein} ${t.proteinGrams})${aiTag}`
       );
@@ -265,31 +487,6 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       setTimeout(() => setMessage(''), 5000);
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function handleScan() {
-    setMessage('');
-    setScanning(true);
-    try {
-      const code = await scanBarcode();
-      if (!code) return;
-      const name = await lookupBarcode(code, lang);
-      if (!name) {
-        setMessage(isHe
-          ? `המוצר ${code} לא נמצא במאגר. תוכל להקליד אותו ידנית.`
-          : `Product ${code} not found. You can type it manually.`);
-        setTimeout(() => setMessage(''), 4000);
-        return;
-      }
-      setFoodInput(name);
-      setMessage(isHe ? `נסרק: ${name}` : `Scanned: ${name}`);
-      setTimeout(() => setMessage(''), 3000);
-    } catch (err) {
-      setMessage(err.message || (isHe ? 'הסריקה נכשלה' : 'Scan failed'));
-      setTimeout(() => setMessage(''), 4000);
-    } finally {
-      setScanning(false);
     }
   }
 
@@ -357,6 +554,7 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
   // Build the timeline: logged meals (done) + planned menu meals (now/upcoming)
   const loggedMeals = todayData?.meals || [];
   const menuMeals = menu?.meals || [];
+  const weeklyDayMeals = weeklyMenu?.[weeklyDayIdx]?.meals || [];
 
   // For the "now" status: the first not-yet-completed planned meal
   // We'll mark the first menu item as 'now' if user has logged 0 meals today,
@@ -402,43 +600,54 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
   return (
     <>
       {/* Header */}
-      <div className="nutrition-header">
-        <div>
-          <div className="nutrition-header__eyebrow">
-            {isHe ? `תזונה · יום ${dayLabelHe}` : `Nutrition · ${dayLabelEn}`}
-          </div>
-          <h1 className="nutrition-header__title">
-            {isHe ? 'מה אכלת היום?' : 'What did you eat today?'}
-          </h1>
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 13, color: '#2ee6c4', fontWeight: 700, letterSpacing: '.5px', marginBottom: 2 }}>
+          {isHe ? `תזונה · יום ${dayLabelHe}` : `Nutrition · ${dayLabelEn}`}
         </div>
-        <div className="nutrition-summary-pill">
-          <MacroRingSmall pct={caloriePct} />
-          <div>
-            <div className="nutrition-summary-pill__label">
-              {isHe ? 'נצרכו' : 'Consumed'}
-            </div>
-            <div className="nutrition-summary-pill__value">
-              <span style={{ color: 'var(--accent)' }}>{Math.round(calorieProgress).toLocaleString()}</span>
-              <span style={{ color: 'var(--text-4)' }}> / {calorieTarget.toLocaleString()}</span>
-              <span style={{ color: 'var(--text-3)', fontSize: 13, fontWeight: 500, marginInlineStart: 4 }}>{t.kcal}</span>
-            </div>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, color: 'var(--text-1)', margin: 0 }}>
+          {isHe ? 'מה אכלת היום?' : 'What did you eat today?'}
+        </h1>
+      </div>
+
+      {/* 3-stat strip */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
+        <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 18, padding: '14px 16px' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: '#2ee6c4', lineHeight: 1 }}>
+            {Math.round(calorieProgress).toLocaleString()}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3 }}>
+            {isHe ? `מתוך ${calorieTarget.toLocaleString()} קק״ל` : `of ${calorieTarget.toLocaleString()} kcal`}
+          </div>
+        </div>
+        <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 18, padding: '14px 16px' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: '#ff5c7c', lineHeight: 1 }}>
+            {Math.round(proteinProgress)}g
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3 }}>
+            {isHe ? `חלבון מתוך ${proteinTarget}g` : `protein of ${proteinTarget}g`}
+          </div>
+        </div>
+        <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 18, padding: '14px 16px' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: 'var(--text-1)', lineHeight: 1 }}>
+            {(todayData?.meals || []).length}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3 }}>
+            {isHe ? 'ארוחות היום' : 'meals today'}
           </div>
         </div>
       </div>
 
-      {/* Quick add */}
       <div className="quick-add">
         <form onSubmit={handleAddFood}>
           <div className="quick-add__row">
             <div className="quick-add__search">
               <input
                 type="text"
-                placeholder={isHe
-                  ? 'חפש מזון... למשל: חזה עוף, יוגורט, שייק חלבון'
-                  : 'Search food... e.g. chicken breast, yogurt, protein shake'}
+                placeholder={isHe ? 'חפש מזון...' : 'Search food...'}
                 value={foodInput}
                 onChange={(e) => setFoodInput(e.target.value)}
                 disabled={loading}
+                maxLength={500}
               />
             </div>
             <button
@@ -455,7 +664,9 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
 
         {quickChips.length > 0 && (
           <div className="quick-add__chips">
-            <span className="quick-add__chips-label">{isHe ? 'מהירים:' : 'Quick:'}</span>
+            <span className="quick-add__chips-label">
+              {isHe ? 'אחרונות:' : 'Recent:'}
+            </span>
             {quickChips.map(c => (
               <button
                 key={c}
@@ -506,110 +717,167 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
         )}
       </div>
 
-      {/* Timeline header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0 14px' }}>
+      {/* Menu header — daily / weekly toggle + swap + download */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0 14px', flexWrap: 'wrap', gap: 8 }}>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, margin: 0 }}>
-          {isHe ? 'היום שלך' : 'Your day'}
+          {isHe ? 'התפריט המומלץ' : 'Recommended menu'}
         </h2>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
             type="button"
-            className={`chip${menuOpen ? ' chip--active' : ''}`}
-            onClick={() => menuOpen ? setMenuOpen(false) : fetchMenu()}
+            className={`chip${menuOpen && menuMode === 'daily' ? ' chip--active' : ''}`}
+            onClick={() => (menuOpen && menuMode === 'daily') ? setMenuOpen(false) : fetchMenu()}
             disabled={menuLoading}
           >
-            {menuLoading ? t.menuLoading : (isHe ? 'תפריט מומלץ' : 'Recommended menu')}
+            {menuLoading ? t.menuLoading : (isHe ? 'יומי' : 'Daily')}
           </button>
-          {menuOpen && menu && (
-            <button
-              type="button"
-              className="chip"
-              onClick={() => fetchMenu(menu.id)}
-              disabled={menuLoading}
-            >
+          <button
+            type="button"
+            className={`chip${menuOpen && menuMode === 'weekly' ? ' chip--active' : ''}`}
+            onClick={() => (menuOpen && menuMode === 'weekly') ? setMenuOpen(false) : fetchWeeklyMenu()}
+            disabled={menuLoading}
+          >
+            {menuLoading ? t.menuLoading : (isHe ? 'שבועי' : 'Weekly')}
+          </button>
+          {menuOpen && menuMode === 'daily' && menu && (
+            <button type="button" className="chip" onClick={() => fetchMenu(menu.id)} disabled={menuLoading}>
               🔄 {isHe ? 'החלף' : 'Swap'}
+            </button>
+          )}
+          {menuOpen && (menu || weeklyMenu) && (
+            <button type="button" className="chip" onClick={handleDownloadMenu}>
+              {isHe ? 'הורד תפריט ⬇️' : 'Save menu ⬇️'}
             </button>
           )}
         </div>
       </div>
 
-      {/* Timeline rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {/* Done meals from today's log */}
-        {loggedMeals.map((meal, i) => (
-          <MealRow
-            key={meal._id || `logged-${i}`}
-            time={meal.createdAt
-              ? new Date(meal.createdAt).toLocaleTimeString(isHe ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' })
-              : '—'}
-            emoji="✓"
-            name={isHe ? meal.description : (meal.englishName || meal.description)}
-            desc={meal.source === 'ai' ? `🤖 ${isHe ? 'הערכה אוטומטית' : 'AI estimate'}` : ''}
-            cal={meal.calories}
-            p={meal.protein}
-            c={meal.carbs}
-            f={meal.fat}
-            status="done"
-            isHe={isHe}
-            t={t}
-            onDelete={deletingId === meal._id ? null : () => handleDeleteMeal(meal._id)}
-          />
-        ))}
+      {/* Daily menu: interactive, log/swap each meal */}
+      {menuOpen && menuMode === 'daily' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+          {menuMeals.map((meal, idx) => {
+            const status = idx === nowIdx ? 'now' : 'upcoming';
+            const time = MEAL_TYPE_TIMES[meal.type] || '—';
+            const emoji = MEAL_TYPE_EMOJI[meal.type] || '🍽';
+            const typeLabel = isHe
+              ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' }[meal.type] || meal.type)
+              : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[meal.type] || meal.type);
 
-        {/* Planned meals from the menu */}
-        {menuOpen && menuMeals.map((meal, idx) => {
-          const status = idx === nowIdx ? 'now' : idx < nowIdx ? 'upcoming' : 'upcoming';
-          const time = MEAL_TYPE_TIMES[meal.type] || '—';
-          const emoji = MEAL_TYPE_EMOJI[meal.type] || '🍽';
-          const typeLabel = isHe
-            ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' }[meal.type] || meal.type)
-            : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[meal.type] || meal.type);
+            return (
+              <MealRow
+                key={`menu-${idx}`}
+                time={time}
+                emoji={emoji}
+                name={typeLabel}
+                desc={isHe ? meal.he : (meal.en || meal.he)}
+                cal={meal.calories}
+                p={meal.protein}
+                c={meal.carbs}
+                f={meal.fat}
+                status={status}
+                isHe={isHe}
+                t={t}
+                onLog={loggingIdx === idx ? null : () => logMenuMeal(idx)}
+                onSwap={() => swapMealAtIndex(idx)}
+                swapping={swappingIdx === idx}
+              />
+            );
+          })}
+        </div>
+      )}
 
-          return (
-            <MealRow
-              key={`menu-${idx}`}
-              time={time}
-              emoji={emoji}
-              name={typeLabel}
-              desc={isHe ? meal.he : (meal.en || meal.he)}
-              cal={meal.calories}
-              p={meal.protein}
-              c={meal.carbs}
-              f={meal.fat}
-              status={status}
-              isHe={isHe}
-              t={t}
-              onLog={loggingIdx === idx ? null : () => logMenuMeal(idx)}
-              onSwap={() => swapMealAtIndex(idx)}
-              swapping={swappingIdx === idx}
-            />
-          );
-        })}
-
-        {/* Empty state */}
-        {loggedMeals.length === 0 && !menuOpen && (
-          <div className="card" style={{ textAlign: 'center', marginBottom: 0 }}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>🍽</div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
-              {isHe ? 'עדיין לא רשמת ארוחות' : 'No meals logged yet'}
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16 }}>
-              {isHe
-                ? 'הוסף ארוחה למעלה או טען תפריט יומי מומלץ.'
-                : 'Add a meal above or load your recommended daily menu.'}
-            </div>
-            <button
-              type="button"
-              className="btn btn-accent"
-              onClick={() => fetchMenu()}
-              disabled={menuLoading}
-              style={{ display: 'inline-flex' }}
-            >
-              {menuLoading ? t.menuLoading : (isHe ? 'טען תפריט מומלץ' : 'Load recommended menu')}
-            </button>
+      {/* Weekly menu: day picker + read-only meals (swap only, no logging
+          since these aren't tied to a specific calendar date) */}
+      {menuOpen && menuMode === 'weekly' && weeklyMenu && (
+        <>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflowX: 'auto', paddingBottom: 2 }}>
+            {weeklyMenu.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                className={`chip${weeklyDayIdx === i ? ' chip--active' : ''}`}
+                onClick={() => setWeeklyDayIdx(i)}
+                style={{ flexShrink: 0 }}
+              >
+                {isHe ? `יום ${i + 1}` : `Day ${i + 1}`}
+              </button>
+            ))}
           </div>
-        )}
-      </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+            {weeklyDayMeals.map((meal, idx) => {
+              const time = MEAL_TYPE_TIMES[meal.type] || '—';
+              const emoji = MEAL_TYPE_EMOJI[meal.type] || '🍽';
+              const typeLabel = isHe
+                ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' }[meal.type] || meal.type)
+                : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[meal.type] || meal.type);
+              return (
+                <MealRow
+                  key={`weekly-${weeklyDayIdx}-${idx}`}
+                  time={time}
+                  emoji={emoji}
+                  name={typeLabel}
+                  desc={isHe ? meal.he : (meal.en || meal.he)}
+                  cal={meal.calories}
+                  p={meal.protein}
+                  c={meal.carbs}
+                  f={meal.fat}
+                  status="upcoming"
+                  isHe={isHe}
+                  t={t}
+                  onSwap={() => swapWeeklyMealAt(weeklyDayIdx, idx)}
+                  swapping={swappingIdx === `${weeklyDayIdx}-${idx}`}
+                />
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Empty state — nothing logged yet and no menu loaded */}
+      {loggedMeals.length === 0 && !menuOpen && (
+        <div className="card" style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>🍽</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
+            {isHe ? 'עדיין לא רשמת ארוחות' : 'No meals logged yet'}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16 }}>
+            {isHe
+              ? 'הוסף ארוחה למעלה או טען תפריט יומי מומלץ.'
+              : 'Add a meal above or load your recommended daily menu.'}
+          </div>
+          <button
+            type="button"
+            className="btn btn-accent"
+            onClick={() => fetchMenu()}
+            disabled={menuLoading}
+            style={{ display: 'inline-flex' }}
+          >
+            {menuLoading ? t.menuLoading : (isHe ? 'טען תפריט מומלץ' : 'Load recommended menu')}
+          </button>
+        </div>
+      )}
+
+      {/* Already eaten today — condensed single-line rows, at the bottom
+          (audit: this used to render above the recommended menu, which
+          buried the menu the user actually wants to act on). */}
+      {loggedMeals.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, margin: '0 0 12px' }}>
+            {isHe ? 'מה אכלת היום' : 'What you ate today'}
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+            {loggedMeals.map((meal, i) => (
+              <LoggedMealRow
+                key={meal._id || `logged-${i}`}
+                meal={meal}
+                isHe={isHe}
+                t={t}
+                onDelete={deletingId === meal._id ? null : () => handleDeleteMeal(meal._id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Daily summary — only useful once something has been logged.
           On an empty day, 4 zero-progress bars are noise (audit). */}

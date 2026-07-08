@@ -65,7 +65,8 @@ export default function Onboarding() {
     goal: '',
     workoutsPerWeek: '4',
     experience: '',
-    bodyFatPercentage: '',
+    // Audit P09: body-fat % removed from onboarding (offered later as an
+    // optional dashboard widget). Onboarding asks for height + weight only.
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -102,15 +103,15 @@ export default function Onboarding() {
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
 
-    if (field === 'name') {
-      const trimmed = (value || '').trim();
-      if (trimmed.length >= 2) {
-        const hasHebrew = /[֐-׿]/.test(trimmed);
-        const hasLatin  = /[A-Za-z]/.test(trimmed);
-        const detected = hasHebrew ? 'he' : hasLatin ? 'en' : null;
-        if (detected && detected !== lang) setLanguage(detected);
-      }
+  function detectLanguageFromName(value) {
+    const trimmed = (value || '').trim();
+    if (trimmed.length >= 2) {
+      const hasHebrew = /[֐-׿]/.test(trimmed);
+      const hasLatin  = /[A-Za-z]/.test(trimmed);
+      const detected = hasHebrew ? 'he' : hasLatin ? 'en' : null;
+      if (detected && detected !== lang) setLanguage(detected);
     }
   }
 
@@ -169,9 +170,8 @@ export default function Onboarding() {
         workoutsPerWeek: parseInt(form.workoutsPerWeek),
         experience: form.experience,
       };
-      if (form.bodyFatPercentage) {
-        payload.bodyFatPercentage = parseFloat(form.bodyFatPercentage);
-      }
+      // Audit P09: bodyFatPercentage intentionally not sent here. Server
+      // accepts the field but it can be added later from the dashboard.
 
       await api('/user/onboarding', {
         method: 'POST',
@@ -242,6 +242,7 @@ export default function Onboarding() {
                 placeholder={t.namePlaceholder}
                 value={form.name}
                 onChange={(e) => updateField('name', e.target.value)}
+                onBlur={(e) => detectLanguageFromName(e.target.value)}
                 maxLength={50}
                 autoComplete="name"
                 autoFocus
@@ -249,6 +250,9 @@ export default function Onboarding() {
               />
             </div>
 
+            {/* Audit P15: emoji 👨/👩 removed — they invert visually in RTL,
+                vary across OS versions, and feel cartoonish next to the rest
+                of the UI. Text-only chips read cleanly in both directions. */}
             <div className="form-group">
               <label>{t.gender}</label>
               <div className="toggle-row" role="radiogroup" aria-label={t.gender}>
@@ -259,7 +263,7 @@ export default function Onboarding() {
                   className={`toggle-row__btn${form.gender === 'male' ? ' toggle-row__btn--active' : ''}`}
                   onClick={() => updateField('gender', 'male')}
                 >
-                  <span style={{ fontSize: 20 }}>👨</span> {t.male}
+                  {t.male}
                 </button>
                 <button
                   type="button"
@@ -268,7 +272,7 @@ export default function Onboarding() {
                   className={`toggle-row__btn${form.gender === 'female' ? ' toggle-row__btn--active' : ''}`}
                   onClick={() => updateField('gender', 'female')}
                 >
-                  <span style={{ fontSize: 20 }}>👩</span> {t.female}
+                  {t.female}
                 </button>
               </div>
             </div>
@@ -285,18 +289,24 @@ export default function Onboarding() {
                 min="13"
                 max="120"
               />
+              <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 6 }}>
+                {isHe ? 'האפליקציה מיועדת לגילאי 13 ומעלה.' : 'This app is intended for ages 13 and up.'}
+              </div>
             </div>
           </div>
         )}
 
         {/* === STEP 2: BODY === */}
+        {/* Audit P09: removed body-fat % field (moved to optional dashboard widget). */}
+        {/* Audit P12: replaced clinical BMI gauge (a "verdict" for healthy users) */}
+        {/* with a friendly "healthy weight range for you" pill. */}
         {currentStep === 2 && (
           <div className="wizard-step">
             <h1 className="wizard-step__title">
-              {isHe ? 'הגוף שלך' : 'Your body'}
+              {isHe ? 'נתונים בסיסיים' : 'The basics'}
             </h1>
             <p className="wizard-step__sub">
-              {isHe ? 'גובה ומשקל — בשביל לחשב מטרות מדויקות. אחוזי שומן אופציונלי.' : 'Height and weight let us set accurate targets. Body fat is optional.'}
+              {isHe ? 'גובה ומשקל בלבד. אחוזי שומן אפשר להוסיף מאוחר יותר מההגדרות.' : 'Height and weight only. Body-fat % can be added later from settings.'}
             </p>
 
             <div className="form-row">
@@ -305,12 +315,13 @@ export default function Onboarding() {
                 <input
                   className="field-input"
                   type="number"
-                  inputMode="numeric"
+                  inputMode="decimal"
                   placeholder="175"
                   value={form.height}
                   onChange={(e) => updateField('height', e.target.value)}
                   min="100"
                   max="250"
+                  step="0.1"
                   autoFocus
                 />
               </div>
@@ -330,59 +341,74 @@ export default function Onboarding() {
               </div>
             </div>
 
-            <div className="form-group">
-              <label>{t.bodyFat} <span style={{ color: 'var(--text-4)', fontWeight: 400 }}>({isHe ? 'לא חובה' : 'optional'})</span></label>
-              <input
-                className="field-input"
-                type="number"
-                inputMode="decimal"
-                placeholder="15"
-                value={form.bodyFatPercentage}
-                onChange={(e) => updateField('bodyFatPercentage', e.target.value)}
-                min="3"
-                max="60"
-                step="0.1"
-              />
-            </div>
-
-            {/* BMI gauge — visible once we have both height + weight */}
-            {bmi && bmiStyle && (
-              <div style={{
-                padding: 18,
-                borderRadius: 'var(--r-md)',
-                background: bmiStyle.bg,
-                border: `1px solid ${bmiStyle.border}`,
-                marginTop: 8,
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 800, color: bmiStyle.color, letterSpacing: '-0.02em' }}>
-                      {bmi}
+            {/* Healthy range pill — shown only when we have both height + weight. */}
+            {bmi && bmiStyle && (() => {
+              const hMeters = parseFloat(form.height) / 100;
+              const lowKg  = Math.round(18.5 * hMeters * hMeters);
+              const highKg = Math.round(25   * hMeters * hMeters);
+              const w      = parseFloat(form.weight);
+              // Position the marker along the 15→35 BMI band so the user sees
+              // where they sit relative to healthy. Clamp into [4, 96] so the
+              // pin never visually escapes the bar.
+              const markerPct = Math.max(4, Math.min(96, ((bmi - 15) / 20) * 100));
+              const healthyStart = ((18.5 - 15) / 20) * 100;
+              const healthyEnd   = ((25   - 15) / 20) * 100;
+              return (
+                <div className="healthy-range-card" style={{
+                  marginTop: 12,
+                  padding: 16,
+                  background: 'rgba(34, 197, 94, 0.06)',
+                  border: '1px dashed rgba(34, 197, 94, 0.35)',
+                  borderRadius: 'var(--r-md)',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-2)' }}>
+                      {isHe ? 'טווח משקל בריא בשבילך' : 'Healthy weight range for you'}
                     </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>BMI</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--success)' }}>
+                      {lowKg}–{highKg} {isHe ? 'ק״ג' : 'kg'}
+                    </span>
                   </div>
-                  <span style={{ fontSize: 12, padding: '4px 12px', borderRadius: 99, background: 'rgba(255,255,255,0.04)', color: bmiStyle.color, border: `1px solid ${bmiStyle.border}`, fontWeight: 600 }}>
-                    {bmiStyle.icon} {classLabels[bmiClass]}
-                  </span>
+                  <div style={{ position: 'relative', height: 8, marginTop: 28, borderRadius: 4, background: 'rgba(255,255,255,0.06)', overflow: 'visible', direction: 'ltr' }}>
+                    {/* Healthy band */}
+                    <div style={{
+                      position: 'absolute', top: 0, bottom: 0,
+                      left: `${healthyStart}%`, width: `${healthyEnd - healthyStart}%`,
+                      background: 'var(--success)', opacity: 0.45, borderRadius: 4,
+                    }} />
+                    {/* Marker — "you are here" */}
+                    <div style={{
+                      position: 'absolute', top: '50%', left: `${markerPct}%`,
+                      transform: 'translate(-50%, -50%)',
+                      width: 14, height: 14, borderRadius: '50%',
+                      background: 'var(--bg-0)',
+                      border: '2.5px solid var(--success)',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+                      transition: 'left 0.3s ease',
+                    }} />
+                    <span style={{
+                      position: 'absolute',
+                      top: -22,
+                      left: `${markerPct}%`,
+                      transform: 'translateX(-50%)',
+                      fontSize: 10, fontWeight: 700,
+                      color: 'var(--success)',
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.04em',
+                    }}>
+                      {isHe ? `אתה: ${w} ק״ג` : `You: ${w} kg`}
+                    </span>
+                  </div>
+                  <p style={{ marginTop: 14, marginBottom: 0, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.45 }}>
+                    {bmiClass === 'normal'
+                      ? (isHe ? 'אתה בטווח בריא — נבנה תוכנית שתשמור עליך שם.' : 'You\'re in a healthy range — we\'ll build a plan that keeps you there.')
+                      : recommendedGoal === 'cut'
+                        ? (isHe ? 'נמליץ על תוכנית עם גירעון קלורי קטן — בלי דיאטות קיצוניות.' : 'We\'ll recommend a small calorie deficit — no extreme diets.')
+                        : (isHe ? 'נבנה תוכנית שתעזור לך להגיע לטווח הבריא בקצב סביר.' : 'We\'ll build a plan to reach the healthy range at a sensible pace.')}
+                  </p>
                 </div>
-
-                <div style={{ position: 'relative', height: 8, borderRadius: 4, background: 'linear-gradient(to right, #74b9ff 0%, #22c55e 20%, #22c55e 33%, #f59e0b 50%, #fb923c 67%, #ef4444 83%, #dc2626 100%)', direction: 'ltr' }}>
-                  <div style={{
-                    position: 'absolute', top: '50%', left: `${gaugePos}%`,
-                    transform: 'translate(-50%, -50%)',
-                    width: 18, height: 18,
-                    borderRadius: '50%',
-                    background: 'var(--bg-0)',
-                    border: `2.5px solid ${bmiStyle.color}`,
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-                    transition: 'left 0.3s ease',
-                  }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-4)', direction: 'ltr', marginTop: 6 }}>
-                  <span>15</span><span>18.5</span><span>25</span><span>30</span><span>35</span><span>40+</span>
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 

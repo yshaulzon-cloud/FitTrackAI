@@ -404,4 +404,18 @@ function swapMeal(type, currentCalories, excludeText = null) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-module.exports = { mealPlans, getRandomMenu, getCalorieRange, swapMeal };
+// Build a 7-day menu by picking a fresh daily menu for each day, excluding
+// the previous day's plan id so two consecutive days don't repeat.
+function getWeeklyMenu(calorieTarget, proteinTarget = null) {
+  const days = [];
+  let prevId = null;
+  for (let i = 0; i < 7; i++) {
+    const dayMenu = getRandomMenu(calorieTarget, prevId, proteinTarget);
+    if (!dayMenu) continue;
+    days.push(dayMenu);
+    prevId = dayMenu.id;
+  }
+  return days;
+}
+
+module.exports = { mealPlans, getRandomMenu, getWeeklyMenu, getCalorieRange, swapMeal };

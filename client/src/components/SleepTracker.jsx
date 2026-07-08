@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLang } from '../context/LanguageContext';
+import { scheduleSleepPrompts, cancelSleepPrompts } from '../lib/notifications';
 
 const qualityOptions = [
   { value: 'bad', icon: '😴', color: '#ff6b6b' },
@@ -38,6 +39,10 @@ export default function SleepTracker({ api, showXP }) {
       if (res.sleep) {
         setHours(res.sleep.hours);
         setQuality(res.sleep.quality);
+        cancelSleepPrompts().catch(() => {});
+      } else {
+        // Not logged yet today — arm today's remaining reminder slot(s).
+        scheduleSleepPrompts().catch(() => {});
       }
     } catch (err) {
       console.error('Sleep load error:', err);
@@ -89,6 +94,8 @@ export default function SleepTracker({ api, showXP }) {
       setRecommendation(res.recommendation);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+      // Logged — kill today's pending reminders immediately.
+      cancelSleepPrompts().catch(() => {});
       if (res.xpResults?.length > 0) {
         for (const xp of res.xpResults) {
           if (xp.xpGained && showXP) showXP(xp);

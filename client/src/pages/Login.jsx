@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
@@ -42,6 +42,16 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const reason = sessionStorage.getItem('logoutReason');
+    if (reason) {
+      sessionStorage.removeItem('logoutReason');
+      if (reason === 'session_expired') {
+        setError(isHe ? 'הפעלה פגה — אנא התחבר מחדש' : 'Session expired — please sign in again');
+      }
+    }
+  }, []);
   const [resetMode, setResetMode] = useState(null);
   const [resetEmail, setResetEmail] = useState('');
   const [resetCode, setResetCode] = useState('');
@@ -149,143 +159,12 @@ export default function Login() {
     setMessage('');
   }
 
-  // ── Reset flow: email step ──────────────────────────────
-  if (resetMode === 'email') {
-    return (
-      <div className="auth-container">
-        <div className="auth-card">
-          <div className="brand" style={{ marginBottom: 20 }}>
-            <div className="brand__mark" aria-label="Areto">A</div>
-            <div className="brand__name">{t.appName}</div>
-          </div>
-          <ResetStepIndicator current={1} isHe={isHe} />
-          <h1>{t.resetPassword}</h1>
-          <p className="subtitle">
-            {isHe
-              ? 'הזן את כתובת האימייל שלך ונשלח לך קוד איפוס תוך 30 שניות.'
-              : 'Enter your email and we’ll send you a reset code within 30 seconds.'}
-          </p>
-
-          {error && <div className="error-message">{error}</div>}
-
-          <form onSubmit={handleSendCode}>
-            <div className="form-group">
-              <label>{t.email}</label>
-              <input
-                type="email"
-                placeholder="your@email.com"
-                value={resetEmail}
-                onChange={(e) => setResetEmail(e.target.value)}
-                dir="ltr"
-                autoComplete="email"
-                inputMode="email"
-                autoFocus
-              />
-            </div>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? t.sendingCode : t.sendCode}
-            </button>
-          </form>
-
-          <div className="auth-footer">
-            <a onClick={goBackToLogin} style={{ cursor: 'pointer' }}>
-              {t.backToLogin}
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Reset flow: code + new password ─────────────────────
-  if (resetMode === 'code') {
-    return (
-      <div className="auth-container">
-        <div className="auth-card">
-          <div className="brand" style={{ marginBottom: 20 }}>
-            <div className="brand__mark" aria-label="Areto">A</div>
-            <div className="brand__name">{t.appName}</div>
-          </div>
-          <ResetStepIndicator current={2} isHe={isHe} />
-          <h1>{t.resetPassword}</h1>
-          <p className="subtitle">
-            {isHe
-              ? 'הזן את הקוד שנשלח לאימייל ובחר סיסמה חדשה. לא קיבלת? בדוק בספאם.'
-              : 'Enter the code we sent and choose a new password. Didn’t arrive? Check spam.'}
-          </p>
-
-          {message && <div className="success-message">{message}</div>}
-          {error && <div className="error-message">{error}</div>}
-
-          <form onSubmit={handleResetPassword}>
-            <div className="form-group">
-              <label>{t.enterCode}</label>
-              <input
-                type="text"
-                placeholder={t.codePlaceholder}
-                value={resetCode}
-                onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                dir="ltr"
-                autoComplete="one-time-code"
-                style={{ textAlign: 'center', fontSize: '24px', letterSpacing: '8px', fontWeight: 700 }}
-              />
-            </div>
-            <div className="form-group">
-              <label>{t.newPassword}</label>
-              <input
-                type="password"
-                placeholder={t.passwordPlaceholder}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                dir="ltr"
-                autoComplete="new-password"
-              />
-            </div>
-            <button type="submit" className="btn btn-primary" disabled={loading || resetCode.length < 6}>
-              {loading ? t.resetting : t.resetBtn}
-            </button>
-          </form>
-
-          <div className="auth-footer">
-            <a onClick={goBackToLogin} style={{ cursor: 'pointer' }}>
-              {t.backToLogin}
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Reset flow: done ────────────────────────────────────
-  if (resetMode === 'done') {
-    return (
-      <div className="auth-container">
-        <div className="auth-card">
-          <div className="brand" style={{ marginBottom: 24 }}>
-            <div className="brand__mark" aria-label="Areto">A</div>
-            <div className="brand__name">{t.appName}</div>
-          </div>
-          <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
-            <div style={{
-              width: 56, height: 56,
-              margin: '0 auto 16px',
-              borderRadius: '50%',
-              background: 'rgba(34, 197, 94, 0.12)',
-              border: '1px solid rgba(34, 197, 94, 0.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 28, color: 'var(--success)',
-            }}>✓</div>
-            <div className="success-message" style={{ marginBottom: 20 }}>
-              {t.passwordResetSuccess}
-            </div>
-            <button className="btn btn-primary" onClick={goBackToLogin}>
-              {t.backToLogin}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Audit P19: forgot-password used to be a full route swap that wiped the
+  // login form. It now renders as a bottom-sheet *over* the login screen
+  // (built below the main return), so the user keeps context, the email
+  // they already typed pre-fills the reset field, and the "back to login"
+  // affordance is the sheet's own close button — not a styled link that
+  // competes visually with the primary CTA.
 
   // ── Normal login: split-screen (form on right in RTL, hero on left) ──
   return (
@@ -379,7 +258,12 @@ export default function Login() {
             <div className="field-row">
               <label className="field-label" style={{ marginBottom: 0 }}>{t.password}</label>
               <a
-                onClick={() => setResetMode('email')}
+                onClick={() => {
+                  // Pre-fill the reset field with whatever the user already
+                  // typed into the login email (audit P19).
+                  setResetEmail(email);
+                  setResetMode('email');
+                }}
                 style={{ cursor: 'pointer' }}
               >
                 {isHe ? 'שכחת?' : 'Forgot?'}
@@ -394,13 +278,13 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 dir="ltr"
                 autoComplete="current-password"
-                style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left' }}
+                style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left', paddingInlineEnd: 52 }}
               />
               <span
                 onClick={() => setShowPassword(!showPassword)}
                 style={{
                   position: 'absolute',
-                  insetInlineStart: 14,
+                  insetInlineEnd: 14,
                   top: '50%',
                   transform: 'translateY(-50%)',
                   fontSize: 12,
@@ -422,13 +306,6 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="legal-text">
-            {isHe ? (
-              <>בכניסה אתה מאשר את <a style={{ cursor: 'pointer' }} onClick={openTerms}>תנאי השימוש</a> ו<a style={{ cursor: 'pointer' }} onClick={openPrivacy}>מדיניות הפרטיות</a></>
-            ) : (
-              <>By signing in you agree to our <a style={{ cursor: 'pointer' }} onClick={openTerms}>Terms</a> and <a style={{ cursor: 'pointer' }} onClick={openPrivacy}>Privacy Policy</a></>
-            )}
-          </p>
         </div>
       </div>
 
@@ -443,7 +320,7 @@ export default function Login() {
           <h1 className="hero-headline">
             {isHe ? (
               <>
-                בנה גוף.<br/>
+                בנה גוף בריא.<br/>
                 עקוב. תשתפר.<br/>
                 <span className="accent">בלי לנחש.</span>
               </>
@@ -483,6 +360,130 @@ export default function Login() {
           </div>
         </div>
       </div>
+
+      {/* Audit P19: bottom-sheet for the entire forgot-password flow.
+          Renders ON TOP of the login form so the user keeps context. The
+          backdrop closes the sheet; the X button does the same. Email
+          comes pre-filled from the login email field. The done state
+          auto-closes after 2.5s. */}
+      {resetMode && (
+        <div className="reset-sheet" role="dialog" aria-modal="true" aria-label={t.resetPassword}>
+          <button
+            type="button"
+            className="reset-sheet__scrim"
+            onClick={goBackToLogin}
+            aria-label={isHe ? 'סגור' : 'Close'}
+          />
+          <div className="reset-sheet__panel">
+            <div className="reset-sheet__handle" aria-hidden="true" />
+            <div className="reset-sheet__head">
+              <button
+                type="button"
+                onClick={goBackToLogin}
+                className="reset-sheet__close"
+                aria-label={isHe ? 'סגור' : 'Close'}
+              >
+                ✕
+              </button>
+              <div className="reset-sheet__head-text">
+                <div className="reset-sheet__eyebrow">{t.resetPassword}</div>
+              </div>
+              <div style={{ width: 32 }} aria-hidden="true" />
+            </div>
+            <ResetStepIndicator current={resetMode === 'code' ? 2 : resetMode === 'done' ? 2 : 1} isHe={isHe} />
+
+            {error && <div className="error-message">{error}</div>}
+            {message && <div className="success-message">{message}</div>}
+
+            {resetMode === 'email' && (
+              <>
+                <p className="reset-sheet__body">
+                  {isHe
+                    ? 'הזן את האימייל ונשלח לך קוד תוך 30 שניות.'
+                    : 'Enter your email and we’ll send you a reset code within 30 seconds.'}
+                </p>
+                <form onSubmit={handleSendCode}>
+                  <label className="field-label">{t.email}</label>
+                  <input
+                    type="email"
+                    className="field-input"
+                    placeholder="your@email.com"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    dir="ltr"
+                    autoComplete="email"
+                    inputMode="email"
+                    autoFocus
+                    style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left' }}
+                  />
+                  <button type="submit" className="btn-primary-cta" disabled={loading || !resetEmail.trim()} style={{ marginTop: 16 }}>
+                    <span>{loading ? t.sendingCode : t.sendCode}</span>
+                    <ArrowIcon />
+                  </button>
+                </form>
+              </>
+            )}
+
+            {resetMode === 'code' && (
+              <>
+                <p className="reset-sheet__body">
+                  {isHe
+                    ? 'הזן את הקוד שנשלח לאימייל ובחר סיסמה חדשה.'
+                    : 'Enter the code we sent and choose a new password.'}
+                </p>
+                <form onSubmit={handleResetPassword}>
+                  <label className="field-label">{t.enterCode}</label>
+                  <input
+                    type="text"
+                    className="field-input"
+                    placeholder={t.codePlaceholder}
+                    value={resetCode}
+                    onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    dir="ltr"
+                    autoComplete="one-time-code"
+                    style={{ textAlign: 'center', fontSize: '24px', letterSpacing: '8px', fontWeight: 700 }}
+                  />
+                  <label className="field-label" style={{ marginTop: 14 }}>{t.newPassword}</label>
+                  <input
+                    type="password"
+                    className="field-input"
+                    placeholder={t.passwordPlaceholder}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    dir="ltr"
+                    autoComplete="new-password"
+                    style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left' }}
+                  />
+                  <button type="submit" className="btn-primary-cta" disabled={loading || resetCode.length < 6} style={{ marginTop: 16 }}>
+                    <span>{loading ? t.resetting : t.resetBtn}</span>
+                    <ArrowIcon />
+                  </button>
+                </form>
+              </>
+            )}
+
+            {resetMode === 'done' && (
+              <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+                <div style={{
+                  width: 56, height: 56, margin: '0 auto 14px',
+                  borderRadius: '50%',
+                  background: 'rgba(34, 197, 94, 0.12)',
+                  border: '1px solid rgba(34, 197, 94, 0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 28, color: 'var(--success)',
+                }}>✓</div>
+                <div className="success-message" style={{ marginBottom: 14 }}>
+                  {t.passwordResetSuccess}
+                </div>
+                <button className="btn-primary-cta" onClick={goBackToLogin} style={{ width: '100%' }}>
+                  <span>{t.backToLogin}</span>
+                  <ArrowIcon />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

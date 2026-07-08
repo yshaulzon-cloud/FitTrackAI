@@ -45,8 +45,10 @@ router.post(
   [
     body('email').isEmail().withMessage('כתובת אימייל לא תקינה'),
     body('password')
-      .isLength({ min: 6 })
-      .withMessage('הסיסמה חייבת להכיל לפחות 6 תווים'),
+      .isLength({ min: 8 })
+      .withMessage('הסיסמה חייבת להכיל לפחות 8 תווים')
+      .matches(/\d/)
+      .withMessage('הסיסמה חייבת לכלול לפחות ספרה אחת'),
   ],
   async (req, res) => {
     try {
@@ -314,7 +316,11 @@ router.post(
   [
     body('email').isEmail().withMessage('כתובת אימייל לא תקינה'),
     body('code').isLength({ min: 6, max: 6 }).withMessage('קוד לא תקין'),
-    body('newPassword').isLength({ min: 6 }).withMessage('הסיסמה חייבת להכיל לפחות 6 תווים'),
+    body('newPassword')
+      .isLength({ min: 8 })
+      .withMessage('הסיסמה חייבת להכיל לפחות 8 תווים')
+      .matches(/\d/)
+      .withMessage('הסיסמה חייבת לכלול לפחות ספרה אחת'),
   ],
   async (req, res) => {
     try {
@@ -330,22 +336,37 @@ router.post(
         return res.status(400).json({ message: 'קוד שגוי' });
       }
 
+      // Check expiry before verifying the code (SEC-026)
+      if (user.resetCodeExpires < new Date()) {
+        user.resetCode = null;
+        user.resetCodeExpires = null;
+        user.resetCodeAttempts = 0;
+        await user.save();
+        return res.status(400).json({ message: 'הקוד פג תוקף, בקש קוד חדש' });
+      }
+
       // Timing-safe comparison to prevent timing attacks
       const codeMatch = crypto.timingSafeEqual(
         Buffer.from(user.resetCode.padEnd(6)),
         Buffer.from(code.padEnd(6))
       );
       if (!codeMatch) {
+        user.resetCodeAttempts = (user.resetCodeAttempts || 0) + 1;
+        if (user.resetCodeAttempts >= 5) {
+          user.resetCode = null;
+          user.resetCodeExpires = null;
+          user.resetCodeAttempts = 0;
+          await user.save();
+          return res.status(400).json({ message: 'קוד בוטל אחרי יותר מדי ניסיונות — בקש קוד חדש' });
+        }
+        await user.save();
         return res.status(400).json({ message: 'קוד שגוי' });
-      }
-
-      if (user.resetCodeExpires < new Date()) {
-        return res.status(400).json({ message: 'הקוד פג תוקף, בקש קוד חדש' });
       }
 
       user.password = newPassword;
       user.resetCode = null;
       user.resetCodeExpires = null;
+      user.resetCodeAttempts = 0;
       await user.save();
 
       res.json({ message: 'הסיסמה שונתה בהצלחה' });

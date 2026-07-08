@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLang } from '../context/LanguageContext';
 
 /* ===========================================================
@@ -224,16 +224,16 @@ const TERMS_HE = {
         'מותר להשתמש ב-Areto לצרכים אישיים. אסור:',
       ],
       list: [
-        'לנסות לעקוף, לתקוף או לפרוץ את השרת או שרת ה-AI.',
+        'לנסות לעקוף, לתקוף או לפרוץ את השרת.',
         'לרשום חשבונות מזויפים אוטומטית.',
         'לאסוף נתונים של משתמשים אחרים.',
         'להפעיל סקרייפינג מסחרי של התוכן.',
       ],
     },
     {
-      h: '6. תוכן AI',
+      h: '6. הערכת ערכים תזונתיים',
       p: [
-        'הערכות התזונה של ארוחות שאתה רושם נוצרות באמצעות מודל AI. הן מוערכות ולא מדויקות במאה אחוזים. הסתמך עליהן כעל קירוב — לא כעל מדידה במעבדה.',
+        'הערכות התזונה של ארוחות שאתה רושם מחושבות מול מאגר מזון מקומי. הן הערכה ולא מדידה מדויקת — הסתמך עליהן כעל קירוב, לא כעל מדידה במעבדה.',
       ],
     },
     {
@@ -298,16 +298,16 @@ const TERMS_EN = {
       h: '5. Acceptable use',
       p: ['Areto is for personal use. You may not:'],
       list: [
-        'Attempt to bypass, attack, or breach our servers or the AI provider.',
+        'Attempt to bypass, attack, or breach our servers.',
         'Create fake accounts in bulk.',
         'Harvest data from other users.',
         'Run commercial scraping against the content.',
       ],
     },
     {
-      h: '6. AI content',
+      h: '6. Nutrition estimates',
       p: [
-        'Meal nutrition estimates are produced by an AI model. They are estimates, not lab measurements. Treat them as approximations.',
+        'Meal nutrition values are computed against a local food database. They are estimates, not exact measurements — treat them as approximations, not lab measurements.',
       ],
     },
     {
@@ -340,6 +340,12 @@ const TERMS_EN = {
 export default function LegalModal({ doc, onClose }) {
   const { lang } = useLang();
   const isHe = lang === 'he';
+
+  // Audit P17: by default we show only the TL;DR summary — that's the only
+  // thing 99% of users will read. The full document is collapsed behind a
+  // "read the full document" link, so the screen feels like a one-screen
+  // commitment instead of a 12-section scroll wall.
+  const [showFull, setShowFull] = useState(false);
 
   // Pick content
   let data;
@@ -488,48 +494,79 @@ export default function LegalModal({ doc, onClose }) {
               </ul>
             </aside>
           )}
-          {data.sections.map((s, i) => (
-            <section key={i} style={{ marginBottom: 24 }}>
-              <h3 style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 16,
-                fontWeight: 700,
-                color: 'var(--text-1)',
-                margin: '0 0 8px',
-                letterSpacing: '-0.01em',
-              }}>{s.h}</h3>
-              {s.p && s.p.map((para, j) => (
-                <p key={j} style={{ margin: '0 0 8px' }}>{para}</p>
-              ))}
-              {s.list && (
-                <ul style={{
-                  paddingInlineStart: 0,
-                  paddingInlineEnd: 22,
-                  margin: '6px 0 0',
-                }}>
-                  {s.list.map((item, j) => (
-                    <li key={j} style={{ marginBottom: 6 }}>{item}</li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          ))}
+          {/* Toggle: full document collapsed by default (audit P17). */}
+          {!showFull ? (
+            <button
+              type="button"
+              onClick={() => setShowFull(true)}
+              style={{
+                background: 'transparent',
+                border: '1px dashed var(--border)',
+                color: 'var(--accent)',
+                padding: '14px 16px',
+                borderRadius: 'var(--r-md)',
+                width: '100%',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                fontSize: 14,
+                fontWeight: 600,
+                textAlign: 'center',
+              }}
+            >
+              {isHe ? `↓ קרא את המסמך המלא (${data.sections.length} סעיפים)` : `↓ Read the full document (${data.sections.length} sections)`}
+            </button>
+          ) : (
+            data.sections.map((s, i) => (
+              <section key={i} style={{ marginBottom: 24 }}>
+                <h3 style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: 'var(--text-1)',
+                  margin: '0 0 8px',
+                  letterSpacing: '-0.01em',
+                }}>{s.h}</h3>
+                {s.p && s.p.map((para, j) => (
+                  <p key={j} style={{ margin: '0 0 8px' }}>{para}</p>
+                ))}
+                {s.list && (
+                  <ul style={{
+                    paddingInlineStart: 0,
+                    paddingInlineEnd: 22,
+                    margin: '6px 0 0',
+                  }}>
+                    {s.list.map((item, j) => (
+                      <li key={j} style={{ marginBottom: 6 }}>{item}</li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ))
+          )}
         </div>
 
-        {/* Footer */}
+        {/* Audit P17: sticky full-width button. Previously a narrow
+            bottom-RIGHT "הבנתי" — on RTL the thumb reaches bottom-right and
+            the small target dropped agree-rate. A full-width sticky bar
+            with safe-area padding hits both ergonomics and visibility. */}
         <div style={{
-          padding: '14px 28px',
+          padding: '14px 20px calc(env(safe-area-inset-bottom, 0px) + 14px)',
           borderTop: '1px solid var(--border-subtle)',
-          display: 'flex',
-          justifyContent: 'flex-end',
+          background: 'var(--surface)',
         }}>
           <button
             type="button"
             onClick={onClose}
             className="btn btn-primary"
-            style={{ width: 'auto', padding: '10px 22px' }}
+            style={{
+              width: '100%',
+              padding: '14px 22px',
+              fontSize: 15,
+              fontWeight: 700,
+              minHeight: 52,
+            }}
           >
-            {isHe ? 'הבנתי' : 'Got it'}
+            {isHe ? 'קראתי ואני מסכים' : 'I read and agree'}
           </button>
         </div>
       </div>

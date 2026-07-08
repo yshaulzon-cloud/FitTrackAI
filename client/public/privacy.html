@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Areto · מדיניות פרטיות / Privacy Policy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&family=Assistant:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --surface: #121826;
+      --border: #243044;
+      --text-1: #f1f5f9;
+      --text-2: #cbd5e1;
+      --text-3: #94a3b8;
+      --accent: #2dd4bf;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text-2);
+      font-family: 'Heebo', 'Assistant', system-ui, sans-serif;
+      line-height: 1.7;
+      font-size: 16px;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 40px 22px 80px; }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap; margin-bottom: 28px;
+      padding-bottom: 20px; border-bottom: 1px solid var(--border);
+    }
+    h1 {
+      font-size: 28px; font-weight: 800; letter-spacing: -0.02em;
+      margin: 0; color: var(--text-1);
+    }
+    .updated { font-size: 13px; color: var(--text-3); margin-top: 4px; }
+    .lang-toggle button {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-2); padding: 8px 16px; border-radius: 8px;
+      cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 600;
+    }
+    .lang-toggle button.active { background: var(--accent); color: #06251f; border-color: var(--accent); }
+    .tldr {
+      padding: 18px 20px; margin-bottom: 28px; border-radius: 12px;
+      background: rgba(45,212,191,0.08); border: 1px solid rgba(45,212,191,0.22);
+    }
+    .tldr-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 10px;
+    }
+    .tldr ul { margin: 0; padding-inline-start: 20px; }
+    .tldr li { color: var(--text-1); margin-bottom: 6px; }
+    h2 {
+      font-size: 19px; font-weight: 700; color: var(--text-1);
+      margin: 32px 0 10px; letter-spacing: -0.01em;
+    }
+    section p { margin: 0 0 10px; }
+    section ul { padding-inline-start: 22px; margin: 6px 0 0; }
+    section li { margin-bottom: 6px; }
+    a { color: var(--accent); }
+    footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-3); }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1 id="title">מדיניות פרטיות</h1>
+        <div class="updated" id="updated">עודכן: יוני 2026</div>
+      </div>
+      <div class="lang-toggle">
+        <button id="btn-he" class="active" onclick="setLang('he')">עברית</button>
+        <button id="btn-en" onclick="setLang('en')">English</button>
+      </div>
+    </header>
+    <main id="content"></main>
+    <footer id="footer"></footer>
+  </div>
+
+  <script>
+    const DATA = {
+      he: {
+        dir: 'rtl', title: 'מדיניות פרטיות', updated: 'עודכן: יוני 2026',
+        tldrLabel: 'בקצרה',
+        tldr: [
+          'אוספים נתוני פרופיל ופעילות (תזונה, אימונים, שינה)',
+          'לא משתפים עם צד שלישי ולא מוכרים את המידע',
+          'אפשר למחוק את החשבון בכל זמן — והנתונים נמחקים מהשרת',
+        ],
+        sections: [
+          { h: '1. איזה מידע אנחנו אוספים', p: ['כדי שהאפליקציה תוכל לבנות לך תוכנית אישית, אנחנו אוספים את הפרטים הבאים:'],
+            list: ['פרטי חשבון: כתובת אימייל וסיסמה (מוצפנת בעזרת bcrypt).','פרופיל אישי: שם, גיל, מין, גובה, משקל, אחוזי שומן (אופציונלי), רמת ניסיון.','מטרות וכושר: מטרת אימון ומספר אימונים בשבוע.','תיעוד פעילות: ארוחות שרשמת, אימונים שביצעת, רישומי שינה ומדידות גוף.','מטא-נתוני שימוש בסיסיים: תאריכי כניסה ופעולות שביצעת באפליקציה.'] },
+          { h: '2. למה אנחנו משתמשים במידע', p: ['המידע משמש אך ורק כדי:'],
+            list: ['לחשב יעדי קלוריות, מאקרו ותחזית משקל מותאמים אליך.','לבנות תוכנית אימון ותפריט יומי מומלץ.','להציג לך גרפים והתקדמות לאורך זמן.','לאפשר לך להתחבר ולשמור על המידע מאובטח.'] },
+          { h: '3. הערכת ארוחות', p: ['הזנת ארוחות מתבצעת מול מאגר מזון מקומי שמותקן בשרת. כל מאכל שאתה מזין מחושב לפי הערכים השמורים במאגר. לא נשלחות שאילתות לשירות AI חיצוני להערכת ערכי תזונה.'] },
+          { h: '4. שמירה ואבטחה', p: ['המידע שלך מאוחסן ב-MongoDB עם תקשורת מוצפנת. הסיסמה לא נשמרת בטקסט גלוי — רק hash. גישה לשרת מוגבלת באמצעות JWT.'] },
+          { h: '5. שיתוף עם צד שלישי', p: ['אנחנו לא מוכרים את המידע שלך. שירותים חיצוניים שאיתם יש לנו אינטראקציה הם:'],
+            list: ['Gmail SMTP — לשליחת קוד איפוס סיסמה.','MongoDB Atlas — אחסון בענן.'] },
+          { h: '6. הזכויות שלך', p: ['בכל רגע אתה יכול:'],
+            list: ['לערוך או לעדכן את הפרטים שלך דרך מסך ההגדרות.','לאפס את כל ההיסטוריה שלך דרך "איפוס נתונים".','למחוק את החשבון לחלוטין דרך "מחיקת חשבון" — פעולה זו בלתי הפיכה ומסירה את כל המידע מהשרת.'] },
+          { h: '7. עוגיות ואחסון מקומי', p: ['אנחנו משתמשים ב-localStorage של הדפדפן כדי לשמור את ה-token של הכניסה ואת ההעדפות שלך (שפה, ערכת צבעים, התראות). לא נעשה שימוש ב-cookies לצרכי tracking.'] },
+          { h: '8. גיל מינימלי', p: ['השירות מיועד למשתמשים בגיל 13 ומעלה. אנחנו לא אוספים מידע ביודעין ממשתמשים מתחת לגיל 13.'] },
+          { h: '9. שינויים במדיניות', p: ['נעדכן מסמך זה במקרה של שינויים מהותיים. תאריך העדכון האחרון מופיע בראש הדף.'] },
+          { h: '10. צור קשר', p: ['שאלות לגבי פרטיות? כתבו אלינו ל-<a href="mailto:bodysync11@gmail.com">bodysync11@gmail.com</a>.'] },
+        ],
+        footer: 'Areto · תזונה. אימונים. תוצאות.',
+      },
+      en: {
+        dir: 'ltr', title: 'Privacy Policy', updated: 'Last updated: June 2026',
+        tldrLabel: 'TL;DR',
+        tldr: [
+          'We collect profile and activity data (nutrition, workouts, sleep)',
+          'We don’t share with third parties or sell your data',
+          'You can delete your account anytime — all data is removed from our server',
+        ],
+        sections: [
+          { h: '1. What we collect', p: ['To build a personalized plan, we collect:'],
+            list: ['Account: email and password (bcrypt-hashed).','Profile: name, age, gender, height, weight, body-fat % (optional), experience level.','Goals: training goal and weekly workout count.','Activity logs: meals you record, workouts, sleep entries, and body measurements.','Basic usage metadata: sign-in timestamps and in-app actions.'] },
+          { h: '2. How we use it', p: ['Your data is used only to:'],
+            list: ['Calculate calorie targets, macros, and weight forecasts personalized to you.','Generate a workout plan and a recommended daily menu.','Show your progress over time.','Authenticate you and keep your data secure.'] },
+          { h: '3. Meal estimation', p: ['Meal logging is performed against a local food database stored on the server. Every meal you enter is matched and computed using the values held in that database. No queries are sent to an external AI service for nutrition estimation.'] },
+          { h: '4. Storage and security', p: ['Data is stored in MongoDB over encrypted connections. Passwords are never stored in plaintext — only hashed. Server access is gated by JWT.'] },
+          { h: '5. Third-party services', p: ['We do not sell your data. The external services we interact with are:'],
+            list: ['Gmail SMTP — to send password reset codes.','MongoDB Atlas — cloud storage.'] },
+          { h: '6. Your rights', p: ['At any time you can:'],
+            list: ['Edit your profile through Settings.','Reset your activity history via "Reset all data".','Permanently delete your account via "Delete account" — this is irreversible and removes all data.'] },
+          { h: '7. Cookies and local storage', p: ['We use the browser\'s localStorage to keep your auth token and preferences (language, theme, notifications). No tracking cookies.'] },
+          { h: '8. Minimum age', p: ['The service is intended for users 13 and older. We do not knowingly collect data from users under 13.'] },
+          { h: '9. Changes to this policy', p: ['We will update this document if anything material changes. The "last updated" date is shown at the top.'] },
+          { h: '10. Contact', p: ['Privacy questions? Email us at <a href="mailto:bodysync11@gmail.com">bodysync11@gmail.com</a>.'] },
+        ],
+        footer: 'Areto · Nutrition. Training. Results.',
+      },
+    };
+
+    function setLang(lang) {
+      const d = DATA[lang];
+      document.documentElement.lang = lang;
+      document.documentElement.dir = d.dir;
+      document.getElementById('title').textContent = d.title;
+      document.getElementById('updated').textContent = d.updated;
+      document.getElementById('btn-he').classList.toggle('active', lang === 'he');
+      document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+
+      let html = '<div class="tldr"><div class="tldr-label">' + d.tldrLabel + '</div><ul>' +
+        d.tldr.map(t => '<li>' + t + '</li>').join('') + '</ul></div>';
+      for (const s of d.sections) {
+        html += '<section><h2>' + s.h + '</h2>';
+        if (s.p) html += s.p.map(p => '<p>' + p + '</p>').join('');
+        if (s.list) html += '<ul>' + s.list.map(li => '<li>' + li + '</li>').join('') + '</ul>';
+        html += '</section>';
+      }
+      document.getElementById('content').innerHTML = html;
+      document.getElementById('footer').textContent = d.footer;
+    }
+
+    setLang('he');
+  </script>
+</body>
+</html>

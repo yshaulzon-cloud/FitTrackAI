@@ -150,34 +150,34 @@ function JourneyChart({ startWeight, currentWeight, targetWeight, isHe }) {
 // the middle. Labels sit beside their markers so nothing overlaps even on
 // narrow phones.
 function JourneyChartVertical({ startWeight, currentWeight, targetWeight, isHe }) {
-  const W = 280, H = 460;
-  const PAD_T = 36, PAD_B = 36;
-  const TRACK_X = isHe ? W * 0.65 : W * 0.35;
-  const LABEL_X_OFFSET = isHe ? -18 : 18;
-  const LABEL_ANCHOR = isHe ? 'end' : 'start';
-  const PIN_LABEL_OFFSET = isHe ? 18 : -18;
-  const PIN_LABEL_ANCHOR = isHe ? 'start' : 'end';
+  // All labels use text-anchor="middle" centered on a fixed column so SVG
+  // bidi reordering (RTL Hebrew + emoji) can never push text over the
+  // markers. Track is centred; start/target labels stack above/below their
+  // circles; the "you are here" pin label sits in a side column with a gap.
+  const W = 300, H = 520;
+  const PAD_T = 100, PAD_B = 100;
+  const TRACK_X = W / 2;
+  const PIN_LABEL_X = TRACK_X + 80; // side column for the current-pin label
   const innerH = H - PAD_T - PAD_B;
+  const kg = isHe ? 'ק"ג' : 'kg';
 
   const total = Math.abs(targetWeight - startWeight) || 0.01;
   const covered = Math.max(0, Math.min(total, Math.abs(currentWeight - startWeight)));
-  const remaining = Math.max(0, total - covered);
   const pct = Math.min(100, Math.round((covered / total) * 100));
 
   const yTarget = PAD_T;
   const yStart = PAD_T + innerH;
   const yCurrent = yStart - (covered / total) * innerH;
 
-  const overlapThreshold = innerH * 0.09;
+  const overlapThreshold = innerH * 0.13;
   const overlapsStart  = Math.abs(yCurrent - yStart)  < overlapThreshold;
   const overlapsTarget = Math.abs(yCurrent - yTarget) < overlapThreshold;
   const showCurrentPin = !overlapsStart && !overlapsTarget;
 
   const trackBase = 'rgba(125,125,125,0.18)';
-  const kg = isHe ? 'ק"ג' : 'kg';
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', maxWidth: 320, height: H, display: 'block', margin: '0 auto' }} aria-hidden="true">
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', maxWidth: 300, height: H, display: 'block', margin: '0 auto' }} aria-hidden="true">
       <defs>
         <linearGradient id="journeyFillV" x1="0" x2="0" y1="1" y2="0">
           <stop offset="0%"   stopColor="#8b5cf6" />
@@ -194,47 +194,47 @@ function JourneyChartVertical({ startWeight, currentWeight, targetWeight, isHe }
               rx="8" fill="url(#journeyFillV)" />
       )}
 
-      {/* Target cap at the top */}
-      <circle cx={TRACK_X} cy={yTarget} r="10" fill="var(--bg-0)" stroke="#22c55e" strokeWidth="2.5" />
-      <text x={TRACK_X + LABEL_X_OFFSET} y={yTarget - 4} textAnchor={LABEL_ANCHOR} fontFamily="Heebo" fontSize="12" fontWeight="700" fill="#22c55e" letterSpacing="0.06em">
+      {/* Target cap — labels ABOVE the circle, centred */}
+      {overlapsTarget && (
+        <text x={TRACK_X} y={yTarget - 68} textAnchor="middle" fontFamily="Heebo" fontSize="11" fontWeight="700" fill="var(--accent)" letterSpacing="0.06em">
+          {isHe ? '· הגעת ·' : '· YOU MADE IT ·'}
+        </text>
+      )}
+      <text x={TRACK_X} y={yTarget - 42} textAnchor="middle" fontFamily="Heebo" fontSize="12" fontWeight="700" fill="#22c55e" letterSpacing="0.04em">
         {isHe ? '🚩 יעד' : '🚩 TARGET'}
       </text>
-      <text x={TRACK_X + LABEL_X_OFFSET} y={yTarget + 14} textAnchor={LABEL_ANCHOR} fontFamily="Heebo" fontSize="16" fontWeight="800" fill="var(--success)">
+      <text x={TRACK_X} y={yTarget - 20} textAnchor="middle" fontFamily="Heebo" fontSize="16" fontWeight="800" fill="var(--success)">
         {targetWeight} {kg}
       </text>
+      <circle cx={TRACK_X} cy={yTarget} r="10" fill="var(--bg-0)" stroke="#22c55e" strokeWidth="2.5" />
 
-      {/* Start cap at the bottom */}
+      {/* Start cap — labels BELOW the circle, centred */}
       <circle cx={TRACK_X} cy={yStart} r="10" fill="var(--bg-0)" stroke="#8b5cf6" strokeWidth="2.5" />
-      <text x={TRACK_X + LABEL_X_OFFSET} y={yStart + 18} textAnchor={LABEL_ANCHOR} fontFamily="Heebo" fontSize="12" fontWeight="700" fill="#8b5cf6" letterSpacing="0.06em">
+      <text x={TRACK_X} y={yStart + 32} textAnchor="middle" fontFamily="Heebo" fontSize="12" fontWeight="700" fill="#8b5cf6" letterSpacing="0.04em">
         {isHe ? 'התחלה' : 'START'}
       </text>
-      <text x={TRACK_X + LABEL_X_OFFSET} y={yStart + 36} textAnchor={LABEL_ANCHOR} fontFamily="Heebo" fontSize="16" fontWeight="800" fill="var(--text-1)">
+      <text x={TRACK_X} y={yStart + 54} textAnchor="middle" fontFamily="Heebo" fontSize="16" fontWeight="800" fill="var(--text-1)">
         {startWeight} {kg}
       </text>
-
-      {/* Current pin */}
-      {showCurrentPin && (
-        <g transform={`translate(${TRACK_X}, ${yCurrent})`}>
-          <circle r="16" fill="rgba(45, 212, 191, 0.20)" />
-          <circle r="11" fill="var(--bg-0)" stroke="#2dd4bf" strokeWidth="3" />
-          <circle r="3"  fill="#2dd4bf" />
-          <text x={PIN_LABEL_OFFSET} y={-4} textAnchor={PIN_LABEL_ANCHOR} fontFamily="Heebo" fontSize="12" fontWeight="700" fill="var(--accent)" letterSpacing="0.06em">
-            {isHe ? 'אתה כאן' : 'YOU ARE HERE'}
-          </text>
-          <text x={PIN_LABEL_OFFSET} y={14} textAnchor={PIN_LABEL_ANCHOR} fontFamily="Heebo" fontSize="16" fontWeight="800" fill="var(--accent)">
-            {currentWeight} {kg}
-          </text>
-        </g>
-      )}
       {overlapsStart && (
-        <text x={TRACK_X + LABEL_X_OFFSET} y={yStart - 6} textAnchor={LABEL_ANCHOR} fontFamily="Heebo" fontSize="11" fontWeight="700" fill="var(--accent)" letterSpacing="0.06em">
+        <text x={TRACK_X} y={yStart + 76} textAnchor="middle" fontFamily="Heebo" fontSize="11" fontWeight="700" fill="var(--accent)" letterSpacing="0.06em">
           {isHe ? '· אתה כאן ·' : '· YOU ARE HERE ·'}
         </text>
       )}
-      {overlapsTarget && (
-        <text x={TRACK_X + LABEL_X_OFFSET} y={yTarget + 30} textAnchor={LABEL_ANCHOR} fontFamily="Heebo" fontSize="11" fontWeight="700" fill="var(--accent)" letterSpacing="0.06em">
-          {isHe ? '· הגעת ·' : '· YOU MADE IT ·'}
-        </text>
+
+      {/* Current pin — label in a side column, centred (anchor middle) */}
+      {showCurrentPin && (
+        <g transform={`translate(${TRACK_X}, ${yCurrent})`}>
+          <circle r="15" fill="rgba(45, 212, 191, 0.20)" />
+          <circle r="10" fill="var(--bg-0)" stroke="#2dd4bf" strokeWidth="3" />
+          <circle r="3"  fill="#2dd4bf" />
+          <text x={PIN_LABEL_X - TRACK_X} y={-3} textAnchor="middle" fontFamily="Heebo" fontSize="11" fontWeight="700" fill="var(--accent)" letterSpacing="0.04em">
+            {isHe ? 'אתה כאן' : 'YOU ARE HERE'}
+          </text>
+          <text x={PIN_LABEL_X - TRACK_X} y={15} textAnchor="middle" fontFamily="Heebo" fontSize="15" fontWeight="800" fill="var(--accent)">
+            {currentWeight} {kg}
+          </text>
+        </g>
       )}
     </svg>
   );

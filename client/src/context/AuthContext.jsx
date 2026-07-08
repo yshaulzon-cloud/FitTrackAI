@@ -27,14 +27,21 @@ export function AuthProvider({ children }) {
       if (res.ok) {
         const data = await res.json();
         setUser(data);
-      } else {
+      } else if (res.status === 401) {
+        sessionStorage.setItem('logoutReason', 'session_expired');
         logout();
       }
+      // Other server errors (500, 503) — keep token, just stop loading
     } catch {
-      logout();
+      // Network error — keep token, don't logout
     } finally {
       setLoading(false);
     }
+  }
+
+  function pickMsg(data) {
+    const isHe = localStorage.getItem('areto:lang') !== 'en';
+    return (isHe && data.messageHe) ? data.messageHe : (data.message || 'Server error');
   }
 
   async function login(email, password) {
@@ -44,14 +51,14 @@ export function AuthProvider({ children }) {
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.message);
+    if (!res.ok) throw new Error(pickMsg(data));
     localStorage.setItem('token', data.token);
     setToken(data.token);
     setUser(data.user);
     return data;
   }
 
-  const GOOGLE_CLIENT_ID = '674273831957-r79t2lo52fpddlairlldu9gvihkjvf7h.apps.googleusercontent.com';
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '674273831957-r79t2lo52fpddlairlldu9gvihkjvf7h.apps.googleusercontent.com';
 
   // Detects whether we're running inside a Capacitor native shell (Android/iOS).
   // On native we use the @codetrix-studio plugin (returns an ID token).
@@ -71,6 +78,10 @@ export function AuthProvider({ children }) {
         scopes: ['profile', 'email'],
       });
     } catch { /* already initialized */ }
+    // The plugin caches the last-used Google account and silently
+    // re-signs-in with it, skipping the account picker. Sign out first so
+    // the picker always shows, letting the user choose a different account.
+    await GoogleAuth.signOut().catch(() => {});
     const googleUser = await GoogleAuth.signIn();
     const idToken = googleUser.authentication.idToken;
     if (!idToken) throw new Error('Google did not return an ID token');
@@ -82,7 +93,7 @@ export function AuthProvider({ children }) {
   function loginWithGoogleWeb() {
     return new Promise((resolve, reject) => {
       if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
-        reject(new Error('Google Sign-In לא זמין (GIS script לא נטען). נסה לרענן את הדף.'));
+        reject(new Error('Google Sign-In not available — please refresh the page.'));
         return;
       }
       const tokenClient = window.google.accounts.oauth2.initTokenClient({
@@ -118,7 +129,7 @@ export function AuthProvider({ children }) {
       body: JSON.stringify(credential),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.message);
+    if (!res.ok) throw new Error(pickMsg(data));
     localStorage.setItem('token', data.token);
     setToken(data.token);
     setUser(data.user);
@@ -132,7 +143,7 @@ export function AuthProvider({ children }) {
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.message);
+    if (!res.ok) throw new Error(pickMsg(data));
     localStorage.setItem('token', data.token);
     setToken(data.token);
     setUser(data.user);
@@ -155,7 +166,7 @@ export function AuthProvider({ children }) {
       },
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.message);
+    if (!res.ok) throw new Error(pickMsg(data));
     return data;
   }
 

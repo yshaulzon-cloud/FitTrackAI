@@ -9,6 +9,8 @@ const IDS = {
   meal_evening: 1004,
   streak: 1005,
   weekly: 1006,
+  sleep_prompt: 1007,
+  sleep_followup: 1008,
 };
 
 function isNative() {
@@ -32,18 +34,39 @@ async function ensurePermission() {
   return true;
 }
 
+// Public: trigger the system notification permission prompt early.
+// Safe no-op on web. Returns true if granted, false otherwise.
+export async function requestNotificationPermission() {
+  if (!isNative()) return false;
+  try { return await ensurePermission(); } catch { return false; }
+}
+
+// Public: check current permission state without prompting. Returns
+// 'granted' | 'denied' | 'prompt' | null (web/error).
+export async function getNotificationPermissionStatus() {
+  if (!isNative()) return null;
+  try {
+    const LN = await getPlugin();
+    const perm = await LN.checkPermissions();
+    return perm.display;
+  } catch { return null; }
+}
+
 async function cancelById(id) {
-  if (!isNative()) return;
+  if (!isNative()) return true;
   try {
     const LN = await getPlugin();
     await LN.cancel({ notifications: [{ id }] });
   } catch { /* not scheduled */ }
+  return true;
 }
 
+// Returns true once scheduled, false if permission was denied (so callers
+// can revert their toggle and tell the user to enable it manually).
 async function scheduleDaily({ id, hour, minute, title, body }) {
-  if (!isNative()) return;
+  if (!isNative()) return true;
   const ok = await ensurePermission();
-  if (!ok) return;
+  if (!ok) return false;
   const LN = await getPlugin();
   await LN.cancel({ notifications: [{ id }] }).catch(() => {});
   await LN.schedule({
@@ -53,12 +76,13 @@ async function scheduleDaily({ id, hour, minute, title, body }) {
       smallIcon: 'ic_stat_icon_config_sample',
     }],
   });
+  return true;
 }
 
 async function scheduleWeekly({ id, weekday, hour, minute, title, body }) {
-  if (!isNative()) return;
+  if (!isNative()) return true;
   const ok = await ensurePermission();
-  if (!ok) return;
+  if (!ok) return false;
   const LN = await getPlugin();
   await LN.cancel({ notifications: [{ id }] }).catch(() => {});
   await LN.schedule({
@@ -68,6 +92,75 @@ async function scheduleWeekly({ id, weekday, hour, minute, title, body }) {
       smallIcon: 'ic_stat_icon_config_sample',
     }],
   });
+  return true;
+}
+
+// One-shot notification for a specific Date — unlike scheduleDaily/Weekly,
+// this fires once and doesn't repeat, so cancelling it only affects that
+// single occurrence (used by the sleep prompts, which need to be
+// cancellable "just for today" without killing tomorrow's reminder).
+async function scheduleOneTime({ id, when, title, body }) {
+  if (!isNative()) return true;
+  const ok = await ensurePermission();
+  if (!ok) return false;
+  const LN = await getPlugin();
+  await LN.cancel({ notifications: [{ id }] }).catch(() => {});
+  await LN.schedule({
+    notifications: [{
+      id, title, body,
+      schedule: { at: when, allowWhileIdle: true },
+      smallIcon: 'ic_stat_icon_config_sample',
+    }],
+  });
+  return true;
+}
+
+// ── Sleep-logging reminders ─────────────────────────────────────────
+// Modeled as a generic "daily prompt, one follow-up, then silence" pair
+// so future reminder types (water, weigh-in) can copy this shape.
+//
+// Capacitor's LocalNotifications has no "check a condition right before
+// firing" hook, so this can't be a single always-on repeating alarm like
+// the workout/meal reminders above. Instead: schedule/cancel these two
+// one-shot alarms for *today only*, called (a) whenever the app loads and
+// sleep hasn't been logged yet, cancelling+re-arming for today's
+// remaining slots, and (b) the instant sleep gets logged, cancelling both
+// immediately. Tomorrow's occurrence is armed the next time the app opens.
+export async function scheduleSleepPrompts(hour = 8) {
+  if (!isNative()) return true;
+  const now = new Date();
+
+  const promptAt = new Date(now);
+  promptAt.setHours(hour, 0, 0, 0);
+  const followupAt = new Date(promptAt);
+  followupAt.setHours(promptAt.getHours() + 2);
+
+  const ok = await ensurePermission();
+  if (!ok) return false;
+
+  // Skip any slot whose time already passed today — don't fire a
+  // "good morning" prompt at 3pm.
+  if (promptAt > now) {
+    await scheduleOneTime({
+      id: IDS.sleep_prompt, when: promptAt,
+      title: '😴',
+      body: 'בוקר טוב! כמה שעות ישנת הלילה?',
+    });
+  }
+  if (followupAt > now) {
+    await scheduleOneTime({
+      id: IDS.sleep_followup, when: followupAt,
+      title: '😴',
+      body: 'אל תשכח לעדכן את שעות השינה שלך.',
+    });
+  }
+  return true;
+}
+
+export async function cancelSleepPrompts() {
+  await cancelById(IDS.sleep_prompt);
+  await cancelById(IDS.sleep_followup);
+  return true;
 }
 
 export async function applyWorkoutReminder(enabled, isHe) {

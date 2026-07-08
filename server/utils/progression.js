@@ -272,7 +272,10 @@ async function revokeXP(userId, eventType) {
   await prog.save();
 }
 
-// Update streak based on activity date
+// Update the general activity streak — consecutive calendar days on which
+// the user did *anything* trackable (workout, meal log, or sleep log).
+// This is deliberately not workout-specific; see checkNutritionGoals for
+// the separate calorie-goal streak.
 async function updateStreak(userId) {
   const prog = await getProgression(userId);
   const today = new Date();
@@ -376,6 +379,22 @@ async function checkNutritionGoals(userId, todayNutrition, targets) {
     const ratio = todayNutrition.totalCalories / targets.calorieTarget;
     if (ratio >= 0.9 && ratio <= 1.1) {
       prog.dailyFlags.calorieGoalMet = true;
+
+      // Calorie-goal streak: consecutive days the target was hit. Separate
+      // from currentStreak (general activity) — a user can work out every
+      // day and still miss their calorie target, or vice versa.
+      const lastGoalDate = prog.lastCalorieGoalDate ? new Date(prog.lastCalorieGoalDate) : null;
+      if (lastGoalDate) lastGoalDate.setHours(0, 0, 0, 0);
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      if (lastGoalDate && lastGoalDate.getTime() === yesterday.getTime()) {
+        prog.calorieStreak = (prog.calorieStreak || 0) + 1;
+      } else {
+        prog.calorieStreak = 1;
+      }
+      prog.lastCalorieGoalDate = today;
+
       const r = await awardXPInternal(prog, 'calorie_goal');
       results.push(r);
     }
@@ -511,6 +530,7 @@ async function getProgressionStatus(userId, goalData) {
     recentXP: prog.xpHistory.slice(-10).reverse(),
     sleepStreak: prog.sleepStreak || 0,
     totalSleepLogs: prog.totalSleepLogs || 0,
+    calorieStreak: prog.calorieStreak || 0,
     // Snapshot of how far the user was from target weight on first stat-calc.
     // Drives the "journey to goal" visualization on the Goals tab.
     initialWeightDelta: prog.initialWeightDelta || 0,

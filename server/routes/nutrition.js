@@ -1,10 +1,11 @@
-const express = require('express');
+﻿const express = require('express');
+const { param, query } = require('express-validator');
 const auth = require('../middleware/auth');
 const Nutrition = require('../models/Nutrition');
-const { estimateNutrition, calculateTDEE, calculateCalorieTarget, calculateMacros } = require('../utils/calculations');
-const { checkNutritionGoals, revokeXP } = require('../utils/progression');
+const { estimateNutrition, estimateNutritionAI, calculateTDEE, calculateCalorieTarget, calculateMacros } = require('../utils/calculations');
+const { checkNutritionGoals, revokeXP, updateStreak } = require('../utils/progression');
 const User = require('../models/User');
-const { getRandomMenu, swapMeal } = require('../data/mealPlans');
+const { getRandomMenu, getWeeklyMenu, swapMeal } = require('../data/mealPlans');
 
 const router = express.Router();
 
@@ -14,20 +15,29 @@ router.post('/log', auth, async (req, res) => {
     const { description } = req.body;
 
     if (!description || typeof description !== 'string' || !description.trim()) {
-      return res.status(400).json({ message: 'יש להזין תיאור של הארוחה' });
+      return res.status(400).json({ message: 'Meal description is required', messageHe: 'יש להזין תיאור של הארוחה' });
     }
     if (description.length > 500) {
-      return res.status(400).json({ message: 'תיאור ארוך מדי (מקסימום 500 תווים)' });
+      return res.status(400).json({ message: 'Description too long (max 500 chars)', messageHe: 'תיאור ארוך מדי (מקסימום 500 תווים)' });
     }
 
-    const estimated = estimateNutrition(description);
+    let estimated = estimateNutrition(description);
 
-    // Strict mode: only foods that match the local FOOD_DB are accepted.
-    // Unknown items are rejected so we never log a meal with guessed values.
+    // Not in the local DB — try Gemini for a one-off estimate.
     if (!estimated) {
-      return res.status(404).json({
-        message: 'המאכל לא נמצא במאגר. נסה שם אחר או חיפוש קצר יותר.',
-      });
+      try {
+        estimated = await estimateNutritionAI(description);
+      } catch (aiErr) {
+        console.error('AI estimate error:', aiErr.message);
+      }
+    }
+
+    // AI also failed — fall back to a generic average-meal estimate.
+    if (!estimated) {
+      estimated = {
+        calories: 350, protein: 15, carbs: 40, fat: 12, fiber: 3,
+        source: 'default', englishName: null,
+      };
     }
 
     // Find today's nutrition log or create one
@@ -68,7 +78,9 @@ router.post('/log', auth, async (req, res) => {
       });
     }
 
-    // Check nutrition goals for XP
+    // Check nutrition goals for XP + count today toward the general
+    // activity streak (logging a meal counts as "showing up" for the day,
+    // same as a workout or a sleep entry).
     let xpResults = [];
     try {
       const user = await User.findById(req.userId);
@@ -78,6 +90,7 @@ router.post('/log', auth, async (req, res) => {
         const macros = calculateMacros(user.profile.weight, calorieTarget, user.profile.goal, user.profile.experience, user.profile.bodyFatPercentage);
         xpResults = await checkNutritionGoals(req.userId, nutritionLog, { calorieTarget, macros });
       }
+      await updateStreak(req.userId);
     } catch (xpErr) {
       console.error('XP check error:', xpErr.message);
     }
@@ -95,12 +108,12 @@ router.post('/log', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Nutrition log error:', error);
-    res.status(500).json({ message: 'שגיאה בשמירת הארוחה' });
+    res.status(500).json({ message: 'Error saving meal', messageHe: 'שגיאה בשמירת הארוחה' });
   }
 });
 
 // DELETE /nutrition/meal/:mealId
-router.delete('/meal/:mealId', auth, async (req, res) => {
+router.delete('/meal/:mealId', auth, param('mealId').isMongoId(), async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -204,7 +217,7 @@ router.get('/today', auth, async (req, res) => {
     res.json(logObj);
   } catch (error) {
     console.error('Nutrition today error:', error);
-    res.status(500).json({ message: 'שגיאה בטעינת נתוני תזונה' });
+    res.status(500).json({ message: 'Error loading nutrition data', messageHe: 'שגיאה בטעינת נתוני תזונה' });
   }
 });
 
@@ -218,7 +231,7 @@ router.get('/history', auth, async (req, res) => {
     res.json(logs);
   } catch (error) {
     console.error('Nutrition history error:', error);
-    res.status(500).json({ message: 'שגיאה בטעינת היסטוריית תזונה' });
+    res.status(500).json({ message: 'Error loading nutrition history', messageHe: 'שגיאה בטעינת היסטוריית תזונה' });
   }
 });
 
@@ -247,13 +260,39 @@ router.get('/daily-menu', auth, async (req, res) => {
   }
 });
 
+// GET /nutrition/weekly-menu - Get a suggested 7-day menu based on calorie target
+router.get('/weekly-menu', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user?.profile || !user.onboardingComplete) {
+      return res.status(400).json({ message: 'Profile not complete' });
+    }
+
+    const { tdee } = calculateTDEE(user.profile);
+    const calorieTarget = calculateCalorieTarget(tdee, user.profile.goal, user.profile.weight, user.profile.bodyFatPercentage);
+    const macros = calculateMacros(user.profile.weight, calorieTarget, user.profile.goal, user.profile.experience, user.profile.bodyFatPercentage);
+
+    const days = getWeeklyMenu(calorieTarget, macros.protein);
+    if (!days.length) {
+      return res.status(404).json({ message: 'No weekly menu found' });
+    }
+
+    res.json({ days, calorieTarget, proteinTarget: macros.protein });
+  } catch (error) {
+    console.error('Weekly menu error:', error);
+    res.status(500).json({ message: 'Error getting weekly menu' });
+  }
+});
+
 // GET /nutrition/swap-meal - Get an alternative meal of the same type with similar calories
 router.get('/swap-meal', auth, async (req, res) => {
   try {
     const validTypes = ['breakfast', 'snack', 'lunch', 'dinner'];
     const type = req.query.type;
     const calories = parseInt(req.query.calories);
-    const excludeText = req.query.excludeText || null;
+    const excludeText = typeof req.query.excludeText === 'string'
+      ? req.query.excludeText.slice(0, 200)
+      : null;
 
     if (!validTypes.includes(type)) {
       return res.status(400).json({ message: 'Invalid meal type' });

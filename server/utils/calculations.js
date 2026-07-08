@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Mifflin-St Jeor formula for REE (Resting Energy Expenditure)
  * Most accurate for general population and overweight individuals (ISSN 2024)
  */
@@ -449,6 +449,7 @@ const FOOD_DB = [
   { keys: ['פרמזן', 'parmesan'], cal: 430, p: 38, c: 4, f: 28, fb: 0 },
   { keys: ['צ\'דר'], cal: 400, p: 25, c: 1.3, f: 33, fb: 0 },
   { keys: ['מוצרלה', 'mozzarella'], cal: 280, p: 22, c: 0, f: 20, fb: 0 },
+  { keys: ['גבינת שמנת פילדלפיה', 'philadelphia cream cheese', 'philadelphia'], cal: 342, p: 5.9, c: 4.1, f: 34.2, fb: 0 },
   { keys: ['גבינת שמנת 30%', 'cream cheese 30'], cal: 340, p: 6, c: 0, f: 34, fb: 0 },
   { keys: ['גבינת שמנת 5%', 'cream cheese 5'], cal: 105, p: 10, c: 0, f: 5, fb: 0 },
   { keys: ['גבינת שמנת', 'cream cheese'], cal: 340, p: 6, c: 0, f: 34, fb: 0 },
@@ -988,6 +989,21 @@ const FOOD_DB = [
   { keys: ['ארטישוק', 'artichoke'], cal: 47, p: 3.3, c: 11, f: 0.15, fb: 5 },
   { keys: ['סלרי', 'celery'], cal: 14, p: 0.7, c: 3, f: 0.2, fb: 1.6 },
 
+  // === Researched Missing Items (2025) ===
+  { keys: ['אוראו', 'oreo'], cal: 480, p: 5, c: 71, f: 20, fb: 3 },
+  { keys: ['נוטלה', 'nutella'], cal: 539, p: 6.3, c: 57.5, f: 30.9, fb: 3 },
+  { keys: ['קינדר בואנו', 'kinder bueno'], cal: 572, p: 8.6, c: 49.5, f: 37.3, fb: 2 },
+  { keys: ['חוואיג\'', 'באהארט תימני', 'hawaij', 'baharat yemeni'], cal: 325, p: 11.5, c: 45, f: 10.5, fb: 28 },
+  { keys: ['סלברוז\'', 'גלקטוז', 'cerebrose', 'galactose'], cal: 389, p: 0, c: 100, f: 0, fb: 0 },
+  { keys: ['סטרפצ\'אטו', 'קפה סטרפצ\'אטו', 'stracciatella coffee'], cal: 85, p: 1.2, c: 12, f: 3.5, fb: 0.5 },
+  { keys: ['פיצ\'ינג', 'סוכריות גומי', 'gummy candy', 'peach rings'], cal: 368, p: 5.3, c: 84.2, f: 0, fb: 0 },
+  { keys: ['קדבורי צ\'ומפ', 'cadbury chomp', 'chomp chocolate'], cal: 465, p: 2, c: 69, f: 20, fb: 0.7 },
+  { keys: ['חטיף בשר צ\'ומפס', 'chomps beef stick', 'chomps'], cal: 307, p: 30.7, c: 0, f: 21.5, fb: 0 },
+  { keys: ['טופלה', 'טופלר', 'tupla'], cal: 463, p: 6.3, c: 64, f: 19, fb: 1.6 },
+  { keys: ['פסיירה אספניולית', 'פסיירה', 'quesada pasiega'], cal: 266, p: 6.9, c: 34, f: 11.7, fb: 0.4 },
+  { keys: ['אווה טאצ\'ינו', 'קצף חלב', 'milk foam latte', 'taccino'], cal: 37, p: 3.4, c: 5, f: 0.1, fb: 0 },
+  { keys: ['מאוריה תימנית', 'מאוריה', 'yemeni lahoh', 'lahoh'], cal: 340, p: 7.5, c: 48, f: 13, fb: 2.2 },
+
   // === Generic / catch-all (last resort) ===
   { keys: ['עוף', 'chicken'], cal: 200, p: 25, c: 0, f: 10, fb: 0 },
   { keys: ['בשר', 'meat', 'beef'], cal: 250, p: 26, c: 0, f: 15, fb: 0 },
@@ -1144,47 +1160,36 @@ function estimateNutrition(description) {
   return combined;
 }
 
-/**
- * AI-powered nutrition estimation using Claude API
- * Used as a fallback when no match is found in FOOD_DB
- */
 async function estimateNutritionAI(description) {
-  const Anthropic = require('@anthropic-ai/sdk');
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const { GoogleGenerativeAI } = require('@google/generative-ai');
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 256,
-    messages: [
-      {
-        role: 'user',
-        content: `אתה מומחה תזונה. עבור המאכל הבא, החזר **רק** JSON עם הערכים התזונתיים ל-100 גרם וגם שם באנגלית.
-אל תוסיף שום טקסט מלבד ה-JSON.
+  const result = await model.generateContent(
+    `אתה מומחה תזונה. עבור המאכל הבא, החזר רק JSON עם הערכים התזונתיים ל-100 גרם ושם באנגלית. אל תוסיף שום טקסט מלבד ה-JSON.\n\nמאכל: "${description}"\n\nפורמט:\n{"calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0,"englishName":"English Name"}`
+  );
 
-מאכל: "${description}"
-
-פורמט:
-{"calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0,"englishName":"English Name"}`,
-      },
-    ],
-  });
-
-  const text = message.content[0].text.trim();
-  // Extract JSON from response (handle possible markdown code blocks)
+  const text = result.response.text().trim();
   const jsonMatch = text.match(/\{[\s\S]*?\}/);
-  if (!jsonMatch) {
-    throw new Error('AI did not return valid JSON');
-  }
+  if (!jsonMatch) throw new Error('Gemini did not return valid JSON');
 
   const parsed = JSON.parse(jsonMatch[0]);
+  const cal   = Math.round(Number(parsed.calories) || 0);
+  const prot  = Math.round(Number(parsed.protein)  || 0);
+  const carbs = Math.round(Number(parsed.carbs)    || 0);
+  const fat   = Math.round(Number(parsed.fat)      || 0);
+  const fiber = Math.round(Number(parsed.fiber)    || 0);
+
+  if (cal < 0 || cal > 900 || prot < 0 || prot > 100 ||
+      carbs < 0 || carbs > 100 || fat < 0 || fat > 100) {
+    throw new Error('Gemini returned out-of-range nutritional values');
+  }
+
   return {
-    calories: Math.round(parsed.calories || 0),
-    protein: Math.round(parsed.protein || 0),
-    carbs: Math.round(parsed.carbs || 0),
-    fat: Math.round(parsed.fat || 0),
-    fiber: Math.round(parsed.fiber || 0),
+    calories: cal, protein: prot, carbs, fat,
+    fiber: Math.max(0, Math.min(fiber, 50)),
     source: 'ai',
-    englishName: parsed.englishName || null,
+    englishName: typeof parsed.englishName === 'string' ? parsed.englishName.slice(0, 100) : null,
   };
 }
 
@@ -1540,6 +1545,20 @@ function getSleepRecommendation(age, hadWorkoutToday) {
   };
 }
 
+
+function calculateCycleStatus(workouts, maxPerWeek) {
+  if (!workouts || workouts.length === 0) return { limitReached: false, cycleCount: 0 };
+  const sorted = [...workouts].sort((a, b) => new Date(a.date) - new Date(b.date));
+  let cycleStart = new Date(sorted[0].date);
+  let cycleCount = 0;
+  for (const w of sorted) {
+    const wDate = new Date(w.date);
+    if ((wDate - cycleStart) / 86400000 >= 7) { cycleStart = wDate; cycleCount = 1; }
+    else cycleCount++;
+  }
+  const daysSinceCycleStart = (Date.now() - cycleStart) / 86400000;
+  return { limitReached: cycleCount >= maxPerWeek && daysSinceCycleStart < 7, cycleCount };
+}
 module.exports = {
   calculateREE,
   calculateREE_KatchMcArdle,
@@ -1557,4 +1576,5 @@ module.exports = {
   estimateNutritionAI,
   generateWorkoutPlan,
   getSleepRecommendation,
+  calculateCycleStatus,
 };

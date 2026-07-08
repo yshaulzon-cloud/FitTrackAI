@@ -83,6 +83,7 @@ router.post(
     body('experience')
       .isIn(['beginner', 'intermediate', 'advanced'])
       .withMessage('יש לבחור רמת ניסיון'),
+    body('city').optional({ checkFalsy: true }).isString().isLength({ min: 1, max: 60 }).withMessage('עיר לא תקינה'),
   ],
   async (req, res) => {
     try {
@@ -91,11 +92,15 @@ router.post(
         return res.status(400).json({ message: errors.array()[0].msg });
       }
 
-      const { name, age, height, weight, gender, goal, workoutsPerWeek, experience, bodyFatPercentage } =
+      const { name, age, height, weight, gender, goal, workoutsPerWeek, experience, bodyFatPercentage, city } =
         req.body;
 
+      const profileData = { age, height, weight, gender, goal, workoutsPerWeek, experience, bodyFatPercentage };
+      if (city && String(city).trim()) {
+        profileData.city = String(city).trim();
+      }
       const updateData = {
-        profile: { age, height, weight, gender, goal, workoutsPerWeek, experience, bodyFatPercentage },
+        profile: profileData,
         onboardingComplete: true,
       };
       if (name && name.trim()) {
@@ -140,6 +145,7 @@ router.put(
     body('gender').optional().isIn(['male', 'female']).withMessage('מין לא תקין'),
     body('name').optional().isString().trim().isLength({ min: 1, max: 50 }).withMessage('שם לא תקין'),
     body('age').optional().isInt({ min: 13, max: 120 }).withMessage('גיל לא תקין'),
+    body('bodyFatPercentage').optional().isFloat({ min: 3, max: 60 }).withMessage('אחוז שומן לא תקין'),
   ],
   async (req, res) => {
     try {
@@ -148,7 +154,7 @@ router.put(
         return res.status(400).json({ message: errors.array()[0].msg });
       }
 
-      const { weight, height, goal, workoutsPerWeek, gender, name, age } = req.body;
+      const { weight, height, goal, workoutsPerWeek, gender, name, age, bodyFatPercentage } = req.body;
       const user = req.user;
 
       // Detect a goal direction change so we can reset the journey baseline.
@@ -160,6 +166,7 @@ router.put(
       if (gender !== undefined) user.profile.gender = gender;
       if (workoutsPerWeek !== undefined) user.profile.workoutsPerWeek = workoutsPerWeek;
       if (age !== undefined) user.profile.age = age;
+      if (bodyFatPercentage !== undefined) user.profile.bodyFatPercentage = bodyFatPercentage;
       if (name !== undefined) user.name = name;
 
       await user.save();

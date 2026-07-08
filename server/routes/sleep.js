@@ -4,7 +4,7 @@ const auth = require('../middleware/auth');
 const Sleep = require('../models/Sleep');
 const Workout = require('../models/Workout');
 const { getSleepRecommendation } = require('../utils/calculations');
-const { checkSleepGoal } = require('../utils/progression');
+const { checkSleepGoal, updateStreak } = require('../utils/progression');
 
 const router = express.Router();
 
@@ -15,7 +15,12 @@ router.post(
   [
     body('hours').isFloat({ min: 0, max: 24 }).withMessage('שעות שינה לא תקינות'),
     body('quality').optional().isIn(['bad', 'ok', 'good', 'great']).withMessage('איכות שינה לא תקינה'),
-    body('date').optional().isISO8601().withMessage('תאריך לא תקין'),
+    body('date').optional().isISO8601().withMessage('תאריך לא תקין').custom((val) => {
+      const d = new Date(val);
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      if (d < sevenDaysAgo || d > new Date()) throw new Error('תאריך מחוץ לטווח המותר');
+      return true;
+    }),
   ],
   async (req, res) => {
     try {
@@ -54,6 +59,9 @@ router.post(
         recommendation.min,
         recommendation.recommended || recommendation.min + 1
       );
+
+      // Logging sleep counts toward the general activity streak too.
+      await updateStreak(req.userId);
 
       res.json({
         sleep,

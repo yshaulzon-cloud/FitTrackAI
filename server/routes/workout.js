@@ -2,49 +2,55 @@ const express = require('express');
 const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const Workout = require('../models/Workout');
-const { calculateExerciseCalories } = require('../utils/calculations');
+const User = require('../models/User');
+const { body, param, validationResult } = require('express-validator');
+const { calculateExerciseCalories, calculateCycleStatus } = require('../utils/calculations');
 const { awardXP, updateStreak, revokeXP, recalcStreak } = require('../utils/progression');
 
 const router = express.Router();
 
 // POST /workout/complete
-router.post('/complete', auth, async (req, res) => {
+router.post(
+  '/complete',
+  auth,
+  [
+    body('dayName').optional().isString().trim().isLength({ max: 100 }),
+    body('durationMinutes').optional().isInt({ min: 1, max: 480 }),
+    body('location').optional().isIn(['gym', 'home']),
+    body('exercises').optional().isArray({ max: 30 }),
+    body('exercises.*.name').optional().isString().trim().isLength({ max: 120 }),
+    body('exercises.*.sets').optional().isInt({ min: 0, max: 20 }),
+    body('exercises.*.reps').optional().isString().trim().isLength({ max: 30 }),
+    body('exercises.*.muscleGroup').optional().isString().trim().isLength({ max: 50 }),
+    body('exercises.*.mode').optional().isIn(['reps', 'time']),
+    body('exercises.*.setLog').optional().isArray({ max: 30 }),
+    body('exercises.*.setLog.*.reps').optional({ nullable: true }).isInt({ min: 0, max: 1000 }),
+    body('exercises.*.setLog.*.weight').optional({ nullable: true }).isFloat({ min: 0, max: 1000 }),
+    body('exercises.*.setLog.*.durationSec').optional({ nullable: true }).isInt({ min: 0, max: 36000 }),
+    body('exercises.*.setLog.*.done').optional().isBoolean(),
+  ],
+  async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: errors.array()[0].msg });
+  }
   try {
-    const { dayName, exercises, durationMinutes } = req.body;
+    const { dayName, exercises, durationMinutes, location } = req.body;
+
+    // Block a second workout on the same calendar day
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayWorkout = await Workout.findOne({ userId: req.userId, date: { $gte: todayStart } });
+    if (todayWorkout) {
+      return res.status(400).json({ message: 'alreadyTrainedToday' });
+    }
 
     // Check cycle-based workout limit
-    // A cycle starts from the first workout after the previous cycle ended
-    // Cycle = 7 days from the first workout of the series
     const maxPerWeek = req.user.profile?.workoutsPerWeek || 4;
-    const recentWorkouts = await Workout.find({ userId: req.userId })
-      .sort({ date: 1 })
-      .lean();
-
-    if (recentWorkouts.length > 0) {
-      // Walk through workouts to find the current cycle start
-      let cycleStart = new Date(recentWorkouts[0].date);
-      let cycleCount = 0;
-
-      for (const w of recentWorkouts) {
-        const wDate = new Date(w.date);
-        const daysSinceCycleStart = (wDate - cycleStart) / (1000 * 60 * 60 * 24);
-
-        if (daysSinceCycleStart >= 7) {
-          // New cycle starts from this workout
-          cycleStart = wDate;
-          cycleCount = 1;
-        } else {
-          cycleCount++;
-        }
-      }
-
-      // Check if current cycle is full and 7 days haven't passed yet
-      const now = new Date();
-      const daysSinceCycleStart = (now - cycleStart) / (1000 * 60 * 60 * 24);
-
-      if (cycleCount >= maxPerWeek && daysSinceCycleStart < 7) {
-        return res.status(400).json({ message: 'weeklyLimitReached' });
-      }
+    const recentWorkouts = await Workout.find({ userId: req.userId }).sort({ date: 1 }).lean();
+    const { limitReached } = calculateCycleStatus(recentWorkouts, maxPerWeek);
+    if (limitReached) {
+      return res.status(400).json({ message: 'weeklyLimitReached' });
     }
 
     // Estimate calories burned: ~5 MET for resistance training
@@ -52,12 +58,64 @@ router.post('/complete', auth, async (req, res) => {
     const duration = durationMinutes || 60;
     const caloriesBurned = calculateExerciseCalories(5, weight, duration);
 
+    // Total volume = sum of weight×reps over completed sets. Computed
+    // server-side so the client can't inflate it.
+    let totalVolume = 0;
+    for (const ex of exercises || []) {
+      for (const s of ex.setLog || []) {
+        if (s.done && s.weight > 0 && s.reps > 0) totalVolume += s.weight * s.reps;
+      }
+    }
+    totalVolume = Math.round(totalVolume);
+
+    // PR detection: compare each exercise's best completed-set weight in this
+    // session against the user's history (recent window is plenty).
+    const prs = [];
+    if ((exercises || []).some(ex => (ex.setLog || []).some(s => s.done && s.weight > 0))) {
+      const history = await Workout.find(
+        { userId: req.userId },
+        { 'exercises.name': 1, 'exercises.setLog': 1 }
+      ).sort({ date: -1 }).limit(200).lean();
+
+      const historicalBest = {};
+      for (const w of history) {
+        for (const ex of w.exercises || []) {
+          for (const s of ex.setLog || []) {
+            if (s.done && s.weight > 0) {
+              if (!historicalBest[ex.name] || s.weight > historicalBest[ex.name]) {
+                historicalBest[ex.name] = s.weight;
+              }
+            }
+          }
+        }
+      }
+      for (const ex of exercises || []) {
+        const sessionBest = Math.max(0, ...(ex.setLog || []).filter(s => s.done && s.weight > 0).map(s => s.weight));
+        if (sessionBest > 0 && sessionBest > (historicalBest[ex.name] || 0)) {
+          prs.push({ name: ex.name, weight: sessionBest });
+        }
+      }
+    }
+
+    // Previous volume for the same day-type — powers the "vs. last time"
+    // comparison on the finish screen.
+    let prevVolume = null;
+    if (dayName) {
+      const prev = await Workout.findOne(
+        { userId: req.userId, dayName, totalVolume: { $gt: 0 } },
+        { totalVolume: 1 }
+      ).sort({ date: -1 }).lean();
+      if (prev) prevVolume = prev.totalVolume;
+    }
+
     const workout = await Workout.create({
       userId: req.userId,
       dayName,
+      location: location || 'gym',
       exercises: exercises || [],
       durationMinutes: duration,
       caloriesBurned,
+      totalVolume,
     });
 
     // Award XP for workout completion
@@ -68,12 +126,65 @@ router.post('/complete', auth, async (req, res) => {
       ...workout.toObject(),
       xp: xpResult,
       streak: streakResult,
+      prs,
+      prevVolume,
     });
   } catch (error) {
     console.error('Workout complete error:', error);
-    res.status(500).json({ message: 'שגיאה בשמירת האימון' });
+    res.status(500).json({ message: 'Error saving workout', messageHe: 'שגיאה בשמירת האימון' });
   }
-});
+  }
+);
+
+// POST /workout/performance — for a list of exercise names, return the most
+// recent logged sets + all-time best weight. The live session uses this to
+// prefill weights/reps ("last time you did 3×10 @ 40kg").
+router.post(
+  '/performance',
+  auth,
+  [
+    body('names').isArray({ min: 1, max: 30 }),
+    body('names.*').isString().trim().isLength({ min: 1, max: 120 }),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: errors.array()[0].msg });
+    }
+    try {
+      const wanted = new Set(req.body.names);
+      const history = await Workout.find(
+        { userId: req.userId },
+        { date: 1, 'exercises.name': 1, 'exercises.setLog': 1, 'exercises.mode': 1 }
+      ).sort({ date: -1 }).limit(100).lean();
+
+      const performances = {};
+      for (const w of history) {
+        for (const ex of w.exercises || []) {
+          if (!wanted.has(ex.name)) continue;
+          const doneSets = (ex.setLog || []).filter(s => s.done);
+          if (doneSets.length === 0) continue;
+          if (!performances[ex.name]) {
+            performances[ex.name] = {
+              date: w.date,
+              sets: doneSets.map(s => ({ reps: s.reps, weight: s.weight, durationSec: s.durationSec })),
+              bestWeight: 0,
+            };
+          }
+          for (const s of doneSets) {
+            if (s.weight > 0 && s.weight > performances[ex.name].bestWeight) {
+              performances[ex.name].bestWeight = s.weight;
+            }
+          }
+        }
+      }
+      res.json({ performances });
+    } catch (error) {
+      console.error('Workout performance error:', error);
+      res.status(500).json({ message: 'Error loading performance', messageHe: 'שגיאה בטעינת ביצועים' });
+    }
+  }
+);
 
 // DELETE /workout/:id
 router.delete('/:id', auth, async (req, res) => {
@@ -103,35 +214,55 @@ router.delete('/:id', auth, async (req, res) => {
 // GET /workout/history
 router.get('/history', auth, async (req, res) => {
   try {
-    const workouts = await Workout.find({ userId: req.userId })
-      .sort({ date: -1 })
-      .limit(30);
+    const [workouts, allDates, userDoc] = await Promise.all([
+      Workout.find({ userId: req.userId }).sort({ date: -1 }).limit(30),
+      Workout.find({ userId: req.userId }, { date: 1 }).sort({ date: -1 }),
+      User.findById(req.userId, 'profile'),
+    ]);
 
-    // Calculate streak
+    const workoutsPerWeek = userDoc?.profile?.workoutsPerWeek || 4;
+
+    // Week-based streak: counts consecutive weeks where the user met their
+    // workoutsPerWeek target. Someone who trains Mon+Wed (2x/week) will
+    // accumulate a streak every week they complete both sessions, instead of
+    // having it reset every Tuesday when they skip a day.
+    // Week boundary = Sunday 00:00 (matches the UI's week grid).
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const dow = today.getDay(); // 0 = Sunday
+    const currentWeekSunday = new Date(today);
+    currentWeekSunday.setDate(today.getDate() - dow);
+
     let streak = 0;
-    let checkDate = new Date(today);
+    for (let w = 0; w < 104; w++) {
+      const wStart = new Date(currentWeekSunday);
+      wStart.setDate(currentWeekSunday.getDate() - w * 7);
+      const wEnd = new Date(wStart);
+      wEnd.setDate(wStart.getDate() + 7);
 
-    for (let i = 0; i < 365; i++) {
-      const dayStart = new Date(checkDate);
-      const dayEnd = new Date(checkDate);
-      dayEnd.setDate(dayEnd.getDate() + 1);
+      const count = allDates.filter(
+        (d) => d.date >= wStart && d.date < wEnd
+      ).length;
 
-      const hasWorkout = workouts.some(
-        (w) => w.date >= dayStart && w.date < dayEnd
-      );
-
-      if (hasWorkout) {
-        streak++;
-      } else if (i > 0) {
-        break;
+      if (w === 0) {
+        // Current (possibly incomplete) week: counts if at least 1 workout
+        // done — don't penalise the user mid-week. If the week hasn't started
+        // yet (count=0), skip without breaking so we still show the historical
+        // streak from previous weeks.
+        if (count > 0) streak++;
+      } else {
+        if (count >= workoutsPerWeek) streak++;
+        else break;
       }
-
-      checkDate.setDate(checkDate.getDate() - 1);
     }
 
-    res.json({ workouts, streak });
+    const todayEnd = new Date(today);
+    todayEnd.setDate(today.getDate() + 1);
+    const todayHasWorkout = allDates.some(
+      (w) => w.date >= today && w.date < todayEnd
+    );
+
+    res.json({ workouts, streak, todayHasWorkout });
   } catch (error) {
     console.error('Workout history error:', error);
     res.status(500).json({ message: 'שגיאה בטעינת היסטוריית אימונים' });

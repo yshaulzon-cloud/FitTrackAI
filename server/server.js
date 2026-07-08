@@ -14,10 +14,38 @@ const adminRoutes = require('./routes/admin');
 const progressionRoutes = require('./routes/progression');
 const sleepRoutes = require('./routes/sleep');
 
+const rateLimit = require('express-rate-limit');
+
 const app = express();
 
+// Trust Render's reverse proxy so express-rate-limit reads the real client IP
+// from X-Forwarded-For instead of the internal proxy address.
+app.set('trust proxy', 1);
+
+// Global rate limiter — applies to every authenticated API call.
+// Auth-specific routes have their own stricter limiters in routes/auth.js.
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests', messageHe: 'יותר מדי בקשות, נסה שוב עוד דקה' },
+});
+app.use(globalLimiter);
+
 // Security middleware
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", 'https://accounts.google.com', 'https://apis.google.com'],
+      frameSrc: ["'self'", 'https://accounts.google.com'],
+      connectSrc: ["'self'", 'https://accounts.google.com', 'https://oauth2.googleapis.com', 'https://www.googleapis.com'],
+      imgSrc: ["'self'", 'data:', 'https://lh3.googleusercontent.com'],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+    },
+  },
+}));
 
 // CORS — in production we whitelist explicit origins. Locally (no
 // CORS_ORIGIN env) we fall back to "allow any" for convenient dev.
@@ -89,7 +117,7 @@ if (fs.existsSync(path.join(clientDist, 'index.html'))) {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ message: 'שגיאת שרת פנימית' });
+  res.status(500).json({ message: 'Internal server error', messageHe: 'שגיאת שרת פנימית' });
 });
 
 // Connect to MongoDB and start server

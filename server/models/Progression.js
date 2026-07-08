@@ -59,6 +59,11 @@ const progressionSchema = new mongoose.Schema(
     // Sleep tracking stats
     sleepStreak: { type: Number, default: 0 },
     totalSleepLogs: { type: Number, default: 0 },
+
+    // Calorie-goal streak (consecutive days the calorie target was hit —
+    // separate from currentStreak, which is general app-activity days)
+    calorieStreak: { type: Number, default: 0 },
+    lastCalorieGoalDate: { type: Date, default: null },
   },
   { timestamps: true }
 );

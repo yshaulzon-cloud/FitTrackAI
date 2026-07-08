@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo, useRef } from 'react';
+
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -10,23 +12,65 @@ import BMICard from '../components/BMICard';
 import AdminPanel from '../components/AdminPanel';
 import ProgressionPanel from '../components/ProgressionPanel';
 import XPToast from '../components/XPToast';
+import StreakToast from '../components/StreakToast';
 import SleepTracker from '../components/SleepTracker';
 import {
   applyWorkoutReminder,
   applyMealReminder,
   applyStreakReminder,
   applyWeeklyReport,
+  getNotificationPermissionStatus,
 } from '../lib/notifications';
+
+// The daily activity streak lives on the server (`currentStreak`) and only
+// advances when the user actually *does* something — logs a meal, completes
+// a workout, or logs sleep — on a new calendar day (see updateStreak in
+// server/utils/progression.js). Merely opening the app no longer counts.
+//
+// These helpers only cache the last server value in localStorage so the
+// topbar flame can render instantly on load without waiting for the network
+// round-trip; the server remains the source of truth.
+const STREAK_CACHE_KEY = 'areto_streak_cache';
+
+function readCachedStreak() {
+  try {
+    const c = JSON.parse(localStorage.getItem(STREAK_CACHE_KEY) || 'null');
+    if (!c || typeof c.count !== 'number') return 0;
+    // Show the cached streak only if it was recorded today or yesterday —
+    // any older and the streak has almost certainly lapsed, so don't flash a
+    // stale number before the server reconciles it.
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const cachedDay = new Date(c.date); cachedDay.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((today - cachedDay) / 86400000);
+    return diffDays <= 1 ? c.count : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeCachedStreak(count) {
+  try {
+    localStorage.setItem(STREAK_CACHE_KEY, JSON.stringify({ count, date: new Date().toISOString() }));
+  } catch { /* storage unavailable */ }
+}
 
 export default function Dashboard() {
   const { user, logout, api } = useAuth();
   const { t, lang } = useLang();
+  const isHe = lang === 'he';
+  const { setLanguage } = useLang();
   const [activeTab, setActiveTab] = useState('overview');
   const [profileData, setProfileData] = useState(null);
   const [todayNutrition, setTodayNutrition] = useState(null);
   const [workoutHistory, setWorkoutHistory] = useState(null);
+  const [progressionData, setProgressionData] = useState(null);
+  const [dailyStreak, setDailyStreak] = useState(() => readCachedStreak());
   const [loading, setLoading] = useState(true);
   const [xpToast, setXpToast] = useState(null);
+  const [streakToast, setStreakToast] = useState(null);
+  // Tracks the last streak value we've seen so we can detect the exact
+  // moment it advances (and celebrate) without firing on the initial load.
+  const prevStreakRef = useRef(null);
 
   const isAdmin = profileData?.isAdmin || false;
   const tabs = [
@@ -40,15 +84,11 @@ export default function Dashboard() {
     ...(isAdmin ? [{ id: 'admin', label: t.tabAdmin, icon: '🛡️' }] : []),
   ];
 
-  // Mobile bottom nav. 6 tabs — XP was requested back after the initial
-  // 5-tab cut because the screen was unreachable from the phone.
   const mobileTabs = [
-    { id: 'overview', label: t.tabOverview, icon: '🏠' },
-    { id: 'workout', label: t.tabWorkout, icon: '🏋️' },
-    { id: 'nutrition', label: t.tabNutrition, icon: '🍽️' },
-    { id: 'xp', label: t.tabProgression, icon: '⚔️' },
-    { id: 'progress', label: t.tabProgress, icon: '📈' },
-    { id: 'settings', label: t.tabSettings, icon: '⚙️' },
+    { id: 'overview',  label: isHe ? 'היום'   : 'Today'   },
+    { id: 'workout',   label: isHe ? 'אימון'  : 'Train'   },
+    { id: 'nutrition', label: isHe ? 'תזונה' : 'Eat'     },
+    { id: 'progress',  label: isHe ? 'מסע'   : 'Journey' },
   ];
 
   const goalLabels = {
@@ -63,19 +103,37 @@ export default function Dashboard() {
 
   async function loadData() {
     try {
-      const [profile, nutrition, workouts] = await Promise.all([
+      const [profile, nutrition, workouts, progression] = await Promise.all([
         api('/user/profile'),
         api('/nutrition/today'),
         api('/workout/history'),
+        api('/progression/status').catch(() => null),
       ]);
       setProfileData(profile);
       setTodayNutrition(nutrition);
       setWorkoutHistory(workouts);
+      setProgressionData(progression);
+      reconcileStreak(progression?.currentStreak);
     } catch (err) {
       console.error('Error loading data:', err);
     } finally {
       setLoading(false);
     }
+  }
+
+  // Sync the topbar flame with the server streak. When the streak grows
+  // (i.e. the user just did the first activity of a new day and kept the
+  // run alive), surface a short celebratory toast. The very first sync
+  // after opening the app only seeds the baseline — it never celebrates.
+  function reconcileStreak(serverStreak) {
+    if (typeof serverStreak !== 'number') return;
+    const prev = prevStreakRef.current;
+    setDailyStreak(serverStreak);
+    writeCachedStreak(serverStreak);
+    if (prev !== null && serverStreak > prev) {
+      setStreakToast(serverStreak);
+    }
+    prevStreakRef.current = serverStreak;
   }
 
   function showXP(xpEvents) {
@@ -101,6 +159,7 @@ export default function Dashboard() {
   return (
     <div className="app-layout">
       {xpToast && <XPToast xpEvents={xpToast} onDone={() => setXpToast(null)} />}
+      {streakToast && <StreakToast streak={streakToast} onDone={() => setStreakToast(null)} />}
       <aside className="sidebar">
         <div className="sidebar-logo">
           <h2>{t.appName}</h2>
@@ -145,6 +204,7 @@ export default function Dashboard() {
             api={api}
             showXP={showXP}
             setActiveTab={setActiveTab}
+            progressionData={progressionData}
           />
         )}
 
@@ -159,7 +219,7 @@ export default function Dashboard() {
           />
         )}
 
-        {activeTab === 'nutrition' && (
+        <div style={{ display: activeTab === 'nutrition' ? 'block' : 'none' }}>
           <NutritionTracker
             targets={nutrition}
             todayData={todayNutrition}
@@ -167,7 +227,7 @@ export default function Dashboard() {
             onUpdate={loadData}
             showXP={showXP}
           />
-        )}
+        </div>
 
         {activeTab === 'goals' && (
           <BMICard
@@ -185,19 +245,25 @@ export default function Dashboard() {
 
         {activeTab === 'progress' && (
           <>
-            {/* Mobile-only: surface the journey-to-goal hero card from Goals
-                so phone users see weight progress alongside the other charts
-                without having to switch tabs. Hidden on desktop via CSS. */}
-            <div className="mobile-only">
-              <BMICard
-                bmiAnalysis={profileData?.bmiAnalysis}
-                profile={profileData?.profile}
-                calorieTarget={nutrition?.calorieTarget}
-                api={api}
-                onUpdate={loadData}
-                heroOnly
-              />
+            {/* Areto 2.0 header */}
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 13, color: '#4aa8ff', fontWeight: 700, letterSpacing: '.5px', marginBottom: 2 }}>
+                {isHe ? 'המסע שלך' : 'Your journey'}
+              </div>
+              <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, color: 'var(--text-1)', margin: 0 }}>
+                {isHe ? 'התקדמות' : 'Progress'}
+              </h1>
             </div>
+            {/* XP / level panel first — most motivating */}
+            <ProgressionPanel api={api} />
+            {/* Weight trajectory + BMI */}
+            <BMICard
+              bmiAnalysis={profileData?.bmiAnalysis}
+              profile={profileData?.profile}
+              calorieTarget={nutrition?.calorieTarget}
+              api={api}
+              onUpdate={loadData}
+            />
             <Progress
               nutrition={nutrition}
               todayNutrition={todayNutrition}
@@ -224,12 +290,38 @@ export default function Dashboard() {
         )}
       </main>
 
-      <nav className="mobile-nav" aria-label={lang === 'he' ? 'ניווט ראשי' : 'Primary navigation'}>
+      {/* Mobile top bar: flame pill (right in RTL) · brand · avatar (left in RTL) */}
+      <header className="mobile-topbar" aria-label={isHe ? 'שורת עליון' : 'Top bar'}>
+        {/* Flame streak pill — first child = rightmost in RTL */}
+        {dailyStreak > 0 ? (
+          <div className="mobile-topbar__streak" aria-label={isHe ? `${dailyStreak} ימים ברצף` : `${dailyStreak}-day streak`}>
+            🔥
+            <span className="mobile-topbar__streak-count">{dailyStreak}</span>
+          </div>
+        ) : (
+          <span className="mobile-topbar__streak mobile-topbar__streak--empty" aria-hidden="true" />
+        )}
+        {/* Brand — center */}
+        <div className="mobile-topbar__brand">
+          <span className="mobile-topbar__brand-text">Areto</span>
+        </div>
+        {/* Avatar → Settings — last child = leftmost in RTL */}
+        <button
+          type="button"
+          className="mobile-topbar__profile"
+          onClick={() => setActiveTab('settings')}
+          aria-label={isHe ? 'הגדרות וחשבון' : 'Settings & account'}
+        >
+          <span className="mobile-topbar__avatar">
+            {(profileData?.name || '?').charAt(0).toUpperCase()}
+          </span>
+        </button>
+      </header>
+
+      <nav className="mobile-nav" aria-label={isHe ? 'ניווט ראשי' : 'Primary navigation'}>
         {mobileTabs.map((tab) => {
-          // Progress tab is also active when on the goals screen — goals
-          // lives within progress now, not in the bottom nav.
           const isActive = tab.id === 'progress'
-            ? ['progress', 'goals'].includes(activeTab)
+            ? ['progress', 'goals', 'xp'].includes(activeTab)
             : activeTab === tab.id;
           return (
             <button
@@ -238,7 +330,9 @@ export default function Dashboard() {
               onClick={() => setActiveTab(tab.id)}
               aria-current={isActive ? 'page' : undefined}
             >
-              <span className="nav-icon" aria-hidden="true">{tab.icon}</span>
+              <span className="nav-icon" aria-hidden="true">
+                <NavTabIcon id={tab.id} active={isActive} />
+              </span>
               <span className="nav-label">{tab.label}</span>
             </button>
           );
@@ -248,13 +342,61 @@ export default function Dashboard() {
   );
 }
 
-function MacroRing({ caloriePct }) {
+// ── Bottom-nav SVG icons ──────────────────────────────────────────────
+function NavTabIcon({ id, active }) {
+  const c = active ? '#2ee6c4' : '#5b6675';
+  const s = { fill: 'none', stroke: c, strokeWidth: 2.1, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  if (id === 'overview') return (
+    <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
+      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <path d="M9 22V12h6v10"/>
+    </svg>
+  );
+  if (id === 'workout') return (
+    // Dumbbell: sleeve-plate-bar-plate-sleeve, sized ~18% larger than the
+    // other nav icons (28px vs 24px) so it reads clearly at a glance while
+    // sharing the same viewBox/stroke style as its siblings.
+    <svg width="28" height="28" viewBox="0 0 24 24" {...s}>
+      <line x1="2" y1="9" x2="2" y2="15"/>
+      <line x1="22" y1="9" x2="22" y2="15"/>
+      <rect x="4" y="7" width="4" height="10" rx="1.5"/>
+      <rect x="16" y="7" width="4" height="10" rx="1.5"/>
+      <line x1="8" y1="12" x2="16" y2="12"/>
+    </svg>
+  );
+  if (id === 'nutrition') return (
+    <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
+      <path d="M3 2v7c0 1.1.9 2 2 2a2 2 0 0 0 2-2V2"/>
+      <path d="M5 2v20"/>
+      <path d="M17 2v20"/>
+      <path d="M17 8c1.66 0 3-1.79 3-4s-1.34-4-3-4"/>
+    </svg>
+  );
+  if (id === 'progress') return (
+    <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
+      <path d="M3 3v16a2 2 0 0 0 2 2h16"/>
+      <path d="m19 9-5 5-4-4-3 3"/>
+    </svg>
+  );
+  return null;
+}
+
+// CSS/SVG flame — emoji-style with round base, side tongues, bright core.
+// Streak tier controls size and glow intensity.
+
+function MacroRing({ caloriePct, calorieTarget, calorieProgress, isHe }) {
   const r = 56;
   const c = 2 * Math.PI * r;
   const dash = (Math.min(caloriePct, 100) / 100) * c;
+  // Audit P03 + P06: on an empty day, "0%" as the hero is psychologically
+  // destructive. We now show *remaining calories* (positive framing) and
+  // drop the purple-end of the gradient — staying inside the mint family
+  // unifies the dashboard's color story (P06).
+  const remaining = Math.max(0, (calorieTarget || 0) - (calorieProgress || 0));
+  const showEmpty = !calorieProgress || calorieProgress < 1;
   return (
     <svg width="140" height="140" viewBox="0 0 140 140">
-      <circle cx="70" cy="70" r={r} stroke="rgba(255,255,255,0.05)" strokeWidth="14" fill="none" />
+      <circle cx="70" cy="70" r={r} stroke="var(--border-subtle)" strokeWidth="14" fill="none" />
       <circle
         cx="70" cy="70" r={r}
         stroke="url(#ringGrad)" strokeWidth="14" fill="none"
@@ -266,15 +408,28 @@ function MacroRing({ caloriePct }) {
       <defs>
         <linearGradient id="ringGrad" x1="0" x2="1" y1="0" y2="1">
           <stop offset="0%" stopColor="#2dd4bf" />
-          <stop offset="100%" stopColor="#8b5cf6" />
+          <stop offset="100%" stopColor="#5eead4" />
         </linearGradient>
       </defs>
-      <text x="70" y="64" textAnchor="middle" fontFamily="Heebo" fontSize="26" fontWeight="800" fill="#f4f6fb">
-        {Math.round(caloriePct)}%
-      </text>
-      <text x="70" y="86" textAnchor="middle" fontFamily="Assistant" fontSize="11" fill="#7e879d">
-        מהיעד היומי
-      </text>
+      {showEmpty ? (
+        <>
+          <text x="70" y="68" textAnchor="middle" fontFamily="Heebo" fontSize="22" fontWeight="800" fill="var(--text-1)">
+            {(calorieTarget || 0).toLocaleString()}
+          </text>
+          <text x="70" y="88" textAnchor="middle" fontFamily="Heebo" fontSize="10" fill="var(--text-3)" letterSpacing="0.04em">
+            {isHe ? 'יעד היום · התחל' : "today's target · go"}
+          </text>
+        </>
+      ) : (
+        <>
+          <text x="70" y="64" textAnchor="middle" fontFamily="Heebo" fontSize="22" fontWeight="800" fill="var(--text-1)">
+            {Math.round(remaining).toLocaleString()}
+          </text>
+          <text x="70" y="86" textAnchor="middle" fontFamily="Heebo" fontSize="10" fill="var(--text-3)">
+            {isHe ? 'קלוריות נותרו' : 'kcal left'}
+          </text>
+        </>
+      )}
     </svg>
   );
 }
@@ -289,10 +444,50 @@ function MacroBar({ label, current, target, unit, color }) {
           {Math.round(current)}/{target}{unit}
         </span>
       </div>
-      <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 99, overflow: 'hidden' }}>
+      <div style={{ height: 6, background: 'var(--border-subtle)', borderRadius: 99, overflow: 'hidden' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 99, transition: 'width 0.4s ease' }} />
       </div>
     </div>
+  );
+}
+
+function HeroMacroBar({ label, current, target, color }) {
+  const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
+        <span style={{ fontSize: 13, color: '#aeb9c7' }}>{label}</span>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, color: 'var(--text-3)' }}>
+          {Math.round(current)}<span style={{ opacity: 0.6 }}>/{target}g</span>
+        </span>
+      </div>
+      <div style={{ height: 7, background: 'var(--border-subtle)', borderRadius: 99, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 99, transition: 'width .8s cubic-bezier(.4,0,.2,1)' }} />
+      </div>
+    </div>
+  );
+}
+
+function QuickActionNew({ emoji, iconBg, title, sub, onClick }) {
+  const { lang } = useLang();
+  const isHe = lang === 'he';
+  return (
+    <button
+      onClick={onClick}
+      type="button"
+      style={{ width: '100%', border: '1px solid var(--border-subtle)', cursor: 'pointer', background: 'var(--surface)', borderRadius: 18, padding: '15px 16px', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'inherit', transition: 'border-color 0.15s' }}
+      onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(46,230,196,.3)'}
+      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+    >
+      <div style={{ width: 44, height: 44, borderRadius: 13, flexShrink: 0, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{emoji}</div>
+      <div style={{ flex: 1, textAlign: 'start' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text-1)' }}>{title}</div>
+        {sub && <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 1 }}>{sub}</div>}
+      </div>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5b6675" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isHe ? 'scaleX(-1)' : 'none', flexShrink: 0 }}>
+        <path d="m9 18 6-6-6-6"/>
+      </svg>
+    </button>
   );
 }
 
@@ -342,9 +537,23 @@ function formatDate(lang) {
   return d.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
-function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userName, api, showXP, setActiveTab }) {
+const BODY_UPDATE_KEY = 'bodyUpdateLastSeen';
+function shouldShowBodyPrompt() {
+  const last = localStorage.getItem(BODY_UPDATE_KEY);
+  if (!last) {
+    localStorage.setItem(BODY_UPDATE_KEY, String(Date.now()));
+    return false;
+  }
+  return (Date.now() - parseInt(last)) >= 7 * 24 * 60 * 60 * 1000;
+}
+function dismissBodyPrompt() {
+  localStorage.setItem(BODY_UPDATE_KEY, String(Date.now()));
+}
+
+function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userName, api, showXP, setActiveTab, progressionData }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
+  const [showBodyPrompt, setShowBodyPrompt] = useState(() => shouldShowBodyPrompt());
 
   const calorieProgress = todayNutrition?.totalCalories || 0;
   const calorieTarget = nutrition?.calorieTarget || 2000;
@@ -354,193 +563,204 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
   const carbsTarget = nutrition?.macros?.carbs || 250;
   const fatProgress = todayNutrition?.totalFat || 0;
   const fatTarget = nutrition?.macros?.fat || 65;
-  const fiberProgress = todayNutrition?.totalFiber || 0;
-  const fiberTarget = nutrition?.macros?.fiberTarget || 30;
-  const streak = workoutHistory?.streak || 0;
 
-  const caloriePct = calorieTarget > 0 ? (calorieProgress / calorieTarget) * 100 : 0;
-  const proteinPct = proteinTarget > 0 ? (proteinProgress / proteinTarget) * 100 : 0;
+  const calorieRemaining = Math.max(0, calorieTarget - calorieProgress);
+  const caloriePct = calorieTarget > 0 ? Math.min(1, calorieProgress / calorieTarget) : 0;
+  const R = 76, C = 2 * Math.PI * R;
+  const ringOffset = (C * (1 - caloriePct)).toFixed(1);
 
-  // Build the week view: 7 days, mark which had workouts
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dow = today.getDay(); // 0 = Sunday
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() - dow);
-
-  const workoutDates = new Set(
-    (workoutHistory?.workouts || []).map(w => {
-      const dt = new Date(w.date);
-      dt.setHours(0, 0, 0, 0);
-      return dt.getTime();
-    })
-  );
-
+  // Week strip
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dow = today.getDay();
+  const weekStart = new Date(today); weekStart.setDate(today.getDate() - dow);
+  const workoutDates = new Set((workoutHistory?.workouts || []).map(w => {
+    const dt = new Date(w.date); dt.setHours(0, 0, 0, 0); return dt.getTime();
+  }));
   const dayLabels = isHe ? ['א','ב','ג','ד','ה','ו','ש'] : ['S','M','T','W','T','F','S'];
   const week = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(weekStart.getDate() + i);
+    const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
     const ts = d.getTime();
-    let status;
-    if (ts > today.getTime()) status = 'future';
-    else if (ts === today.getTime()) status = 'today';
-    else status = workoutDates.has(ts) ? 'full' : 'miss';
-    return { label: dayLabels[i], status };
+    if (ts > today.getTime()) return { label: dayLabels[i], status: 'future' };
+    if (ts === today.getTime()) return { label: dayLabels[i], status: 'today' };
+    return { label: dayLabels[i], status: workoutDates.has(ts) ? 'full' : 'miss' };
   });
 
-  // Decide the "next step" content
-  const proteinRemaining = Math.max(0, proteinTarget - proteinProgress);
-  const calorieRemaining = Math.max(0, calorieTarget - calorieProgress);
+  // Next step
   const hasLoggedToday = (todayNutrition?.meals || []).length > 0;
-
-  let nextEyebrow, nextTitle, nextSub, nextCta, nextAction;
+  const proteinRemaining = Math.max(0, proteinTarget - proteinProgress);
+  let nextTitle, nextSub, nextAction;
   if (!hasLoggedToday) {
-    nextEyebrow = isHe ? 'הצעד הבא' : 'Next step';
-    nextTitle = isHe
-      ? `התחל את היום — ${calorieTarget.toLocaleString()} קלוריות ביעד`
-      : `Start your day — ${calorieTarget.toLocaleString()} kcal target`;
-    nextSub = isHe
-      ? `${proteinTarget}g חלבון · ${carbsTarget}g פחמ' · ${fatTarget}g שומן. הוסף את הארוחה הראשונה.`
-      : `${proteinTarget}g protein · ${carbsTarget}g carbs · ${fatTarget}g fat. Log your first meal.`;
-    nextCta = isHe ? 'הוסף ארוחה' : 'Add meal';
-    nextAction = () => setActiveTab && setActiveTab('nutrition');
+    nextTitle = isHe ? `התחל את היום — ${calorieTarget.toLocaleString()} קלוריות ביעד` : `Start your day — ${calorieTarget.toLocaleString()} kcal target`;
+    nextSub = isHe ? 'רשום את הארוחה הראשונה כדי להתחיל לעקוב.' : 'Log your first meal to start tracking.';
+    nextAction = () => setActiveTab('nutrition');
   } else if (proteinRemaining > 30) {
-    nextEyebrow = isHe ? 'הצעד הבא' : 'Next step';
-    nextTitle = isHe
-      ? `נותרו ${Math.round(proteinRemaining)}g חלבון להיעד`
-      : `${Math.round(proteinRemaining)}g protein left to hit your goal`;
-    nextSub = isHe
-      ? 'שייק חלבון, יוגורט יווני או חזה עוף יסגרו את הפער.'
-      : 'A protein shake, Greek yogurt, or chicken breast will close the gap.';
-    nextCta = isHe ? 'הוסף ארוחה' : 'Add meal';
-    nextAction = () => setActiveTab && setActiveTab('nutrition');
+    nextTitle = isHe ? `נותרו ${Math.round(proteinRemaining)}g חלבון להיעד` : `${Math.round(proteinRemaining)}g protein left`;
+    nextSub = isHe ? 'שייק חלבון, יוגורט יווני או חזה עוף יסגרו את הפער.' : 'A shake, Greek yogurt, or chicken will close the gap.';
+    nextAction = () => setActiveTab('nutrition');
   } else {
-    nextEyebrow = isHe ? 'הצעד הבא' : 'Next step';
-    nextTitle = isHe
-      ? `אימון של היום מחכה לך`
-      : `Today's workout is waiting`;
-    nextSub = isHe
-      ? `${profile?.workoutsPerWeek || 4} אימונים השבוע. אל תפספס.`
-      : `${profile?.workoutsPerWeek || 4} workouts this week. Don't miss it.`;
-    nextCta = isHe ? 'התחל אימון' : 'Start workout';
-    nextAction = () => setActiveTab && setActiveTab('workout');
+    nextTitle = isHe ? `אימון של היום מחכה לך` : `Today's workout is waiting`;
+    nextSub = isHe ? `${profile?.workoutsPerWeek || 4} אימונים השבוע. אל תפספס.` : `${profile?.workoutsPerWeek || 4} workouts this week. Don't miss it.`;
+    nextAction = () => setActiveTab('workout');
   }
 
-  const fullDays = week.filter(d => d.status === 'full').length;
+  const streak = workoutHistory?.streak || 0;
 
   return (
     <>
-      {/* Greeting bar */}
-      <div className="greeting-bar">
-        <div>
-          <h1 className="greeting-bar__title">
-            {getGreeting(lang)}{userName ? `, ${userName}` : ''}
-          </h1>
-          <div className="greeting-bar__meta">
-            <span>{formatDate(lang)}</span>
-            {streak > 0 && (
-              <span className="streak-pill">
-                🔥 {isHe ? `יום ${streak} ברצף` : `Day ${streak} streak`}
-              </span>
-            )}
+      {/* Weekly body-data update prompt */}
+      {showBodyPrompt && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 16px', marginBottom: 16, background: 'rgba(46,230,196,0.08)', border: '1px solid rgba(46,230,196,0.25)', borderRadius: 'var(--r-md)' }}>
+          <div style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.4 }}>
+            📏 {isHe ? 'זה הזמן לעדכן את נתוני הגוף השבועיים שלך.' : 'Time for your weekly body check-in.'}
           </div>
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button type="button" onClick={() => { dismissBodyPrompt(); setShowBodyPrompt(false); setActiveTab('settings'); }} style={{ padding: '7px 14px', borderRadius: 'var(--r-md)', border: 'none', background: 'var(--accent)', color: 'var(--bg-0)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              {isHe ? 'עדכן עכשיו' : 'Update now'}
+            </button>
+            <button type="button" onClick={() => { dismissBodyPrompt(); setShowBodyPrompt(false); }} aria-label={isHe ? 'סגור' : 'Dismiss'} style={{ padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-3)', fontSize: 13, cursor: 'pointer' }}>✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* Greeting + level pill */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, color: 'var(--text-1)', lineHeight: 1.15 }}>
+            {userName ? `${getGreeting(lang)}, ${userName}` : (isHe ? 'ברוך שובך' : 'Welcome back')}
+          </div>
+          <div style={{ fontSize: 14, color: 'var(--text-3)', marginTop: 4 }}>{formatDate(lang)}</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(167,139,250,.14)', border: '1px solid rgba(167,139,250,.3)', borderRadius: 999, padding: '5px 11px', flexShrink: 0 }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 12, color: '#c4b5fd' }}>
+            {isHe ? `רמה ${progressionData?.level ?? 1}` : `LVL ${progressionData?.level ?? 1}`}
+          </span>
         </div>
       </div>
 
-      {/* Hero "Next step" card */}
-      <div className="next-step">
-        <div>
-          <div className="next-step__eyebrow">{nextEyebrow}</div>
-          <div className="next-step__title">{nextTitle}</div>
-          <div className="next-step__sub">{nextSub}</div>
-        </div>
-        <button className="next-step__cta" onClick={nextAction}>
-          {nextCta}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Macro card + Streak calendar */}
-      <div className="dashboard-grid-2">
-        <div className="card" style={{ marginBottom: 0 }}>
-          <div className="card-header">
-            <h3>{isHe ? 'תזונה היום' : 'Nutrition today'}</h3>
-            <span style={{ fontSize: 12, color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums' }}>
-              {Math.round(calorieProgress).toLocaleString()} / {calorieTarget.toLocaleString()} {t.kcal}
-            </span>
-          </div>
-          <div className="macro-card-flex">
-            <MacroRing caloriePct={caloriePct} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <MacroBar label={t.protein} current={proteinProgress} target={proteinTarget} unit="g" color="var(--c-protein)" />
-              <MacroBar label={t.carbs}   current={carbsProgress}   target={carbsTarget}   unit="g" color="var(--c-carbs)" />
-              <MacroBar label={t.fat}     current={fatProgress}     target={fatTarget}     unit="g" color="var(--c-fat)" />
-              <MacroBar label={t.fiber}   current={fiberProgress}   target={fiberTarget}   unit="g" color="var(--c-fiber)" />
+      {/* Hero ring card */}
+      <div style={{ background: 'var(--surface-elev)', border: '1px solid var(--border-subtle)', borderRadius: 26, padding: '24px 22px', position: 'relative', overflow: 'hidden', boxShadow: '0 20px 40px -24px rgba(0,0,0,.7)', marginBottom: 16 }}>
+        <div style={{ position: 'absolute', top: -60, insetInlineEnd: -40, width: 200, height: 200, background: 'radial-gradient(circle,rgba(46,230,196,.14),transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 22, position: 'relative' }}>
+          {/* Calorie ring */}
+          <div style={{ position: 'relative', width: 158, height: 158, flexShrink: 0 }}>
+            <svg width="158" height="158" viewBox="0 0 180 180" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="90" cy="90" r="76" fill="none" stroke="var(--border-subtle)" strokeWidth="15" />
+              <circle cx="90" cy="90" r="76" fill="none" stroke="url(#heroRingGrad)" strokeWidth="15" strokeLinecap="round"
+                strokeDasharray={C.toFixed(1)} strokeDashoffset={ringOffset}
+                style={{ transition: 'stroke-dashoffset .8s cubic-bezier(.4,0,.2,1)' }} />
+              <defs>
+                <linearGradient id="heroRingGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stopColor="#2ee6c4" /><stop offset="1" stopColor="#5cf0d6" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 34, color: 'var(--text-1)', lineHeight: 1 }}>
+                {Math.round(calorieRemaining).toLocaleString()}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
+                {isHe ? 'קלוריות שנותרו' : 'kcal left'}
+              </div>
             </div>
           </div>
-        </div>
-
-        <div className="card" style={{ marginBottom: 0 }}>
-          <div className="card-header">
-            <h3>{isHe ? 'השבוע שלך' : 'Your week'}</h3>
-            {streak > 0 && (
-              <span style={{ fontSize: 12, color: 'var(--warning)', fontWeight: 600 }}>
-                🔥 {isHe ? `${streak} ימים ברצף` : `${streak}-day streak`}
-              </span>
-            )}
+          {/* Macro bars */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 13 }}>
+            <HeroMacroBar label={isHe ? 'חלבון' : 'Protein'} current={proteinProgress} target={proteinTarget} color="#ff5c7c" />
+            <HeroMacroBar label={isHe ? 'פחמימות' : 'Carbs'} current={carbsProgress} target={carbsTarget} color="#4aa8ff" />
+            <HeroMacroBar label={isHe ? 'שומן' : 'Fat'} current={fatProgress} target={fatTarget} color="#ffb020" />
           </div>
-          <div className="streak-week">
-            {week.map((day, i) => (
-              <div key={i} className="streak-day">
-                <div className="streak-day__label">{day.label}</div>
-                <div className={`streak-day__cell streak-day__cell--${day.status}`}>
-                  {day.status === 'full' ? '✓' : day.status === 'today' ? '•' : ''}
+        </div>
+        {/* CTA row */}
+        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+          <button onClick={() => setActiveTab('nutrition')} style={{ flex: 1, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#2ee6c4,#16c5a7)', color: '#04231e', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, padding: 13, borderRadius: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: '0 8px 22px -8px rgba(46,230,196,.7)' }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#04231e" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            {isHe ? 'הוסף ארוחה' : 'Add meal'}
+          </button>
+          <button onClick={() => setActiveTab('workout')} style={{ border: '1px solid var(--border)', cursor: 'pointer', background: 'var(--surface-elev)', color: 'var(--text-1)', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, padding: '13px 18px', borderRadius: 15 }}>
+            {isHe ? 'אימון' : 'Train'}
+          </button>
+        </div>
+      </div>
+
+      {/* Next Step card */}
+      <div style={{ marginBottom: 16, background: 'linear-gradient(120deg,rgba(167,139,250,.13),rgba(46,230,196,.07))', border: '1px solid rgba(167,139,250,.22)', borderRadius: 22, padding: 18, cursor: 'pointer' }} onClick={nextAction} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && nextAction()}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 11, background: 'rgba(167,139,250,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>
+          </div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#c4b5fd', letterSpacing: .3 }}>
+            {isHe ? 'הצעד הבא שלך' : 'Your next step'}
+          </div>
+        </div>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, color: 'var(--text-1)', lineHeight: 1.3, marginBottom: 4 }}>{nextTitle}</div>
+        <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.5 }}>{nextSub}</div>
+      </div>
+
+      {/* Week strip */}
+      <div style={{ marginBottom: 16, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 22, padding: '18px 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text-1)' }}>
+            {isHe ? 'השבוע שלך' : 'Your week'}
+          </div>
+          {streak > 0 && (
+            <div style={{ fontSize: 13, color: '#ffb43a', fontWeight: 600 }}>
+              🔥 {isHe ? `רצף של ${streak} ימים` : `${streak}-day streak`}
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+          {week.map((day, i) => {
+            let bg, border, icon;
+            if (day.status === 'full') {
+              bg = 'linear-gradient(135deg,rgba(255,150,40,.22),rgba(255,90,30,.12))';
+              border = '1px solid rgba(255,150,40,.3)'; icon = '🔥';
+            } else if (day.status === 'today') {
+              bg = 'rgba(46,230,196,.14)'; border = '1.5px dashed #2ee6c4'; icon = '●';
+            } else if (day.status === 'miss') {
+              bg = 'rgba(255,92,124,.07)'; border = '1px solid rgba(255,92,124,.18)'; icon = '';
+            } else {
+              bg = 'var(--surface-elev)'; border = '1px solid var(--border-subtle)'; icon = '';
+            }
+            return (
+              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
+                <div style={{ fontSize: 12, color: '#6b7686', fontWeight: 600 }}>{day.label}</div>
+                <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: bg, border }}>
+                  <span style={{ fontSize: day.status === 'today' ? 11 : 14 }}>{icon}</span>
                 </div>
               </div>
-            ))}
-          </div>
-          <div className="streak-footer">
-            {fullDays >= 7 ? (
-              isHe ? <>שבוע מושלם! <strong>+250 XP</strong> לדרך.</> : <>Perfect week! <strong>+250 XP</strong> earned.</>
-            ) : (
-              isHe ? (
-                <>עוד <strong>{Math.max(0, (profile?.workoutsPerWeek || 4) - fullDays)} אימונים</strong> כדי להגיע ליעד השבועי.</>
-              ) : (
-                <>Need <strong>{Math.max(0, (profile?.workoutsPerWeek || 4) - fullDays)} more workouts</strong> to hit this week's goal.</>
-              )
-            )}
-          </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Quick actions */}
-      <div className="quick-actions">
-        <QuickAction
-          icon="🍽"
-          label={isHe ? 'הוסף ארוחה' : 'Log meal'}
-          sub={isHe ? 'בחר מהתפריט שלך' : 'From your menu'}
-          color="#2dd4bf"
-          onClick={() => setActiveTab && setActiveTab('nutrition')}
+      {/* Quick actions list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <QuickActionNew
+          emoji="🍽️"
+          iconBg="rgba(46,230,196,.14)"
+          title={isHe ? 'רשום ארוחה' : 'Log meal'}
+          sub={calorieProgress > 0
+            ? (isHe ? `${Math.round(calorieRemaining)} קלוריות נותרו להיום` : `${Math.round(calorieRemaining)} kcal left today`)
+            : (isHe ? 'התחל לעקוב אחרי היום' : 'Start tracking today')}
+          onClick={() => setActiveTab('nutrition')}
         />
-        <QuickAction
-          icon="🏋"
-          label={isHe ? 'התחל אימון' : 'Start workout'}
-          sub={`${profile?.workoutsPerWeek || 4} ${isHe ? 'אימונים השבוע' : 'workouts/week'}`}
-          color="#f59e0b"
-          onClick={() => setActiveTab && setActiveTab('workout')}
+        <QuickActionNew
+          emoji="🏋️"
+          iconBg="rgba(167,139,250,.16)"
+          title={isHe ? 'התחל אימון' : 'Start workout'}
+          sub={isHe ? `${profile?.workoutsPerWeek || 4} אימונים בשבוע` : `${profile?.workoutsPerWeek || 4}x per week`}
+          onClick={() => setActiveTab('workout')}
         />
-        <QuickAction
-          icon="📈"
-          label={isHe ? 'התקדמות' : 'Progress'}
-          sub={isHe ? 'גרפים ושינויים' : 'Charts & changes'}
-          color="#8b5cf6"
-          onClick={() => setActiveTab && setActiveTab('progress')}
+        <QuickActionNew
+          emoji="📈"
+          iconBg="rgba(74,168,255,.14)"
+          title={isHe ? 'ההתקדמות שלי' : 'My progress'}
+          sub={isHe ? 'משקל, כוח ורצף' : 'Weight, strength & streak'}
+          onClick={() => setActiveTab('progress')}
         />
       </div>
 
-      {/* Sleep tracker — keep below for now (existing component) */}
+      {/* Sleep tracker */}
       <div style={{ marginTop: 16 }}>
         <SleepTracker api={api} showXP={showXP} />
       </div>
@@ -581,10 +801,25 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
   const [notifMeal,    setNotifMealState]    = useState(() => loadNotifPref('meal',    true));
   const [notifStreak,  setNotifStreakState]  = useState(() => loadNotifPref('streak',  true));
   const [notifWeekly,  setNotifWeeklyState]  = useState(() => loadNotifPref('weekly',  false));
-  const persist = (key, setter, applyFn) => (val) => {
+  // Shown under the Notifications section when the OS permission is denied,
+  // so the user knows *why* toggles aren't producing real notifications
+  // instead of the toggle silently doing nothing.
+  const [notifPermDenied, setNotifPermDenied] = useState(false);
+
+  const persist = (key, setter, applyFn) => async (val) => {
     localStorage.setItem(`notif:${key}`, val ? '1' : '0');
     setter(val);
-    if (applyFn) applyFn(val, lang === 'he').catch(() => {});
+    if (!applyFn) return;
+    const ok = await applyFn(val, lang === 'he').catch(() => false);
+    if (val && ok === false) {
+      // Permission denied — revert the toggle and surface a clear message
+      // instead of leaving it "on" while nothing actually fires.
+      setter(false);
+      localStorage.setItem(`notif:${key}`, '0');
+      setNotifPermDenied(true);
+    } else if (ok !== false) {
+      setNotifPermDenied(false);
+    }
   };
   const setNotifWorkout = persist('workout', setNotifWorkoutState, applyWorkoutReminder);
   const setNotifMeal    = persist('meal',    setNotifMealState,    applyMealReminder);
@@ -595,16 +830,27 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
   // Runs once on mount; on web, the helpers are no-ops.
   useEffect(() => {
     const isHe = lang === 'he';
-    applyWorkoutReminder(notifWorkout, isHe).catch(() => {});
-    applyMealReminder(notifMeal, isHe).catch(() => {});
-    applyStreakReminder(notifStreak, isHe).catch(() => {});
-    applyWeeklyReport(notifWeekly, isHe).catch(() => {});
+    (async () => {
+      const status = await getNotificationPermissionStatus();
+      if (status === 'denied') {
+        setNotifPermDenied(true);
+        return;
+      }
+      const results = await Promise.all([
+        applyWorkoutReminder(notifWorkout, isHe).catch(() => null),
+        applyMealReminder(notifMeal, isHe).catch(() => null),
+        applyStreakReminder(notifStreak, isHe).catch(() => null),
+        applyWeeklyReport(notifWeekly, isHe).catch(() => null),
+      ]);
+      if (results.some((r) => r === false)) setNotifPermDenied(true);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const autoSaveBodyRef = useRef(null);
   const [confirmingReset,  setConfirmingReset]  = useState(false);
   const [resetText, setResetText] = useState('');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -631,12 +877,15 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
     setPwError('');
     setPwMessage('');
     try {
-      // forgot-password is a public endpoint; api() adds an Authorization
-      // header but the server ignores it for unauthenticated routes.
-      const res = await api('/auth/forgot-password', {
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email }),
       });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.message);
+      }
       setPwMessage(t.codeSent || (isHe ? 'קוד נשלח לאימייל שלך' : 'Code sent to your email'));
       setPwStep('code-sent');
     } catch (err) {
@@ -700,7 +949,8 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
       ? 10 * w + 6.25 * h - 5 * a - 161
       : 10 * w + 6.25 * h - 5 * a + 5;
 
-    const activityFactor = 1.2 + 0.1 * (parseInt(workoutsPerWeek) || 0);
+    const n = parseInt(workoutsPerWeek) || 0;
+    const activityFactor = n <= 1 ? 1.2 : n <= 2 ? 1.375 : n <= 4 ? 1.55 : n <= 5 ? 1.725 : 1.9;
     const tdee = bmr * activityFactor;
 
     let target = tdee;
@@ -712,9 +962,11 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
 
   const currentCalories = nutrition?.calorieTarget;
   const calorieDelta = (liveCalories != null && currentCalories) ? liveCalories - currentCalories : 0;
+  const parsedWeight = parseFloat(weight);
+  const parsedHeight = parseFloat(height);
   const hasUnsavedChanges = (
-    parseFloat(weight) !== profile?.weight ||
-    parseFloat(height) !== profile?.height ||
+    (!isNaN(parsedWeight) && parsedWeight !== profile?.weight) ||
+    (!isNaN(parsedHeight) && parsedHeight !== profile?.height) ||
     goal !== profile?.goal ||
     gender !== profile?.gender ||
     parseInt(workoutsPerWeek) !== profile?.workoutsPerWeek
@@ -730,14 +982,14 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
   useEffect(() => {
     if (!hasUnsavedChanges) return;
     setAutoSaveStatus('pending');
-    const timer = setTimeout(async () => {
+    autoSaveBodyRef.current = setTimeout(async () => {
       try {
         setAutoSaveStatus('saving');
         await api('/user/profile', {
           method: 'PUT',
           body: JSON.stringify({
-            weight: parseFloat(weight),
-            height: parseFloat(height),
+            weight: isNaN(parsedWeight) ? profile?.weight : parsedWeight,
+            height: isNaN(parsedHeight) ? profile?.height : parsedHeight,
             goal,
             gender,
             workoutsPerWeek: parseInt(workoutsPerWeek),
@@ -751,7 +1003,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
         setTimeout(() => setAutoSaveStatus('idle'), 3000);
       }
     }, 800);
-    return () => clearTimeout(timer);
+    return () => clearTimeout(autoSaveBodyRef.current);
   }, [weight, height, goal, gender, workoutsPerWeek, hasUnsavedChanges]); // eslint-disable-line
 
   // Same pattern for the Account section (name + age).
@@ -784,14 +1036,15 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
 
   async function handleSave(e) {
     if (e) e.preventDefault();
+    if (autoSaveBodyRef.current) clearTimeout(autoSaveBodyRef.current);
     setLoading(true);
     setMessage('');
     try {
       await api('/user/profile', {
         method: 'PUT',
         body: JSON.stringify({
-          weight: parseFloat(weight),
-          height: parseFloat(height),
+          weight: isNaN(parsedWeight) ? profile?.weight : parsedWeight,
+          height: isNaN(parsedHeight) ? profile?.height : parsedHeight,
           goal,
           gender,
           workoutsPerWeek: parseInt(workoutsPerWeek),
@@ -864,12 +1117,12 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
 
   // ─── Section nav config ──────────────────────────────────
   const sections = [
-    { id: 'body',    icon: '🧍', label: isHe ? 'נתוני גוף' : 'Body data' },
-    { id: 'goal',    icon: '🎯', label: isHe ? 'מטרה'      : 'Goal' },
-    { id: 'notif',   icon: '🔔', label: isHe ? 'התראות'   : 'Notifications' },
-    { id: 'display', icon: '🎨', label: isHe ? 'תצוגה'    : 'Display' },
-    { id: 'account', icon: '👤', label: isHe ? 'חשבון'    : 'Account' },
-    { id: 'privacy', icon: '🔒', label: isHe ? 'פרטיות'   : 'Privacy' },
+    { id: 'body',    icon: '',   label: isHe ? 'נתוני גוף' : 'Body data' },
+    { id: 'goal',    icon: '',   label: isHe ? 'מטרה'      : 'Goal' },
+    { id: 'notif',   icon: '',   label: isHe ? 'התראות'   : 'Notifications' },
+    { id: 'display', icon: '',   label: isHe ? 'תצוגה'    : 'Display' },
+    { id: 'account', icon: '',   label: isHe ? 'חשבון'    : 'Account' },
+    { id: 'privacy', icon: '',   label: isHe ? 'פרטיות'   : 'Privacy' },
   ];
 
   // Reusable inline styles for choice cards in this redesign
@@ -945,7 +1198,6 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
     <>
       <div className="page-header">
         <h1>{t.settings}</h1>
-        <p>{t.settingsSubtitle}</p>
       </div>
 
       <div className={`settings-layout${showingDetail ? ' settings-layout--in-detail' : ''}`}>
@@ -958,7 +1210,6 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
               className={`settings-nav__item${section === s.id ? ' settings-nav__item--active' : ''}`}
               onClick={() => openSection(s.id)}
             >
-              <span className="settings-nav__icon">{s.icon}</span>
               <span>{s.label}</span>
               <span className="settings-nav__chevron" aria-hidden="true">{isHe ? '‹' : '›'}</span>
             </button>
@@ -1036,8 +1287,8 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
               </div>
 
               <label className="field-label">{t.workoutsPerWeek}</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6, marginBottom: 4 }}>
-                {[1, 2, 3, 4, 5, 6].map(n => (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, marginBottom: 4 }}>
+                {[1, 2, 3, 4, 5, 6, 7].map(n => (
                   <div key={n} onClick={() => setWorkoutsPerWeek(n)} style={{
                     ...optionStyle(workoutsPerWeek == n),
                     padding: 10,
@@ -1069,7 +1320,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  disabled={loading || !hasUnsavedChanges}
+                  disabled={loading}
                   onClick={handleSave}
                   style={{ flex: 1 }}
                 >
@@ -1133,7 +1384,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
               <button
                 type="button"
                 className="btn btn-primary"
-                disabled={loading || !hasUnsavedChanges}
+                disabled={loading}
                 onClick={handleSave}
                 style={{ marginTop: 16, width: '100%' }}
               >
@@ -1156,6 +1407,22 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
                   {isHe ? 'איזה תזכורות תקבל. ההגדרות נשמרות מקומית.' : 'Which reminders to receive. Saved locally.'}
                 </div>
               </div>
+              {notifPermDenied && (
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: 'var(--r-md)',
+                  padding: '12px 14px',
+                  marginBottom: 14,
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                  color: 'var(--text-2)',
+                }}>
+                  {isHe
+                    ? 'ההתראות חסומות במכשיר. כדי לקבל תזכורות, פתח הגדרות הטלפון ← אפליקציות ← Areto ← התראות, ואפשר אותן.'
+                    : 'Notifications are blocked on this device. To get reminders, open Phone Settings → Apps → Areto → Notifications, and allow them.'}
+                </div>
+              )}
               <ToggleRow
                 label={isHe ? 'תזכורת אימון' : 'Workout reminder'}
                 sub={isHe ? 'התראה יומית בשעה שתבחר' : 'Daily nudge at your chosen time'}
@@ -1208,10 +1475,10 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
               <label className="field-label">{isHe ? 'ערכת צבעים' : 'Theme'}</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div onClick={() => setTheme('dark')} style={optionStyle(theme === 'dark')}>
-                  🌙 {isHe ? 'כהה' : 'Dark'}
+                  {isHe ? 'כהה' : 'Dark'}
                 </div>
                 <div onClick={() => setTheme('light')} style={optionStyle(theme === 'light')}>
-                  ☀️ {isHe ? 'בהיר' : 'Light'}
+                  {isHe ? 'בהיר' : 'Light'}
                 </div>
               </div>
             </div>
@@ -1252,7 +1519,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
               <button
                 type="button"
                 className="btn btn-primary"
-                disabled={loading || !accountDirty}
+                disabled={loading}
                 onClick={handleSaveAccount}
                 style={{ width: '100%' }}
               >
