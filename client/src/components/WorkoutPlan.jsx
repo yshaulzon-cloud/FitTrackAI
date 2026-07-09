@@ -922,6 +922,36 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         </div>
       )}
 
+      {/* Completed / locked state — previously nothing rendered here at all,
+          which made the workout tab look identical to the old version for
+          anyone who had already trained today. Make the state explicit. */}
+      {visibleDays.length > 0 && (alreadyTrainedToday || weeklyLimitReached) && (
+        <div style={{
+          marginTop: 18,
+          padding: '18px 16px',
+          borderRadius: 17,
+          border: '1px solid rgba(46,230,196,0.28)',
+          background: 'rgba(46,230,196,0.07)',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 26, marginBottom: 6 }}>✅</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: 'var(--text-1)' }}>
+            {alreadyTrainedToday
+              ? (isHe ? 'האימון של היום הושלם' : "Today's workout is done")
+              : (isHe ? 'השלמת את כל האימונים של המחזור' : 'All workouts for this cycle are done')}
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 4, lineHeight: 1.5 }}>
+            {alreadyTrainedToday
+              ? (isHe
+                  ? 'מערכת האימון החי — מעקב סטים, משקלים וטיימר מנוחה — תיפתח באימון הבא שלך.'
+                  : 'The live workout — set tracking, weights and rest timer — opens on your next session.')
+              : (isHe
+                  ? `לפי התוכנית שלך (${maxPerWeek} אימונים בשבוע). האימון הבא ייפתח בהמשך המחזור.`
+                  : `Per your plan (${maxPerWeek} workouts/week). The next session unlocks later this cycle.`)}
+          </div>
+        </div>
+      )}
+
       {/* Primary action: start a tracked live session. Secondary: the old
           one-tap quick log for users who don't want set tracking. */}
       {visibleDays.length > 0 && !completingDay && !alreadyTrainedToday && !weeklyLimitReached && (
