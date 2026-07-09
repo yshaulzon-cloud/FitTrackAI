@@ -305,10 +305,12 @@ export default function Login() {
               <label className="field-label" style={{ marginBottom: 0 }}>{t.password}</label>
               <a
                 onClick={() => {
-                  // Pre-fill the reset field with whatever the user already
-                  // typed into the login email (audit P19).
+                  // Account recovery is handled via Google Sign-In (no email
+                  // service to maintain). The email-code flow still exists in
+                  // code and can be re-enabled if SMTP/an email API is ever
+                  // configured — see resetMode 'email'.
                   setResetEmail(email);
-                  setResetMode('email');
+                  setResetMode('google');
                 }}
                 style={{ cursor: 'pointer' }}
               >
@@ -432,14 +434,67 @@ export default function Login() {
                 ✕
               </button>
               <div className="reset-sheet__head-text">
-                <div className="reset-sheet__eyebrow">{t.resetPassword}</div>
+                <div className="reset-sheet__eyebrow">
+                  {resetMode === 'google'
+                    ? (isHe ? 'שחזור חשבון' : 'Account recovery')
+                    : t.resetPassword}
+                </div>
               </div>
               <div style={{ width: 32 }} aria-hidden="true" />
             </div>
-            <ResetStepIndicator current={resetMode === 'code' ? 2 : resetMode === 'done' ? 2 : 1} isHe={isHe} />
+            {resetMode !== 'google' && (
+              <ResetStepIndicator current={resetMode === 'code' ? 2 : resetMode === 'done' ? 2 : 1} isHe={isHe} />
+            )}
 
             {error && <div className="error-message">{error}</div>}
             {message && <div className="success-message">{message}</div>}
+
+            {/* Default recovery path — Google Sign-In. No email needed. */}
+            {resetMode === 'google' && (
+              <>
+                <p className="reset-sheet__body">
+                  {isHe
+                    ? 'הדרך המהירה לחזור לחשבון: התחבר עם Google עם אותו אימייל שנרשמת איתו — וניכנס אותך ישר פנימה, בלי סיסמה.'
+                    : 'The fastest way back in: sign in with Google using the same email you signed up with — you’ll go straight into your account, no password needed.'}
+                </p>
+                <button
+                  type="button"
+                  className="btn-google"
+                  onClick={() => { goBackToLogin(); handleGoogleLogin(); }}
+                  disabled={googleLoading}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                    padding: '12px 16px',
+                    borderRadius: 12,
+                    border: '1px solid var(--border, rgba(255,255,255,0.12))',
+                    background: '#fff',
+                    color: '#1f2937',
+                    fontWeight: 600,
+                    fontSize: 15,
+                    cursor: googleLoading ? 'wait' : 'pointer',
+                    marginTop: 4,
+                    opacity: googleLoading ? 0.7 : 1,
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/>
+                    <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                    <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.6 39.6 16.2 44 24 44z"/>
+                    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.6l6.2 5.2C41.2 35.6 44 30.3 44 24c0-1.3-.1-2.3-.4-3.5z"/>
+                  </svg>
+                  <span>{isHe ? 'התחבר עם Google' : 'Sign in with Google'}</span>
+                </button>
+                <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 14, lineHeight: 1.5, textAlign: 'center' }}>
+                  {isHe
+                    ? 'נרשמת עם אימייל שאינו Google ואינך זוכר את הסיסמה? פנה אלינו ונשחזר לך את החשבון.'
+                    : 'Signed up with a non-Google email and forgot your password? Contact us and we’ll recover your account.'}
+                </p>
+              </>
+            )}
 
             {resetMode === 'email' && (
               <>

@@ -385,11 +385,7 @@ router.post(
       });
     } catch (error) {
       console.error('Forgot password error:', error.message);
-      // TEMP DEBUG: surface the transport error when ?debug=areto1 is passed,
-      // because the Render log viewer won't render. Removed right after.
-      const body = { message: 'שגיאה בשליחת הקוד', messageEn: 'Failed to send the code' };
-      if (req.query.debug === 'areto1') body.detail = String(error.message).slice(0, 500);
-      res.status(500).json(body);
+      res.status(500).json({ message: 'שגיאה בשליחת הקוד', messageEn: 'Failed to send the code' });
     }
   }
 );
