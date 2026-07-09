@@ -253,6 +253,12 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
   const [loggingIdx, setLoggingIdx] = useState(null);
   const [history, setHistory] = useState([]);
   const [hydrated, setHydrated] = useState(false);
+  // Which daily-menu rows the user has ticked "eaten" today. Kept per
+  // calendar day so a new day starts fresh. This is what makes the
+  // "סמן שאכלתי" button flip to "done" and stay that way.
+  const todayKey = new Date().toDateString();
+  const [menuLogged, setMenuLogged] = useState({ date: todayKey, idxs: [] });
+  const loggedMenuSet = new Set(menuLogged.date === todayKey ? menuLogged.idxs : []);
 
   // Restore any previously loaded menu once on mount.
   useEffect(() => {
@@ -265,6 +271,10 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
         setMenuMode(saved.menuMode || 'daily');
         setWeeklyMenu(saved.weeklyMenu || null);
         setWeeklyDayIdx(saved.weeklyDayIdx || 0);
+        // Only restore ticked-eaten rows if they belong to today.
+        if (saved.menuLogged && saved.menuLogged.date === todayKey) {
+          setMenuLogged(saved.menuLogged);
+        }
       }
     } catch { /* ignore corrupt storage */ }
     setHydrated(true);
@@ -276,10 +286,10 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
     if (!hydrated) return;
     try {
       localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify({
-        menuOpen, menu, menuCalTarget, menuMode, weeklyMenu, weeklyDayIdx,
+        menuOpen, menu, menuCalTarget, menuMode, weeklyMenu, weeklyDayIdx, menuLogged,
       }));
     } catch { /* storage full / unavailable */ }
-  }, [hydrated, menuOpen, menu, menuCalTarget, menuMode, weeklyMenu, weeklyDayIdx]);
+  }, [hydrated, menuOpen, menu, menuCalTarget, menuMode, weeklyMenu, weeklyDayIdx, menuLogged]);
 
   // Pull last 30 days of nutrition logs once. Today's meals come live
   // from the `todayData` prop so they react to immediate add/delete.
@@ -314,6 +324,8 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       setMenuMode('daily');
       setWeeklyMenu(null);
       setMenuOpen(true);
+      // Fresh menu → nothing eaten from it yet.
+      setMenuLogged({ date: new Date().toDateString(), idxs: [] });
     } catch (err) {
       console.error('Menu fetch error:', err);
     } finally {
@@ -451,6 +463,11 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
         body: JSON.stringify({ description }),
       });
       if (showXP && result?.xp) showXP(result.xp);
+      // Mark this menu row as eaten so its button flips to "done".
+      setMenuLogged(prev => {
+        const base = prev.date === todayKey ? prev.idxs : [];
+        return { date: todayKey, idxs: base.includes(idx) ? base : [...base, idx] };
+      });
       setMessage(`${t.added} ${result.meal.description}`);
       setTimeout(() => setMessage(''), 3000);
       onUpdate();
@@ -556,12 +573,19 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
   const menuMeals = menu?.meals || [];
   const weeklyDayMeals = weeklyMenu?.[weeklyDayIdx]?.meals || [];
 
-  // For the "now" status: the first not-yet-completed planned meal
-  // We'll mark the first menu item as 'now' if user has logged 0 meals today,
-  // otherwise the (loggedCount + 1)th menu item is 'now'.
+  // "now" = the first menu row the user hasn't yet ticked as eaten.
+  // Rows in loggedMenuSet are 'done'; the earliest remaining one is 'now';
+  // the rest are 'upcoming'. Driven by explicit taps (loggedMenuSet) rather
+  // than a raw logged-meal count, so marking a meal actually sticks.
   let nowIdx = -1;
   if (menuMeals.length > 0) {
-    nowIdx = Math.min(loggedMeals.length, menuMeals.length - 1);
+    for (let i = 0; i < menuMeals.length; i++) {
+      if (!loggedMenuSet.has(i)) { nowIdx = i; break; }
+    }
+  }
+  function menuMealStatus(idx) {
+    if (loggedMenuSet.has(idx)) return 'done';
+    return idx === nowIdx ? 'now' : 'upcoming';
   }
 
   const isMealUndo = message === '__MEAL_DELETED__';
@@ -756,7 +780,7 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       {menuOpen && menuMode === 'daily' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
           {menuMeals.map((meal, idx) => {
-            const status = idx === nowIdx ? 'now' : 'upcoming';
+            const status = menuMealStatus(idx);
             const time = MEAL_TYPE_TIMES[meal.type] || '—';
             const emoji = MEAL_TYPE_EMOJI[meal.type] || '🍽';
             const typeLabel = isHe

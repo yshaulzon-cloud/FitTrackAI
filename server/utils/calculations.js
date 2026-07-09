@@ -1163,7 +1163,10 @@ function estimateNutrition(description) {
 async function estimateNutritionAI(description) {
   const { GoogleGenerativeAI } = require('@google/generative-ai');
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  // Model is env-configurable so it can be swapped (e.g. if one model's
+  // free-tier quota runs out) without a code change / redeploy.
+  const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const model = genAI.getGenerativeModel({ model: modelName });
 
   const result = await model.generateContent(
     `אתה מומחה תזונה. עבור המאכל הבא, החזר רק JSON עם הערכים התזונתיים ל-100 גרם ושם באנגלית. אל תוסיף שום טקסט מלבד ה-JSON.\n\nמאכל: "${description}"\n\nפורמט:\n{"calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0,"englishName":"English Name"}`
