@@ -61,14 +61,15 @@ function hashResetCode(code) {
 }
 
 // ── Reset-code email delivery ────────────────────────────────────────────
-// Primary transport is Brevo's HTTP API (https, port 443): Render's free tier
-// blocks outbound SMTP, so Gmail/nodemailer connections just time out. The
-// HTTP API isn't affected. Falls back to Gmail SMTP only when BREVO_API_KEY
-// isn't set (e.g. local dev), so nothing breaks there.
+// Primary transport is Resend's HTTP API (https, port 443). Render's free
+// tier can't open an outbound SMTP connection to Gmail (it times out), so
+// nodemailer/SMTP is only a local-dev fallback used when RESEND_API_KEY isn't
+// set. The HTTP API isn't affected by the SMTP block.
 //
 // Required env in production:
-//   BREVO_API_KEY   — from app.brevo.com → SMTP & API → API Keys
-//   EMAIL_FROM      — a Brevo-verified sender address (defaults to EMAIL_USER)
+//   RESEND_API_KEY  — from resend.com → API Keys
+//   EMAIL_FROM      — a sender on your Resend-verified domain,
+//                     e.g. "Areto <no-reply@digtal-c.co.il>"
 const RESET_EMAIL_HTML = (code) => `
   <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
     <h2 style="color: #2dd4bf; text-align: center;">Areto</h2>
@@ -82,30 +83,31 @@ const RESET_EMAIL_HTML = (code) => `
   </div>`;
 
 async function sendResetEmail(to, code) {
-  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+  // EMAIL_FROM may be a bare address or "Name <addr@domain>"; Resend accepts
+  // both. Fall back to a sensible default on the verified domain.
+  const from = process.env.EMAIL_FROM || 'Areto <no-reply@digtal-c.co.il>';
 
-  if (process.env.BREVO_API_KEY) {
+  if (process.env.RESEND_API_KEY) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15000);
     try {
-      const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
+      const resp = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          'api-key': process.env.BREVO_API_KEY,
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
           'Content-Type': 'application/json',
-          accept: 'application/json',
         },
         body: JSON.stringify({
-          sender: { name: 'Areto', email: from },
-          to: [{ email: to }],
+          from,
+          to: [to],
           subject: 'Areto - קוד איפוס סיסמה',
-          htmlContent: RESET_EMAIL_HTML(code),
+          html: RESET_EMAIL_HTML(code),
         }),
         signal: controller.signal,
       });
       if (!resp.ok) {
         const detail = await resp.text().catch(() => '');
-        throw new Error(`Brevo ${resp.status}: ${detail.slice(0, 300)}`);
+        throw new Error(`Resend ${resp.status}: ${detail.slice(0, 300)}`);
       }
       return;
     } finally {
@@ -125,7 +127,7 @@ async function sendResetEmail(to, code) {
     socketTimeout: 15000,
   });
   await transporter.sendMail({
-    from: `"Areto" <${from}>`,
+    from: process.env.EMAIL_USER ? `"Areto" <${process.env.EMAIL_USER}>` : from,
     to,
     subject: 'Areto - קוד איפוס סיסמה',
     html: RESET_EMAIL_HTML(code),
