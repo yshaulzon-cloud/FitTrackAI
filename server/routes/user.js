@@ -1,4 +1,5 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const { body, param, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const User = require('../models/User');
@@ -368,6 +369,54 @@ router.delete(
     } catch (error) {
       console.error('Delete account error:', error);
       res.status(500).json({ message: 'שגיאה במחיקת החשבון' });
+    }
+  }
+);
+
+// POST /user/set-password — set a new password for the authenticated user.
+// This is the "Forgot password?" recovery path: the client first has the
+// user prove identity via Google Sign-In (which issues the JWT that `auth`
+// validates here), then lets them choose a new password. No email needed.
+// Because you must already be authenticated to reach it, it's safe not to
+// require the old password (the Google-recovery user doesn't know it).
+router.post(
+  '/set-password',
+  auth,
+  [
+    body('newPassword')
+      .isLength({ min: 8 }).withMessage('הסיסמה חייבת להכיל לפחות 8 תווים')
+      .matches(/\d/).withMessage('הסיסמה חייבת לכלול לפחות ספרה אחת'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg });
+      }
+
+      const user = await User.findById(req.userId).select('+password');
+      if (!user) {
+        return res.status(404).json({ message: 'משתמש לא נמצא', messageEn: 'User not found' });
+      }
+
+      user.password = req.body.newPassword;
+      await user.save(); // pre-save hook hashes + stamps passwordChangedAt
+
+      // Stamping passwordChangedAt invalidates every existing JWT (including
+      // the one used for this request), so mint a fresh one issued *after*
+      // the change and hand it back — the user stays logged in seamlessly.
+      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+      });
+
+      res.json({
+        token,
+        message: 'הסיסמה נקבעה בהצלחה',
+        messageEn: 'Password set successfully',
+      });
+    } catch (error) {
+      console.error('Set password error:', error);
+      res.status(500).json({ message: 'שגיאה בקביעת הסיסמה', messageEn: 'Failed to set the password' });
     }
   }
 );

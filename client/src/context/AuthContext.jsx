@@ -118,7 +118,12 @@ export function AuthProvider({ children }) {
     });
   }
 
-  async function loginWithGoogle() {
+  // deferCommit=true verifies with Google and returns { token, user } WITHOUT
+  // logging the user into the app (no context/localStorage change). The
+  // password-recovery flow uses this so it can set a new password first and
+  // only then finish logging in — otherwise the router would redirect away
+  // from the recovery screen the instant `user` is set.
+  async function loginWithGoogle({ deferCommit = false } = {}) {
     const credential = isCapacitorNative()
       ? await loginWithGoogleNative()
       : await loginWithGoogleWeb();
@@ -130,10 +135,15 @@ export function AuthProvider({ children }) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(pickMsg(data));
-    localStorage.setItem('token', data.token);
-    setToken(data.token);
-    setUser(data.user);
+    if (!deferCommit) commitAuth(data.token, data.user);
     return data;
+  }
+
+  // Finalize login: persist the token and flip the app into its authed state.
+  function commitAuth(newToken, newUser) {
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+    setUser(newUser);
   }
 
   async function register(email, password) {
@@ -176,7 +186,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, login, loginWithGoogle, register, logout, api, updateUser, fetchProfile }}
+      value={{ user, token, loading, login, loginWithGoogle, commitAuth, register, logout, api, updateUser, fetchProfile }}
     >
       {children}
     </AuthContext.Provider>

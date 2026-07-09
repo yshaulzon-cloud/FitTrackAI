@@ -15,8 +15,17 @@ function ArrowIcon() {
 }
 
 // Minimal "Step N of 2" indicator for the password-reset flow.
-// Two segmented bars (current = teal, future = muted) + a label.
-function ResetStepIndicator({ current, isHe }) {
+// Two segmented bars (current = teal, future = muted) + a label. `variant`
+// swaps the step titles: 'email' for the code-by-email flow, 'google' for
+// the verify-with-Google-then-set-password recovery flow.
+function ResetStepIndicator({ current, isHe, variant = 'email' }) {
+  const title = variant === 'google'
+    ? (current === 1
+        ? (isHe ? 'אמת עם Google' : 'Verify with Google')
+        : (isHe ? 'קבע סיסמה חדשה' : 'Set new password'))
+    : (current === 1
+        ? (isHe ? 'הזן אימייל' : 'Enter email')
+        : (isHe ? 'אמת קוד וסיסמה חדשה' : 'Verify code & new password'));
   return (
     <div className="reset-step-indicator" aria-label={isHe ? `שלב ${current} מתוך 2` : `Step ${current} of 2`}>
       <div className="reset-step-indicator__bars" aria-hidden="true">
@@ -26,11 +35,7 @@ function ResetStepIndicator({ current, isHe }) {
       <span className="reset-step-indicator__label">
         {isHe ? `שלב ${current} מתוך 2` : `Step ${current} of 2`}
         {' · '}
-        <span className="reset-step-indicator__title">
-          {current === 1
-            ? (isHe ? 'הזן אימייל' : 'Enter email')
-            : (isHe ? 'אמת קוד וסיסמה חדשה' : 'Verify code & new password')}
-        </span>
+        <span className="reset-step-indicator__title">{title}</span>
       </span>
     </div>
   );
@@ -80,7 +85,11 @@ export default function Login() {
     try { return await res.json(); } catch { return null; }
   }
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { login, loginWithGoogle } = useAuth();
+  // Holds the { token, user } from a deferred Google sign-in during the
+  // password-recovery flow — the user is verified but not yet logged in, so
+  // they can set a new password before we finish the login.
+  const [recoveryAuth, setRecoveryAuth] = useState(null);
+  const { login, loginWithGoogle, commitAuth } = useAuth();
   const navigate = useNavigate();
   const { t, lang } = useLang();
   const { openPrivacy, openTerms } = useLegal();
@@ -117,6 +126,59 @@ export default function Login() {
       setError(err.message || (isHe ? 'התחברות עם Google נכשלה' : 'Google sign-in failed'));
     } finally {
       setGoogleLoading(false);
+    }
+  }
+
+  // Recovery step 1: verify identity with Google WITHOUT logging in yet
+  // (deferCommit), then move to the "choose a new password" step.
+  async function handleGoogleRecovery() {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const data = await loginWithGoogle({ deferCommit: true });
+      setRecoveryAuth({ token: data.token, user: data.user });
+      setResetMode('setpw');
+    } catch (err) {
+      setError(err.message || (isHe ? 'התחברות עם Google נכשלה' : 'Google sign-in failed'));
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
+
+  // Recovery step 2: set the new password using the verified (but not yet
+  // committed) session, then finish logging the user in.
+  async function handleSetNewPassword(e) {
+    e.preventDefault();
+    if (newPassword.length < 8 || !/\d/.test(newPassword)) {
+      setError(t.passwordMin);
+      return;
+    }
+    if (!recoveryAuth) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_BASE}/user/set-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${recoveryAuth.token}`,
+        },
+        body: JSON.stringify({ newPassword }),
+      });
+      const data = await safeJson(res);
+      if (!res.ok) {
+        throw new Error(pickServerMsg(data, 'שגיאה בקביעת הסיסמה', 'Failed to set the password'));
+      }
+      // Password set — finish login with the fresh token and go in.
+      const finalToken = data.token || recoveryAuth.token;
+      commitAuth(finalToken, recoveryAuth.user);
+      setNewPassword('');
+      setRecoveryAuth(null);
+      navigate(recoveryAuth.user.onboardingComplete ? '/dashboard' : '/onboarding');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -200,6 +262,7 @@ export default function Login() {
     setResetCode('');
     setNewPassword('');
     setShowNewPassword(false);
+    setRecoveryAuth(null);
     setError('');
     setMessage('');
     setResendIn(0);
@@ -435,32 +498,35 @@ export default function Login() {
               </button>
               <div className="reset-sheet__head-text">
                 <div className="reset-sheet__eyebrow">
-                  {resetMode === 'google'
-                    ? (isHe ? 'שחזור חשבון' : 'Account recovery')
+                  {(resetMode === 'google' || resetMode === 'setpw')
+                    ? (isHe ? 'שחזור סיסמה' : 'Password recovery')
                     : t.resetPassword}
                 </div>
               </div>
               <div style={{ width: 32 }} aria-hidden="true" />
             </div>
-            {resetMode !== 'google' && (
+            {resetMode !== 'google' && resetMode !== 'setpw' && (
               <ResetStepIndicator current={resetMode === 'code' ? 2 : resetMode === 'done' ? 2 : 1} isHe={isHe} />
+            )}
+            {(resetMode === 'google' || resetMode === 'setpw') && (
+              <ResetStepIndicator current={resetMode === 'setpw' ? 2 : 1} isHe={isHe} variant="google" />
             )}
 
             {error && <div className="error-message">{error}</div>}
             {message && <div className="success-message">{message}</div>}
 
-            {/* Default recovery path — Google Sign-In. No email needed. */}
+            {/* Recovery step 1 — verify identity with Google (no email). */}
             {resetMode === 'google' && (
               <>
                 <p className="reset-sheet__body">
                   {isHe
-                    ? 'הדרך המהירה לחזור לחשבון: התחבר עם Google עם אותו אימייל שנרשמת איתו — וניכנס אותך ישר פנימה, בלי סיסמה.'
-                    : 'The fastest way back in: sign in with Google using the same email you signed up with — you’ll go straight into your account, no password needed.'}
+                    ? 'כדי לאפס סיסמה בבטחה נאמת שזה אתה דרך Google (עם אותו אימייל שנרשמת איתו) — ואז תבחר סיסמה חדשה.'
+                    : 'To reset your password securely we’ll verify it’s you via Google (the same email you signed up with) — then you’ll choose a new password.'}
                 </p>
                 <button
                   type="button"
                   className="btn-google"
-                  onClick={() => { goBackToLogin(); handleGoogleLogin(); }}
+                  onClick={handleGoogleRecovery}
                   disabled={googleLoading}
                   style={{
                     width: '100%',
@@ -486,13 +552,57 @@ export default function Login() {
                     <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.6 39.6 16.2 44 24 44z"/>
                     <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.6l6.2 5.2C41.2 35.6 44 30.3 44 24c0-1.3-.1-2.3-.4-3.5z"/>
                   </svg>
-                  <span>{isHe ? 'התחבר עם Google' : 'Sign in with Google'}</span>
+                  <span>{googleLoading ? (isHe ? 'מאמת…' : 'Verifying…') : (isHe ? 'אמת עם Google' : 'Verify with Google')}</span>
                 </button>
                 <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 14, lineHeight: 1.5, textAlign: 'center' }}>
                   {isHe
-                    ? 'נרשמת עם אימייל שאינו Google ואינך זוכר את הסיסמה? פנה אלינו ונשחזר לך את החשבון.'
-                    : 'Signed up with a non-Google email and forgot your password? Contact us and we’ll recover your account.'}
+                    ? 'נרשמת עם אימייל שאינו Google? פנה אלינו ונשחזר לך את החשבון.'
+                    : 'Signed up with a non-Google email? Contact us and we’ll recover your account.'}
                 </p>
+              </>
+            )}
+
+            {/* Recovery step 2 — set a new password (identity already verified). */}
+            {resetMode === 'setpw' && (
+              <>
+                <p className="reset-sheet__body">
+                  {isHe
+                    ? 'זהותך אומתה ✓ עכשיו בחר סיסמה חדשה לחשבון.'
+                    : 'Identity verified ✓ Now choose a new password for your account.'}
+                </p>
+                <form onSubmit={handleSetNewPassword}>
+                  <label className="field-label">{t.newPassword}</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      className="field-input"
+                      placeholder={t.passwordPlaceholder}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      dir="ltr"
+                      autoComplete="new-password"
+                      autoFocus
+                      style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left', paddingInlineEnd: 52 }}
+                    />
+                    <span
+                      onClick={() => setShowNewPassword(v => !v)}
+                      style={{
+                        position: 'absolute', insetInlineEnd: 14, top: '50%',
+                        transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-3)',
+                        cursor: 'pointer', fontWeight: 500, userSelect: 'none',
+                      }}
+                    >
+                      {showNewPassword ? (isHe ? 'הסתר' : 'hide') : (isHe ? 'הצג' : 'show')}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 6 }}>
+                    {isHe ? 'לפחות 8 תווים, כולל ספרה אחת' : 'At least 8 characters, including a digit'}
+                  </div>
+                  <button type="submit" className="btn-primary-cta" disabled={loading || newPassword.length < 8} style={{ marginTop: 16 }}>
+                    <span>{loading ? (isHe ? 'שומר…' : 'Saving…') : (isHe ? 'קבע סיסמה והיכנס' : 'Set password & sign in')}</span>
+                    <ArrowIcon />
+                  </button>
+                </form>
               </>
             )}
 
