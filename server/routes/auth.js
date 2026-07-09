@@ -60,30 +60,76 @@ function hashResetCode(code) {
   return crypto.createHash('sha256').update(String(code)).digest('hex');
 }
 
-// Gmail SMTP transporter. Built once and reused. Cloud hosts (Render free
-// tier included) are flaky with Gmail's default secure port 465 — the
-// connection can hang for a minute before failing. Port 587 + STARTTLS is
-// more reliable there, and the explicit timeouts make a blocked connection
-// fail in ~12s instead of holding the request open. Port is env-overridable
-// (EMAIL_PORT) so it can be switched without a code change.
-const EMAIL_PORT = parseInt(process.env.EMAIL_PORT || '587', 10);
-const mailTransporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: EMAIL_PORT,
-  secure: EMAIL_PORT === 465, // 465 = implicit TLS, 587 = STARTTLS
-  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-  connectionTimeout: 12000,
-  greetingTimeout: 8000,
-  socketTimeout: 15000,
-});
+// ── Reset-code email delivery ────────────────────────────────────────────
+// Primary transport is Brevo's HTTP API (https, port 443): Render's free tier
+// blocks outbound SMTP, so Gmail/nodemailer connections just time out. The
+// HTTP API isn't affected. Falls back to Gmail SMTP only when BREVO_API_KEY
+// isn't set (e.g. local dev), so nothing breaks there.
+//
+// Required env in production:
+//   BREVO_API_KEY   — from app.brevo.com → SMTP & API → API Keys
+//   EMAIL_FROM      — a Brevo-verified sender address (defaults to EMAIL_USER)
+const RESET_EMAIL_HTML = (code) => `
+  <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #2dd4bf; text-align: center;">Areto</h2>
+    <p style="text-align: center; color: #333;">קוד האיפוס שלך:</p>
+    <div style="text-align: center; margin: 20px 0;">
+      <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #00cec9; background: #f0f0f0; padding: 12px 24px; border-radius: 8px;">
+        ${code}
+      </span>
+    </div>
+    <p style="text-align: center; color: #888; font-size: 13px;">הקוד תקף ל-10 דקות</p>
+  </div>`;
 
-// Log SMTP reachability once at boot so the Render logs show, in one line,
-// whether outbound email can work at all — no need to trigger a reset to
-// find out.
-if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-  mailTransporter.verify()
-    .then(() => console.log(`[mail] SMTP ready on ${process.env.EMAIL_HOST || 'smtp.gmail.com'}:${EMAIL_PORT}`))
-    .catch((e) => console.error('[mail] SMTP verify FAILED:', e.message));
+async function sendResetEmail(to, code) {
+  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+
+  if (process.env.BREVO_API_KEY) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    try {
+      const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: 'Areto', email: from },
+          to: [{ email: to }],
+          subject: 'Areto - קוד איפוס סיסמה',
+          htmlContent: RESET_EMAIL_HTML(code),
+        }),
+        signal: controller.signal,
+      });
+      if (!resp.ok) {
+        const detail = await resp.text().catch(() => '');
+        throw new Error(`Brevo ${resp.status}: ${detail.slice(0, 300)}`);
+      }
+      return;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Fallback: direct SMTP (works locally; blocked on Render free tier).
+  const port = parseInt(process.env.EMAIL_PORT || '587', 10);
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port,
+    secure: port === 465,
+    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    connectionTimeout: 12000,
+    greetingTimeout: 8000,
+    socketTimeout: 15000,
+  });
+  await transporter.sendMail({
+    from: `"Areto" <${from}>`,
+    to,
+    subject: 'Areto - קוד איפוס סיסמה',
+    html: RESET_EMAIL_HTML(code),
+  });
 }
 
 // POST /auth/register
@@ -328,31 +374,15 @@ router.post(
       user.resetCodeAttempts = 0;
       await user.save();
 
-      // Send via the shared, timeout-guarded transporter.
-      await mailTransporter.sendMail({
-        from: `"Areto" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: 'Areto - קוד איפוס סיסמה',
-        html: `
-          <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #2dd4bf; text-align: center;">Areto</h2>
-            <p style="text-align: center; color: #333;">קוד האיפוס שלך:</p>
-            <div style="text-align: center; margin: 20px 0;">
-              <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #00cec9; background: #f0f0f0; padding: 12px 24px; border-radius: 8px;">
-                ${code}
-              </span>
-            </div>
-            <p style="text-align: center; color: #888; font-size: 13px;">הקוד תקף ל-10 דקות</p>
-          </div>
-        `,
-      });
+      // Send the code (Brevo HTTP API in prod, SMTP fallback locally).
+      await sendResetEmail(email, code);
 
       res.json({
         message: 'אם האימייל קיים במערכת, נשלח קוד איפוס',
         messageEn: 'If the email exists, a reset code was sent',
       });
     } catch (error) {
-      console.error('Forgot password error:', error);
+      console.error('Forgot password error:', error.message);
       res.status(500).json({ message: 'שגיאה בשליחת הקוד', messageEn: 'Failed to send the code' });
     }
   }
