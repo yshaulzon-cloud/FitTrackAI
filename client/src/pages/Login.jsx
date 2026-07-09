@@ -56,7 +56,29 @@ export default function Login() {
   const [resetEmail, setResetEmail] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [message, setMessage] = useState('');
+  // Resend-code cooldown (seconds). Prevents hammering the rate limiter and
+  // gives the email a fair chance to arrive before a second send.
+  const [resendIn, setResendIn] = useState(0);
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const tm = setTimeout(() => setResendIn(s => s - 1), 1000);
+    return () => clearTimeout(tm);
+  }, [resendIn]);
+
+  // Server messages arrive as { message (he), messageEn } — pick by UI language.
+  function pickServerMsg(data, fallbackHe, fallbackEn) {
+    if (lang === 'he') return data?.message || fallbackHe;
+    return data?.messageEn || data?.message || fallbackEn;
+  }
+
+  // A failing proxy/host can return an HTML error page; res.json() then
+  // throws "Unexpected token <" which we'd show to the user. Parse safely.
+  async function safeJson(res) {
+    try { return await res.json(); } catch { return null; }
+  }
   const [googleLoading, setGoogleLoading] = useState(false);
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
@@ -98,21 +120,26 @@ export default function Login() {
     }
   }
 
+  // `e` is optional so the "resend code" button can reuse this handler.
   async function handleSendCode(e) {
-    e.preventDefault();
-    if (!resetEmail.trim()) return;
+    e?.preventDefault?.();
+    if (!resetEmail.trim() || resendIn > 0) return;
     setLoading(true);
     setError('');
+    setMessage('');
     try {
       const res = await fetch(`${API_BASE}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: resetEmail.trim() }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      const data = await safeJson(res);
+      if (!res.ok) {
+        throw new Error(pickServerMsg(data, 'שגיאה בשליחת הקוד', 'Failed to send the code'));
+      }
       setMessage(t.codeSent);
       setResetMode('code');
+      setResendIn(45);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -123,12 +150,16 @@ export default function Login() {
   async function handleResetPassword(e) {
     e.preventDefault();
     if (!resetCode.trim() || !newPassword.trim()) return;
-    if (newPassword.length < 6) {
+    // Mirror the server rules exactly (8+ chars incl. a digit) — the old
+    // check (6 chars) let passwords through that the server then rejected.
+    if (newPassword.length < 8 || !/\d/.test(newPassword)) {
+      setMessage('');
       setError(t.passwordMin);
       return;
     }
     setLoading(true);
     setError('');
+    setMessage(''); // clear the stale "code sent" note so it can't sit next to an error
     try {
       const res = await fetch(`${API_BASE}/auth/reset-password`, {
         method: 'POST',
@@ -139,10 +170,15 @@ export default function Login() {
           newPassword,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      const data = await safeJson(res);
+      if (!res.ok) {
+        throw new Error(pickServerMsg(data, 'שגיאה באיפוס הסיסמה', 'Password reset failed'));
+      }
       setMessage(t.passwordResetSuccess);
       setResetMode('done');
+      // Hand the user straight back to a login form pre-filled with the
+      // email they just reset — they only have to type the new password.
+      setEmail(resetEmail.trim());
     } catch (err) {
       setError(err.message);
     } finally {
@@ -150,13 +186,23 @@ export default function Login() {
     }
   }
 
+  // Auto-close the sheet shortly after a successful reset (the success state
+  // also has a manual button for anyone who wants to close it sooner).
+  useEffect(() => {
+    if (resetMode !== 'done') return;
+    const tm = setTimeout(goBackToLogin, 2500);
+    return () => clearTimeout(tm);
+  }, [resetMode]); // eslint-disable-line
+
   function goBackToLogin() {
     setResetMode(null);
     setResetEmail('');
     setResetCode('');
     setNewPassword('');
+    setShowNewPassword(false);
     setError('');
     setMessage('');
+    setResendIn(0);
   }
 
   // Audit P19: forgot-password used to be a full route swap that wiped the
@@ -441,19 +487,62 @@ export default function Login() {
                     onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     dir="ltr"
                     autoComplete="one-time-code"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     style={{ textAlign: 'center', fontSize: '24px', letterSpacing: '8px', fontWeight: 700 }}
                   />
+                  <button
+                    type="button"
+                    onClick={() => handleSendCode()}
+                    disabled={loading || resendIn > 0}
+                    style={{
+                      display: 'block',
+                      margin: '8px auto 0',
+                      background: 'none',
+                      border: 'none',
+                      color: resendIn > 0 ? 'var(--text-4)' : 'var(--accent)',
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      cursor: resendIn > 0 ? 'default' : 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    {resendIn > 0
+                      ? (isHe ? `לא הגיע קוד? שליחה חוזרת בעוד ${resendIn} שנ׳` : `No code? Resend in ${resendIn}s`)
+                      : (isHe ? 'לא הגיע קוד? שלח שוב' : "Didn't get a code? Resend")}
+                  </button>
                   <label className="field-label" style={{ marginTop: 14 }}>{t.newPassword}</label>
-                  <input
-                    type="password"
-                    className="field-input"
-                    placeholder={t.passwordPlaceholder}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    dir="ltr"
-                    autoComplete="new-password"
-                    style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left' }}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      className="field-input"
+                      placeholder={t.passwordPlaceholder}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      dir="ltr"
+                      autoComplete="new-password"
+                      style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left', paddingInlineEnd: 52 }}
+                    />
+                    <span
+                      onClick={() => setShowNewPassword(v => !v)}
+                      style={{
+                        position: 'absolute',
+                        insetInlineEnd: 14,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        fontSize: 12,
+                        color: 'var(--text-3)',
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                        userSelect: 'none',
+                      }}
+                    >
+                      {showNewPassword ? (isHe ? 'הסתר' : 'hide') : (isHe ? 'הצג' : 'show')}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 6 }}>
+                    {isHe ? 'לפחות 8 תווים, כולל ספרה אחת' : 'At least 8 characters, including a digit'}
+                  </div>
                   <button type="submit" className="btn-primary-cta" disabled={loading || resetCode.length < 6} style={{ marginTop: 16 }}>
                     <span>{loading ? t.resetting : t.resetBtn}</span>
                     <ArrowIcon />

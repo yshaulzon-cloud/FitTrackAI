@@ -22,10 +22,24 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Limits EMAIL SENDING (forgot-password): strict, since each request fires
+// an actual email. 5 sends per 15 min per IP is plenty for a real user.
 const resetLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
-  message: { message: 'יותר מדי ניסיונות איפוס, נסה שוב בעוד 15 דקות' },
+  message: { message: 'יותר מדי ניסיונות איפוס, נסה שוב בעוד 15 דקות', messageEn: 'Too many reset requests — try again in 15 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Limits CODE SUBMISSION (reset-password): looser. Brute-force protection
+// here is the per-code 5-attempt lockout; sharing the strict email limiter
+// meant a legitimate user (1 send + a resend + 2 typos + the correct code)
+// got IP-blocked for 15 minutes mid-flow.
+const resetSubmitLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: { message: 'יותר מדי ניסיונות, נסה שוב בעוד 15 דקות', messageEn: 'Too many attempts — try again in 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -36,6 +50,14 @@ function generateToken(userId) {
   return jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
+}
+
+// Reset codes are stored as sha256 hashes — a DB dump can't be replayed, and
+// comparing fixed-length digests makes timingSafeEqual safe for ANY user
+// input (raw padEnd comparison threw a 500 on multibyte input, e.g. Hebrew
+// letters, because the byte lengths differed).
+function hashResetCode(code) {
+  return crypto.createHash('sha256').update(String(code)).digest('hex');
 }
 
 // POST /auth/register
@@ -263,15 +285,21 @@ router.post(
 
       if (!user) {
         // Don't reveal if user exists
-        return res.json({ message: 'אם האימייל קיים במערכת, נשלח קוד איפוס' });
+        return res.json({
+          message: 'אם האימייל קיים במערכת, נשלח קוד איפוס',
+          messageEn: 'If the email exists, a reset code was sent',
+        });
       }
 
       // Generate 6-digit code
       // Cryptographically secure 6-digit code. crypto.randomInt uses the
       // OS CSPRNG (vs Math.random which is V8's predictable Mulberry32).
       const code = crypto.randomInt(100000, 1000000).toString();
-      user.resetCode = code;
+      user.resetCode = hashResetCode(code);
       user.resetCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      // Fresh code = fresh attempt budget. Without this, failed guesses at an
+      // old code carried over and a brand-new code could arrive pre-burned.
+      user.resetCodeAttempts = 0;
       await user.save();
 
       // Send email
@@ -301,10 +329,13 @@ router.post(
         `,
       });
 
-      res.json({ message: 'אם האימייל קיים במערכת, נשלח קוד איפוס' });
+      res.json({
+        message: 'אם האימייל קיים במערכת, נשלח קוד איפוס',
+        messageEn: 'If the email exists, a reset code was sent',
+      });
     } catch (error) {
       console.error('Forgot password error:', error);
-      res.status(500).json({ message: 'שגיאה בשליחת הקוד' });
+      res.status(500).json({ message: 'שגיאה בשליחת הקוד', messageEn: 'Failed to send the code' });
     }
   }
 );
@@ -312,10 +343,12 @@ router.post(
 // POST /auth/reset-password - verify code and set new password
 router.post(
   '/reset-password',
-  resetLimiter,
+  resetSubmitLimiter,
   [
     body('email').isEmail().withMessage('כתובת אימייל לא תקינה'),
-    body('code').isLength({ min: 6, max: 6 }).withMessage('קוד לא תקין'),
+    // Strict digits-only: isLength alone let 6 *characters* through, and a
+    // multibyte string (e.g. Hebrew letters) crashed the old buffer compare.
+    body('code').matches(/^\d{6}$/).withMessage('קוד לא תקין'),
     body('newPassword')
       .isLength({ min: 8 })
       .withMessage('הסיסמה חייבת להכיל לפחות 8 תווים')
@@ -330,10 +363,26 @@ router.post(
       }
 
       const { email, code, newPassword } = req.body;
-      const user = await User.findOne({ email }).select('+password');
+      // Reset fields are select:false on the model — opt in explicitly here.
+      const user = await User.findOne({ email })
+        .select('+password +resetCode +resetCodeExpires +resetCodeAttempts');
 
       if (!user || !user.resetCode) {
-        return res.status(400).json({ message: 'קוד שגוי' });
+        return res.status(400).json({ message: 'קוד שגוי', messageEn: 'Wrong code' });
+      }
+
+      // Codes issued before the hashing migration (or anything malformed)
+      // can't be compared — invalidate instead of risking a buffer-length
+      // crash, and tell the user to request a fresh one.
+      if (user.resetCode.length !== 64) {
+        user.resetCode = null;
+        user.resetCodeExpires = null;
+        user.resetCodeAttempts = 0;
+        await user.save();
+        return res.status(400).json({
+          message: 'הקוד אינו בתוקף, בקש קוד חדש',
+          messageEn: 'This code is no longer valid — request a new one',
+        });
       }
 
       // Check expiry before verifying the code (SEC-026)
@@ -342,13 +391,18 @@ router.post(
         user.resetCodeExpires = null;
         user.resetCodeAttempts = 0;
         await user.save();
-        return res.status(400).json({ message: 'הקוד פג תוקף, בקש קוד חדש' });
+        return res.status(400).json({
+          message: 'הקוד פג תוקף, בקש קוד חדש',
+          messageEn: 'The code expired — request a new one',
+        });
       }
 
-      // Timing-safe comparison to prevent timing attacks
+      // Timing-safe comparison of equal-length sha256 digests. Hashing both
+      // sides guarantees identical buffer lengths for any input, so this can
+      // no longer throw (the old padEnd(6) compare 500'd on multibyte input).
       const codeMatch = crypto.timingSafeEqual(
-        Buffer.from(user.resetCode.padEnd(6)),
-        Buffer.from(code.padEnd(6))
+        Buffer.from(user.resetCode, 'hex'),
+        Buffer.from(hashResetCode(code), 'hex')
       );
       if (!codeMatch) {
         user.resetCodeAttempts = (user.resetCodeAttempts || 0) + 1;
@@ -357,10 +411,13 @@ router.post(
           user.resetCodeExpires = null;
           user.resetCodeAttempts = 0;
           await user.save();
-          return res.status(400).json({ message: 'קוד בוטל אחרי יותר מדי ניסיונות — בקש קוד חדש' });
+          return res.status(400).json({
+            message: 'קוד בוטל אחרי יותר מדי ניסיונות — בקש קוד חדש',
+            messageEn: 'Code cancelled after too many attempts — request a new one',
+          });
         }
         await user.save();
-        return res.status(400).json({ message: 'קוד שגוי' });
+        return res.status(400).json({ message: 'קוד שגוי', messageEn: 'Wrong code' });
       }
 
       user.password = newPassword;
@@ -369,10 +426,10 @@ router.post(
       user.resetCodeAttempts = 0;
       await user.save();
 
-      res.json({ message: 'הסיסמה שונתה בהצלחה' });
+      res.json({ message: 'הסיסמה שונתה בהצלחה', messageEn: 'Password changed successfully' });
     } catch (error) {
       console.error('Reset password error:', error);
-      res.status(500).json({ message: 'שגיאה באיפוס הסיסמה' });
+      res.status(500).json({ message: 'שגיאה באיפוס הסיסמה', messageEn: 'Password reset failed' });
     }
   }
 );

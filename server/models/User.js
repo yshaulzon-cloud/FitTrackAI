@@ -38,9 +38,12 @@ const userSchema = new mongoose.Schema(
     },
     onboardingComplete: { type: Boolean, default: false },
     isAdmin: { type: Boolean, default: false },
-    resetCode: { type: String, default: null },
-    resetCodeExpires: { type: Date, default: null },
-    resetCodeAttempts: { type: Number, default: 0 },
+    // Password-reset state. Stored as a sha256 hash of the 6-digit code (the
+    // plaintext code exists only in the email). select:false keeps these out
+    // of every routine user query — only the reset endpoint opts in.
+    resetCode: { type: String, default: null, select: false },
+    resetCodeExpires: { type: Date, default: null, select: false },
+    resetCodeAttempts: { type: Number, default: 0, select: false },
   },
   { timestamps: true }
 );

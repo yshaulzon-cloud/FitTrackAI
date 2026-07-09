@@ -900,8 +900,10 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
       setPwError(isHe ? 'הקוד חייב 6 ספרות' : 'Code must be 6 digits');
       return;
     }
-    if (pwNew.length < 6) {
-      setPwError(t.passwordMin || (isHe ? 'הסיסמה חייבת 6 תווים לפחות' : 'Password must be at least 6 characters'));
+    // Mirror the server rules (8+ chars incl. a digit) so the user isn't
+    // let through client-side only to be rejected by the server.
+    if (pwNew.length < 8 || !/\d/.test(pwNew)) {
+      setPwError(t.passwordMin || (isHe ? 'הסיסמה חייבת להכיל לפחות 8 תווים וספרה אחת' : 'Password must be at least 8 characters and include a digit'));
       return;
     }
     setPwLoading(true);
