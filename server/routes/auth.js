@@ -60,6 +60,32 @@ function hashResetCode(code) {
   return crypto.createHash('sha256').update(String(code)).digest('hex');
 }
 
+// Gmail SMTP transporter. Built once and reused. Cloud hosts (Render free
+// tier included) are flaky with Gmail's default secure port 465 — the
+// connection can hang for a minute before failing. Port 587 + STARTTLS is
+// more reliable there, and the explicit timeouts make a blocked connection
+// fail in ~12s instead of holding the request open. Port is env-overridable
+// (EMAIL_PORT) so it can be switched without a code change.
+const EMAIL_PORT = parseInt(process.env.EMAIL_PORT || '587', 10);
+const mailTransporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+  port: EMAIL_PORT,
+  secure: EMAIL_PORT === 465, // 465 = implicit TLS, 587 = STARTTLS
+  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+  connectionTimeout: 12000,
+  greetingTimeout: 8000,
+  socketTimeout: 15000,
+});
+
+// Log SMTP reachability once at boot so the Render logs show, in one line,
+// whether outbound email can work at all — no need to trigger a reset to
+// find out.
+if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  mailTransporter.verify()
+    .then(() => console.log(`[mail] SMTP ready on ${process.env.EMAIL_HOST || 'smtp.gmail.com'}:${EMAIL_PORT}`))
+    .catch((e) => console.error('[mail] SMTP verify FAILED:', e.message));
+}
+
 // POST /auth/register
 router.post(
   '/register',
@@ -302,16 +328,8 @@ router.post(
       user.resetCodeAttempts = 0;
       await user.save();
 
-      // Send email
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-      });
-
-      await transporter.sendMail({
+      // Send via the shared, timeout-guarded transporter.
+      await mailTransporter.sendMail({
         from: `"Areto" <${process.env.EMAIL_USER}>`,
         to: email,
         subject: 'Areto - קוד איפוס סיסמה',
