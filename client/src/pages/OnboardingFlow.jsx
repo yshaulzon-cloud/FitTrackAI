@@ -414,7 +414,10 @@ export default function OnboardingFlow() {
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>
                   {previewLoading ? '···' : (planPreview?.day || (isHe ? 'שבוע 1 · יום 1' : 'Week 1 · Day 1'))}
                 </div>
-                {(planPreview?.exercises || [{ name: 'סקוואט', sets: 4, reps: '10' }, { name: 'לחיצת חזה', sets: 3, reps: '12' }, { name: 'פלאנק', sets: 3, reps: "45 שנ'" }]).slice(0, 3).map((ex, i) => (
+                {(planPreview?.exercises || (isHe
+                  ? [{ name: 'סקוואט', sets: 4, reps: '10' }, { name: 'לחיצת חזה', sets: 3, reps: '12' }, { name: 'פלאנק', sets: 3, reps: "45 שנ'" }]
+                  : [{ name: 'Squat', sets: 4, reps: '10' }, { name: 'Bench Press', sets: 3, reps: '12' }, { name: 'Plank', sets: 3, reps: '45s' }]
+                )).slice(0, 3).map((ex, i) => (
                   <div key={i} style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4 }}>{ex.name} — {ex.sets}×{ex.reps}</div>
                 ))}
               </div>
