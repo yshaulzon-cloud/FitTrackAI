@@ -92,9 +92,13 @@ app.use('/admin', adminRoutes);
 app.use('/progression', progressionRoutes);
 app.use('/sleep', sleepRoutes);
 
+// Bump on each release so a deployed build is verifiable from the health
+// endpoints (poll GET / or /health after pushing to confirm Render redeployed).
+const API_VERSION = '1.2.0';
+
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', version: API_VERSION, timestamp: new Date().toISOString() });
 });
 
 // Serve frontend static files only if a client/dist exists.
@@ -110,7 +114,7 @@ if (fs.existsSync(path.join(clientDist, 'index.html'))) {
   });
 } else {
   app.get('/', (_req, res) => {
-    res.json({ name: 'Areto API', status: 'ok' });
+    res.json({ name: 'Areto API', status: 'ok', version: API_VERSION });
   });
 }
 
