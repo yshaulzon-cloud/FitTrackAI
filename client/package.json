@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "fix:cordova-gradle": "node scripts/fix-cordova-gradle.mjs",
+    "cap:sync": "cap sync android && node scripts/fix-cordova-gradle.mjs"
   },
   "dependencies": {
     "@capacitor-mlkit/barcode-scanning": "^8.1.0",

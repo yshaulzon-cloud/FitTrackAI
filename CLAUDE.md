@@ -31,12 +31,21 @@ Vite proxies `/auth`, `/user`, `/workout`, `/nutrition` → `localhost:3001` aut
 # Build frontend
 cd client && npm run build           # → client/dist/
 
-# Sync to Android (run from client/)
-npx cap sync android
+# Sync to Android (run from client/). Use npm run cap:sync — NOT bare
+# `npx cap sync`: Capacitor 8 regenerates
+# android/capacitor-cordova-android-plugins/build.gradle as an EMPTY file,
+# which breaks the Gradle build ("No variants exist"). The wrapper runs the
+# sync then restores the stub via scripts/fix-cordova-gradle.mjs.
+npm run cap:sync
 
-# Open in Android Studio (release AAB)
-npx cap open android
-# Then: Build → Generate Signed Bundle/APK → release track
+# Build the signed release AAB from the CLI (requires client/android/key.properties):
+cd android && JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew bundleRelease
+#   → android/app/build/outputs/bundle/release/app-release.aab
+# NOTE: use the JDK 21 bundled with Android Studio; the system JDK 25 is too
+# new for this Gradle/AGP toolchain.
+
+# ...or open in Android Studio instead: npx cap open android
+#    then Build → Generate Signed Bundle/APK → release track
 ```
 
 ### Screenshot automation (Playwright)
