@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { body, param, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const User = require('../models/User');
@@ -20,6 +21,16 @@ const {
 const router = express.Router();
 
 const MEASUREMENT_TYPES = ['waist', 'chest', 'arm', 'thigh', 'hip', 'neck', 'forearm', 'calf'];
+
+// Unauthenticated — used by the pre-signup onboarding flow's "Plan Reveal"
+// screen, so a generous but bounded limit.
+const previewPlanLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { message: 'יותר מדי בקשות, נסה שוב בעוד כמה דקות', messageEn: 'Too many requests — try again in a few minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // GET /user/profile
 router.get('/profile', auth, async (req, res) => {
@@ -85,6 +96,9 @@ router.post(
       .isIn(['beginner', 'intermediate', 'advanced'])
       .withMessage('יש לבחור רמת ניסיון'),
     body('city').optional({ checkFalsy: true }).isString().isLength({ min: 1, max: 60 }).withMessage('עיר לא תקינה'),
+    body('equipment').optional().isArray({ max: 3 }),
+    body('equipment.*').optional().isIn(['home', 'gym', 'none']),
+    body('timezone').optional({ checkFalsy: true }).isString().isLength({ max: 64 }),
   ],
   async (req, res) => {
     try {
@@ -93,12 +107,21 @@ router.post(
         return res.status(400).json({ message: errors.array()[0].msg });
       }
 
-      const { name, age, height, weight, gender, goal, workoutsPerWeek, experience, bodyFatPercentage, city } =
+      const { name, age, height, weight, gender, goal, workoutsPerWeek, experience, bodyFatPercentage, city, equipment, timezone } =
         req.body;
 
       const profileData = { age, height, weight, gender, goal, workoutsPerWeek, experience, bodyFatPercentage };
       if (city && String(city).trim()) {
         profileData.city = String(city).trim();
+      }
+      if (Array.isArray(equipment) && equipment.length) {
+        profileData.equipment = equipment;
+      }
+      // Store the user's IANA timezone so all streak/day math uses their local
+      // midnight, not the server's UTC (see server/utils/dates.js). Validated
+      // loosely here; startOfUserDay falls back to Israel if it's unusable.
+      if (timezone && String(timezone).trim()) {
+        profileData.timezone = String(timezone).trim();
       }
       const updateData = {
         profile: profileData,
@@ -134,6 +157,37 @@ router.post(
   }
 );
 
+// POST /user/preview-plan — unauthenticated. Lets the pre-signup onboarding
+// flow's "Plan Reveal" screen show a real (not faked) day-1 preview before
+// an account exists, by running the same generateWorkoutPlan() the real
+// onboarding uses. No persistence, no user lookup.
+router.post(
+  '/preview-plan',
+  previewPlanLimiter,
+  [
+    body('goal').isIn(['bulk', 'cut', 'recomp', 'maintain']).withMessage('יש לבחור מטרה'),
+    body('workoutsPerWeek').isInt({ min: 1, max: 7 }).withMessage('מספר אימונים לא תקין'),
+    body('experience')
+      .isIn(['beginner', 'intermediate', 'advanced'])
+      .withMessage('יש לבחור רמת ניסיון'),
+  ],
+  (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg });
+      }
+      const { goal, workoutsPerWeek, experience } = req.body;
+      const workoutPlan = generateWorkoutPlan({ goal, workoutsPerWeek, experience });
+      const day1 = workoutPlan?.days?.[0] || null;
+      res.json({ day1 });
+    } catch (error) {
+      console.error('Preview plan error:', error);
+      res.status(500).json({ message: 'שגיאה ביצירת תצוגה מקדימה' });
+    }
+  }
+);
+
 // PUT /user/profile - update weight, height, goal, name, age
 router.put(
   '/profile',
@@ -147,6 +201,7 @@ router.put(
     body('name').optional().isString().trim().isLength({ min: 1, max: 50 }).withMessage('שם לא תקין'),
     body('age').optional().isInt({ min: 13, max: 120 }).withMessage('גיל לא תקין'),
     body('bodyFatPercentage').optional().isFloat({ min: 3, max: 60 }).withMessage('אחוז שומן לא תקין'),
+    body('timezone').optional({ checkFalsy: true }).isString().isLength({ max: 64 }),
   ],
   async (req, res) => {
     try {
@@ -155,7 +210,7 @@ router.put(
         return res.status(400).json({ message: errors.array()[0].msg });
       }
 
-      const { weight, height, goal, workoutsPerWeek, gender, name, age, bodyFatPercentage } = req.body;
+      const { weight, height, goal, workoutsPerWeek, gender, name, age, bodyFatPercentage, timezone } = req.body;
       const user = req.user;
 
       // Detect a goal direction change so we can reset the journey baseline.
@@ -168,6 +223,7 @@ router.put(
       if (workoutsPerWeek !== undefined) user.profile.workoutsPerWeek = workoutsPerWeek;
       if (age !== undefined) user.profile.age = age;
       if (bodyFatPercentage !== undefined) user.profile.bodyFatPercentage = bodyFatPercentage;
+      if (timezone && String(timezone).trim()) user.profile.timezone = String(timezone).trim();
       if (name !== undefined) user.name = name;
 
       await user.save();

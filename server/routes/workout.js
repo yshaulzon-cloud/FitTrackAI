@@ -5,7 +5,9 @@ const Workout = require('../models/Workout');
 const User = require('../models/User');
 const { body, param, validationResult } = require('express-validator');
 const { calculateExerciseCalories, calculateCycleStatus } = require('../utils/calculations');
-const { awardXP, updateStreak, revokeXP, recalcStreak } = require('../utils/progression');
+const { awardXP, updateStreak, revokeXP, recalcStreak, reconcileStreakForToday } = require('../utils/progression');
+const { startOfUserDay, startOfUserDayOffset } = require('../utils/dates');
+const { withUserLock } = require('../utils/userLock');
 
 const router = express.Router();
 
@@ -36,99 +38,104 @@ router.post(
   }
   try {
     const { dayName, exercises, durationMinutes, location } = req.body;
+    const tz = req.user.profile?.timezone;
 
-    // Block a second workout on the same calendar day
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayWorkout = await Workout.findOne({ userId: req.userId, date: { $gte: todayStart } });
-    if (todayWorkout) {
-      return res.status(400).json({ message: 'alreadyTrainedToday' });
-    }
-
-    // Check cycle-based workout limit
-    const maxPerWeek = req.user.profile?.workoutsPerWeek || 4;
-    const recentWorkouts = await Workout.find({ userId: req.userId }).sort({ date: 1 }).lean();
-    const { limitReached } = calculateCycleStatus(recentWorkouts, maxPerWeek);
-    if (limitReached) {
-      return res.status(400).json({ message: 'weeklyLimitReached' });
-    }
-
-    // Estimate calories burned: ~5 MET for resistance training
-    const weight = req.user.profile?.weight || 70;
-    const duration = durationMinutes || 60;
-    const caloriesBurned = calculateExerciseCalories(5, weight, duration);
-
-    // Total volume = sum of weight×reps over completed sets. Computed
-    // server-side so the client can't inflate it.
-    let totalVolume = 0;
-    for (const ex of exercises || []) {
-      for (const s of ex.setLog || []) {
-        if (s.done && s.weight > 0 && s.reps > 0) totalVolume += s.weight * s.reps;
+    // Everything from the duplicate-check through XP/streak runs under a
+    // per-user lock so a double-submit can't create two workouts or award
+    // XP/streak twice (audit #6). The locked block returns a { status, body }
+    // descriptor which is sent once the lock releases.
+    const out = await withUserLock(req.userId, async () => {
+      // Block a second workout on the same (user-local) calendar day
+      const todayStart = startOfUserDay(tz);
+      const todayWorkout = await Workout.findOne({ userId: req.userId, date: { $gte: todayStart } });
+      if (todayWorkout) {
+        return { status: 400, body: { message: 'alreadyTrainedToday' } };
       }
-    }
-    totalVolume = Math.round(totalVolume);
 
-    // PR detection: compare each exercise's best completed-set weight in this
-    // session against the user's history (recent window is plenty).
-    const prs = [];
-    if ((exercises || []).some(ex => (ex.setLog || []).some(s => s.done && s.weight > 0))) {
-      const history = await Workout.find(
-        { userId: req.userId },
-        { 'exercises.name': 1, 'exercises.setLog': 1 }
-      ).sort({ date: -1 }).limit(200).lean();
+      // Check cycle-based workout limit
+      const maxPerWeek = req.user.profile?.workoutsPerWeek || 4;
+      const recentWorkouts = await Workout.find({ userId: req.userId }).sort({ date: 1 }).lean();
+      const { limitReached } = calculateCycleStatus(recentWorkouts, maxPerWeek);
+      if (limitReached) {
+        return { status: 400, body: { message: 'weeklyLimitReached' } };
+      }
 
-      const historicalBest = {};
-      for (const w of history) {
-        for (const ex of w.exercises || []) {
-          for (const s of ex.setLog || []) {
-            if (s.done && s.weight > 0) {
-              if (!historicalBest[ex.name] || s.weight > historicalBest[ex.name]) {
-                historicalBest[ex.name] = s.weight;
+      // Estimate calories burned: ~5 MET for resistance training
+      const weight = req.user.profile?.weight || 70;
+      const duration = durationMinutes || 60;
+      const caloriesBurned = calculateExerciseCalories(5, weight, duration);
+
+      // Total volume = sum of weight×reps over completed sets. Computed
+      // server-side so the client can't inflate it.
+      let totalVolume = 0;
+      for (const ex of exercises || []) {
+        for (const s of ex.setLog || []) {
+          if (s.done && s.weight > 0 && s.reps > 0) totalVolume += s.weight * s.reps;
+        }
+      }
+      totalVolume = Math.round(totalVolume);
+
+      // PR detection: compare each exercise's best completed-set weight in this
+      // session against the user's history (recent window is plenty).
+      const prs = [];
+      if ((exercises || []).some(ex => (ex.setLog || []).some(s => s.done && s.weight > 0))) {
+        const history = await Workout.find(
+          { userId: req.userId },
+          { 'exercises.name': 1, 'exercises.setLog': 1 }
+        ).sort({ date: -1 }).limit(200).lean();
+
+        const historicalBest = {};
+        for (const w of history) {
+          for (const ex of w.exercises || []) {
+            for (const s of ex.setLog || []) {
+              if (s.done && s.weight > 0) {
+                if (!historicalBest[ex.name] || s.weight > historicalBest[ex.name]) {
+                  historicalBest[ex.name] = s.weight;
+                }
               }
             }
           }
         }
-      }
-      for (const ex of exercises || []) {
-        const sessionBest = Math.max(0, ...(ex.setLog || []).filter(s => s.done && s.weight > 0).map(s => s.weight));
-        if (sessionBest > 0 && sessionBest > (historicalBest[ex.name] || 0)) {
-          prs.push({ name: ex.name, weight: sessionBest });
+        for (const ex of exercises || []) {
+          const sessionBest = Math.max(0, ...(ex.setLog || []).filter(s => s.done && s.weight > 0).map(s => s.weight));
+          if (sessionBest > 0 && sessionBest > (historicalBest[ex.name] || 0)) {
+            prs.push({ name: ex.name, weight: sessionBest });
+          }
         }
       }
-    }
 
-    // Previous volume for the same day-type — powers the "vs. last time"
-    // comparison on the finish screen.
-    let prevVolume = null;
-    if (dayName) {
-      const prev = await Workout.findOne(
-        { userId: req.userId, dayName, totalVolume: { $gt: 0 } },
-        { totalVolume: 1 }
-      ).sort({ date: -1 }).lean();
-      if (prev) prevVolume = prev.totalVolume;
-    }
+      // Previous volume for the same day-type — powers the "vs. last time"
+      // comparison on the finish screen.
+      let prevVolume = null;
+      if (dayName) {
+        const prev = await Workout.findOne(
+          { userId: req.userId, dayName, totalVolume: { $gt: 0 } },
+          { totalVolume: 1 }
+        ).sort({ date: -1 }).lean();
+        if (prev) prevVolume = prev.totalVolume;
+      }
 
-    const workout = await Workout.create({
-      userId: req.userId,
-      dayName,
-      location: location || 'gym',
-      exercises: exercises || [],
-      durationMinutes: duration,
-      caloriesBurned,
-      totalVolume,
+      const workout = await Workout.create({
+        userId: req.userId,
+        dayName,
+        location: location || 'gym',
+        exercises: exercises || [],
+        durationMinutes: duration,
+        caloriesBurned,
+        totalVolume,
+      });
+
+      // Award XP for workout completion
+      const xpResult = await awardXP(req.userId, 'workout');
+      const streakResult = await updateStreak(req.userId, tz);
+
+      return {
+        status: 201,
+        body: { ...workout.toObject(), xp: xpResult, streak: streakResult, prs, prevVolume },
+      };
     });
 
-    // Award XP for workout completion
-    const xpResult = await awardXP(req.userId, 'workout');
-    const streakResult = await updateStreak(req.userId);
-
-    res.status(201).json({
-      ...workout.toObject(),
-      xp: xpResult,
-      streak: streakResult,
-      prs,
-      prevVolume,
-    });
+    res.status(out.status).json(out.body);
   } catch (error) {
     console.error('Workout complete error:', error);
     res.status(500).json({ message: 'Error saving workout', messageHe: 'שגיאה בשמירת האימון' });
@@ -199,11 +206,17 @@ router.delete('/:id', auth, async (req, res) => {
     if (!workout) {
       return res.status(404).json({ message: 'Workout not found' });
     }
-    // Revoke XP and recalculate streak
-    await revokeXP(req.userId, 'workout');
-    // Recalculate streak from actual workout history
-    const remaining = await Workout.find({ userId: req.userId }).sort({ date: -1 }).limit(30);
-    await recalcStreak(req.userId, remaining);
+    const tz = req.user.profile?.timezone;
+    // Revoke XP and recalculate streak — serialized so a concurrent log/delete
+    // can't interleave the read-modify-write (audit #6).
+    await withUserLock(req.userId, async () => {
+      await revokeXP(req.userId, 'workout', tz);
+      // If today no longer has any qualifying activity, undo today's streak
+      // XP too — must run before recalcStreak, which would otherwise already
+      // have moved lastActivityDate off today.
+      await reconcileStreakForToday(req.userId, tz);
+      await recalcStreak(req.userId, tz);
+    });
     res.json({ message: 'Workout deleted' });
   } catch (error) {
     console.error('Delete workout error:', error);
@@ -226,19 +239,18 @@ router.get('/history', auth, async (req, res) => {
     // workoutsPerWeek target. Someone who trains Mon+Wed (2x/week) will
     // accumulate a streak every week they complete both sessions, instead of
     // having it reset every Tuesday when they skip a day.
-    // Week boundary = Sunday 00:00 (matches the UI's week grid).
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dow = today.getDay(); // 0 = Sunday
-    const currentWeekSunday = new Date(today);
-    currentWeekSunday.setDate(today.getDate() - dow);
+    // Week boundary = Sunday 00:00 local (matches the UI's week grid).
+    const tz = req.user.profile?.timezone;
+    const today = startOfUserDay(tz);
+    // Weekday in the user's timezone (0 = Sunday), not the server's.
+    const dowName = new Intl.DateTimeFormat('en-US', { timeZone: tz || 'Asia/Jerusalem', weekday: 'short' }).format(today);
+    const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(dowName);
+    const currentWeekSunday = startOfUserDayOffset(tz, -dow, today);
 
     let streak = 0;
     for (let w = 0; w < 104; w++) {
-      const wStart = new Date(currentWeekSunday);
-      wStart.setDate(currentWeekSunday.getDate() - w * 7);
-      const wEnd = new Date(wStart);
-      wEnd.setDate(wStart.getDate() + 7);
+      const wStart = startOfUserDayOffset(tz, -w * 7, currentWeekSunday);
+      const wEnd = startOfUserDayOffset(tz, 7, wStart);
 
       const count = allDates.filter(
         (d) => d.date >= wStart && d.date < wEnd
@@ -256,8 +268,7 @@ router.get('/history', auth, async (req, res) => {
       }
     }
 
-    const todayEnd = new Date(today);
-    todayEnd.setDate(today.getDate() + 1);
+    const todayEnd = startOfUserDayOffset(tz, 1, today);
     const todayHasWorkout = allDates.some(
       (w) => w.date >= today && w.date < todayEnd
     );

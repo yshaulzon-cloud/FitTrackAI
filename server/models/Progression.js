@@ -8,7 +8,7 @@ const badgeSchema = new mongoose.Schema({
 const xpEventSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['workout', 'calorie_goal', 'protein_goal', 'streak_day', 'streak_week', 'sleep_goal'],
+    enum: ['workout', 'calorie_goal', 'protein_goal', 'streak_day', 'streak_week', 'sleep_goal', 'sleep_great'],
     required: true,
   },
   amount: { type: Number, required: true },
@@ -59,6 +59,10 @@ const progressionSchema = new mongoose.Schema(
     // Sleep tracking stats
     sleepStreak: { type: Number, default: 0 },
     totalSleepLogs: { type: Number, default: 0 },
+    // Last calendar day (user-local midnight) a qualifying night was logged —
+    // lets sleepStreak require *consecutive* days instead of just counting
+    // qualifying nights regardless of gaps.
+    lastSleepGoalDate: { type: Date, default: null },
 
     // Calorie-goal streak (consecutive days the calorie target was hit —
     // separate from currentStreak, which is general app-activity days)

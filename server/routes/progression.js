@@ -60,7 +60,7 @@ router.get('/status', auth, async (req, res) => {
       workoutsPerWeek: profile.workoutsPerWeek || 4,
       workoutsThisWeek,
       weightProgress,
-    });
+    }, profile.timezone);
 
     res.json(status);
   } catch (error) {

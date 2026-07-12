@@ -3,7 +3,9 @@ const { param, query } = require('express-validator');
 const auth = require('../middleware/auth');
 const Nutrition = require('../models/Nutrition');
 const { estimateNutrition, estimateNutritionAI, calculateTDEE, calculateCalorieTarget, calculateMacros } = require('../utils/calculations');
-const { checkNutritionGoals, revokeXP, updateStreak } = require('../utils/progression');
+const { checkNutritionGoals, revokeXP, updateStreak, recalcStreak, reconcileStreakForToday } = require('../utils/progression');
+const { startOfUserDay, startOfUserDayOffset } = require('../utils/dates');
+const { withUserLock } = require('../utils/userLock');
 const User = require('../models/User');
 const { getRandomMenu, getWeeklyMenu, swapMeal } = require('../data/mealPlans');
 
@@ -40,16 +42,10 @@ router.post('/log', auth, async (req, res) => {
       };
     }
 
-    // Find today's nutrition log or create one
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    let nutritionLog = await Nutrition.findOne({
-      userId: req.userId,
-      date: { $gte: today, $lt: tomorrow },
-    });
+    const tz = req.user.profile?.timezone;
+    // Find today's (user-local) nutrition log or create one
+    const today = startOfUserDay(tz);
+    const tomorrow = startOfUserDayOffset(tz, 1, today);
 
     const meal = {
       description: description.trim(),
@@ -57,43 +53,54 @@ router.post('/log', auth, async (req, res) => {
       time: new Date(),
     };
 
-    if (nutritionLog) {
-      nutritionLog.meals.push(meal);
-      nutritionLog.totalCalories += estimated.calories;
-      nutritionLog.totalProtein += estimated.protein;
-      nutritionLog.totalCarbs += estimated.carbs;
-      nutritionLog.totalFat += estimated.fat;
-      nutritionLog.totalFiber = (nutritionLog.totalFiber || 0) + (estimated.fiber || 0);
-      await nutritionLog.save();
-    } else {
-      nutritionLog = await Nutrition.create({
+    // Serialize the DB mutation + XP + streak so a concurrent log/delete for
+    // the same user can't interleave (audit #6).
+    const { nutritionLog, xpResults } = await withUserLock(req.userId, async () => {
+      let nutritionLog = await Nutrition.findOne({
         userId: req.userId,
-        date: today,
-        meals: [meal],
-        totalCalories: estimated.calories,
-        totalProtein: estimated.protein,
-        totalCarbs: estimated.carbs,
-        totalFat: estimated.fat,
-        totalFiber: estimated.fiber || 0,
+        date: { $gte: today, $lt: tomorrow },
       });
-    }
 
-    // Check nutrition goals for XP + count today toward the general
-    // activity streak (logging a meal counts as "showing up" for the day,
-    // same as a workout or a sleep entry).
-    let xpResults = [];
-    try {
-      const user = await User.findById(req.userId);
-      if (user?.profile && user.onboardingComplete) {
-        const { tdee } = calculateTDEE(user.profile);
-        const calorieTarget = calculateCalorieTarget(tdee, user.profile.goal, user.profile.weight, user.profile.bodyFatPercentage);
-        const macros = calculateMacros(user.profile.weight, calorieTarget, user.profile.goal, user.profile.experience, user.profile.bodyFatPercentage);
-        xpResults = await checkNutritionGoals(req.userId, nutritionLog, { calorieTarget, macros });
+      if (nutritionLog) {
+        nutritionLog.meals.push(meal);
+        nutritionLog.totalCalories += estimated.calories;
+        nutritionLog.totalProtein += estimated.protein;
+        nutritionLog.totalCarbs += estimated.carbs;
+        nutritionLog.totalFat += estimated.fat;
+        nutritionLog.totalFiber = (nutritionLog.totalFiber || 0) + (estimated.fiber || 0);
+        await nutritionLog.save();
+      } else {
+        nutritionLog = await Nutrition.create({
+          userId: req.userId,
+          date: today,
+          meals: [meal],
+          totalCalories: estimated.calories,
+          totalProtein: estimated.protein,
+          totalCarbs: estimated.carbs,
+          totalFat: estimated.fat,
+          totalFiber: estimated.fiber || 0,
+        });
       }
-      await updateStreak(req.userId);
-    } catch (xpErr) {
-      console.error('XP check error:', xpErr.message);
-    }
+
+      // Check nutrition goals for XP + count today toward the general
+      // activity streak (logging a meal counts as "showing up" for the day,
+      // same as a workout or a sleep entry).
+      let xpResults = [];
+      try {
+        const user = await User.findById(req.userId);
+        if (user?.profile && user.onboardingComplete) {
+          const { tdee } = calculateTDEE(user.profile);
+          const calorieTarget = calculateCalorieTarget(tdee, user.profile.goal, user.profile.weight, user.profile.bodyFatPercentage);
+          const macros = calculateMacros(user.profile.weight, calorieTarget, user.profile.goal, user.profile.experience, user.profile.bodyFatPercentage);
+          xpResults = await checkNutritionGoals(req.userId, nutritionLog, { calorieTarget, macros }, tz);
+        }
+        await updateStreak(req.userId, tz);
+      } catch (xpErr) {
+        console.error('XP check error:', xpErr.message);
+      }
+
+      return { nutritionLog, xpResults };
+    });
 
     res.status(201).json({
       meal,
@@ -115,63 +122,73 @@ router.post('/log', auth, async (req, res) => {
 // DELETE /nutrition/meal/:mealId
 router.delete('/meal/:mealId', auth, param('mealId').isMongoId(), async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tz = req.user.profile?.timezone;
+    const today = startOfUserDay(tz);
+    const tomorrow = startOfUserDayOffset(tz, 1, today);
 
-    const nutritionLog = await Nutrition.findOne({
-      userId: req.userId,
-      date: { $gte: today, $lt: tomorrow },
+    const result = await withUserLock(req.userId, async () => {
+      const nutritionLog = await Nutrition.findOne({
+        userId: req.userId,
+        date: { $gte: today, $lt: tomorrow },
+      });
+
+      if (!nutritionLog) {
+        return { status: 404, body: { message: 'No nutrition log found' } };
+      }
+
+      const meal = nutritionLog.meals.id(req.params.mealId);
+      if (!meal) {
+        return { status: 404, body: { message: 'Meal not found' } };
+      }
+
+      // Subtract meal values from totals
+      nutritionLog.totalCalories -= meal.calories;
+      nutritionLog.totalProtein -= meal.protein;
+      nutritionLog.totalCarbs -= meal.carbs;
+      nutritionLog.totalFat -= meal.fat;
+      nutritionLog.totalFiber = (nutritionLog.totalFiber || 0) - (meal.fiber || 0);
+
+      // Remove the meal
+      nutritionLog.meals.pull(req.params.mealId);
+      await nutritionLog.save();
+
+      // Revoke nutrition XP if goals no longer met after deletion
+      try {
+        const user = await User.findById(req.userId);
+        if (user?.profile && user.onboardingComplete) {
+          const { tdee } = calculateTDEE(user.profile);
+          const calorieTarget = calculateCalorieTarget(tdee, user.profile.goal, user.profile.weight, user.profile.bodyFatPercentage);
+          const macros = calculateMacros(user.profile.weight, calorieTarget, user.profile.goal, user.profile.experience, user.profile.bodyFatPercentage);
+          const calRatio = nutritionLog.totalCalories / calorieTarget;
+          if (calRatio < 0.9 || calRatio > 1.1) {
+            await revokeXP(req.userId, 'calorie_goal', tz);
+          }
+          const protRatio = nutritionLog.totalProtein / (macros?.protein || 1);
+          if (protRatio < 0.9) {
+            await revokeXP(req.userId, 'protein_goal', tz);
+          }
+        }
+        // This route only ever touches today's log, so if that was the day's
+        // last meal, today may no longer qualify for the activity streak —
+        // must run before recalcStreak (see progression.js for why).
+        if (nutritionLog.meals.length === 0) {
+          await reconcileStreakForToday(req.userId, tz);
+          await recalcStreak(req.userId, tz);
+        }
+      } catch (xpErr) {
+        console.error('XP revoke error:', xpErr.message);
+      }
+
+      return { status: 200, body: { message: 'Meal deleted', daily: {
+        totalCalories: nutritionLog.totalCalories,
+        totalProtein: nutritionLog.totalProtein,
+        totalCarbs: nutritionLog.totalCarbs,
+        totalFat: nutritionLog.totalFat,
+        totalFiber: nutritionLog.totalFiber || 0,
+      }}};
     });
 
-    if (!nutritionLog) {
-      return res.status(404).json({ message: 'No nutrition log found' });
-    }
-
-    const meal = nutritionLog.meals.id(req.params.mealId);
-    if (!meal) {
-      return res.status(404).json({ message: 'Meal not found' });
-    }
-
-    // Subtract meal values from totals
-    nutritionLog.totalCalories -= meal.calories;
-    nutritionLog.totalProtein -= meal.protein;
-    nutritionLog.totalCarbs -= meal.carbs;
-    nutritionLog.totalFat -= meal.fat;
-    nutritionLog.totalFiber = (nutritionLog.totalFiber || 0) - (meal.fiber || 0);
-
-    // Remove the meal
-    nutritionLog.meals.pull(req.params.mealId);
-    await nutritionLog.save();
-
-    // Revoke nutrition XP if goals no longer met after deletion
-    try {
-      const user = await User.findById(req.userId);
-      if (user?.profile && user.onboardingComplete) {
-        const { tdee } = calculateTDEE(user.profile);
-        const calorieTarget = calculateCalorieTarget(tdee, user.profile.goal, user.profile.weight, user.profile.bodyFatPercentage);
-        const macros = calculateMacros(user.profile.weight, calorieTarget, user.profile.goal, user.profile.experience, user.profile.bodyFatPercentage);
-        const calRatio = nutritionLog.totalCalories / calorieTarget;
-        if (calRatio < 0.9 || calRatio > 1.1) {
-          await revokeXP(req.userId, 'calorie_goal');
-        }
-        const protRatio = nutritionLog.totalProtein / (macros?.protein || 1);
-        if (protRatio < 0.9) {
-          await revokeXP(req.userId, 'protein_goal');
-        }
-      }
-    } catch (xpErr) {
-      console.error('XP revoke error:', xpErr.message);
-    }
-
-    res.json({ message: 'Meal deleted', daily: {
-      totalCalories: nutritionLog.totalCalories,
-      totalProtein: nutritionLog.totalProtein,
-      totalCarbs: nutritionLog.totalCarbs,
-      totalFat: nutritionLog.totalFat,
-      totalFiber: nutritionLog.totalFiber || 0,
-    }});
+    res.status(result.status).json(result.body);
   } catch (error) {
     console.error('Delete meal error:', error);
     res.status(500).json({ message: 'Error deleting meal' });
@@ -181,10 +198,9 @@ router.delete('/meal/:mealId', auth, param('mealId').isMongoId(), async (req, re
 // GET /nutrition/today
 router.get('/today', auth, async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tz = req.user.profile?.timezone;
+    const today = startOfUserDay(tz);
+    const tomorrow = startOfUserDayOffset(tz, 1, today);
 
     const nutritionLog = await Nutrition.findOne({
       userId: req.userId,

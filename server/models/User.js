@@ -35,6 +35,11 @@ const userSchema = new mongoose.Schema(
       },
       bodyFatPercentage: { type: Number, min: 3, max: 60 },
       city: { type: String, trim: true, maxlength: 60 },
+      equipment: [{ type: String, enum: ['home', 'gym', 'none'] }],
+      // IANA timezone (e.g. "Asia/Jerusalem"). Drives the user's local-day
+      // boundary for all streak/day calculations; falls back to Israel when
+      // absent (see server/utils/dates.js).
+      timezone: { type: String, trim: true, maxlength: 64, default: 'Asia/Jerusalem' },
     },
     onboardingComplete: { type: Boolean, default: false },
     isAdmin: { type: Boolean, default: false },

@@ -1,4 +1,8 @@
 const Progression = require('../models/Progression');
+const Workout = require('../models/Workout');
+const Nutrition = require('../models/Nutrition');
+const Sleep = require('../models/Sleep');
+const { startOfUserDay, startOfUserDayOffset } = require('./dates');
 
 // ── XP Rewards ──────────────────────────────────────────
 const XP_REWARDS = {
@@ -18,7 +22,7 @@ const XP_REWARDS = {
 function xpForLevel(level) {
   if (level <= 1) return 0;
   if (level <= 5) {
-    // 100, 220, 360, 520
+    // levels 2-5 need: 100, 240, 420, 640
     return Math.round(100 * (level - 1) + 20 * (level - 1) * (level - 2));
   }
   if (level <= 15) {
@@ -146,38 +150,84 @@ function calculateStats(progression, goalData) {
   return { discipline, strength, recovery, sleep };
 }
 
-// Recalculate streak from actual workout documents (after delete)
-async function recalcStreak(userId, workouts) {
+// Recalculate the general-activity streak from real workout/meal/sleep
+// history (called after a delete, since currentStreak is otherwise only
+// ever updated lazily by updateStreak()). Mirrors updateStreak()'s own
+// definition of "activity" — workout, meal log, or sleep log all count.
+async function recalcStreak(userId, tz) {
   const prog = await getProgression(userId);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = startOfUserDay(tz);
+  const windowStart = startOfUserDayOffset(tz, -365);
+
+  const [workouts, nutritionLogs, sleepLogs] = await Promise.all([
+    Workout.find({ userId, date: { $gte: windowStart } }, { date: 1 }).lean(),
+    Nutrition.find({ userId, date: { $gte: windowStart }, 'meals.0': { $exists: true } }, { date: 1 }).lean(),
+    Sleep.find({ userId, date: { $gte: windowStart } }, { date: 1 }).lean(),
+  ]);
+
+  // Bucket every activity into the user's local calendar day.
+  const activeDays = new Set();
+  for (const doc of [...workouts, ...nutritionLogs, ...sleepLogs]) {
+    activeDays.add(startOfUserDay(tz, new Date(doc.date)).getTime());
+  }
+
   let streak = 0;
-  let checkDate = new Date(today);
+  let lastActive = null;
 
+  // Walk backwards one local calendar day at a time (DST-safe via startOfUserDayOffset).
   for (let i = 0; i < 365; i++) {
-    const dayStart = new Date(checkDate);
-    const dayEnd = new Date(checkDate);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-
-    const hasWorkout = workouts.some(
-      (w) => new Date(w.date) >= dayStart && new Date(w.date) < dayEnd
-    );
-
-    if (hasWorkout) {
+    const checkDate = startOfUserDayOffset(tz, -i, today);
+    if (activeDays.has(checkDate.getTime())) {
       streak++;
+      if (!lastActive) lastActive = new Date(checkDate);
     } else if (i > 0) {
       break;
     }
-
-    checkDate.setDate(checkDate.getDate() - 1);
   }
 
   prog.currentStreak = streak;
-  if (streak === 0) {
-    prog.lastActivityDate = null;
-  }
+  prog.lastActivityDate = lastActive;
   // Don't reduce longestStreak - that's a historical record
   await prog.save();
+}
+
+// After deleting a workout/meal, the day that just lost its last qualifying
+// activity may have already been paid streak_day (and streak_week) XP by
+// updateStreak() earlier today. If today no longer has ANY qualifying
+// activity, undo that XP — otherwise logging + deleting an entry becomes a
+// free-XP loop, and totalXP/level stay inflated relative to the (correctly
+// recalculated) streak.
+async function reconcileStreakForToday(userId, tz) {
+  const prog = await getProgression(userId);
+  const today = startOfUserDay(tz);
+  const lastDate = prog.lastActivityDate ? startOfUserDay(tz, new Date(prog.lastActivityDate)) : null;
+  // Streak XP wasn't granted today — nothing to reconcile.
+  if (!lastDate || lastDate.getTime() !== today.getTime()) return;
+
+  const dayEnd = startOfUserDayOffset(tz, 1, today);
+  const [hasWorkout, hasMeal, hasSleep] = await Promise.all([
+    Workout.exists({ userId, date: { $gte: today, $lt: dayEnd } }),
+    Nutrition.exists({ userId, date: { $gte: today, $lt: dayEnd }, 'meals.0': { $exists: true } }),
+    Sleep.exists({ userId, date: { $gte: today, $lt: dayEnd } }),
+  ]);
+  if (hasWorkout || hasMeal || hasSleep) return; // today still qualifies
+
+  // Only revoke bonuses that were actually granted *today* — decide by the XP
+  // event dates, not by currentStreak % 7 (which can be a multiple of 7 for a
+  // milestone reached on a previous day; see audit #8).
+  const grantedToday = (type) => prog.xpHistory.some(
+    (e) => e.type === type && startOfUserDay(tz, new Date(e.date)).getTime() === today.getTime()
+  );
+  const hadDayXP = grantedToday('streak_day');
+  const hadWeekBonus = grantedToday('streak_week');
+
+  if (hadDayXP) await revokeXP(userId, 'streak_day');
+  if (hadWeekBonus) {
+    await revokeXP(userId, 'streak_week');
+    const p2 = await getProgression(userId);
+    p2.weekStreaksCompleted = Math.max(0, p2.weekStreaksCompleted - 1);
+    await p2.save();
+  }
 }
 
 // ── Core Functions ──────────────────────────────────────
@@ -244,7 +294,7 @@ async function awardXP(userId, eventType) {
 }
 
 // Revoke XP when an action is undone (workout/meal deleted)
-async function revokeXP(userId, eventType) {
+async function revokeXP(userId, eventType, tz) {
   const prog = await getProgression(userId);
   const xpAmount = XP_REWARDS[eventType];
   if (!xpAmount) return;
@@ -262,9 +312,8 @@ async function revokeXP(userId, eventType) {
   prog.stats = calculateStats(prog);
 
   // Reset daily flag if applicable
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (prog.dailyFlags.date && new Date(prog.dailyFlags.date).getTime() === today.getTime()) {
+  const today = startOfUserDay(tz);
+  if (prog.dailyFlags.date && startOfUserDay(tz, new Date(prog.dailyFlags.date)).getTime() === today.getTime()) {
     if (eventType === 'calorie_goal') prog.dailyFlags.calorieGoalMet = false;
     if (eventType === 'protein_goal') prog.dailyFlags.proteinGoalMet = false;
   }
@@ -276,27 +325,36 @@ async function revokeXP(userId, eventType) {
 // the user did *anything* trackable (workout, meal log, or sleep log).
 // This is deliberately not workout-specific; see checkNutritionGoals for
 // the separate calorie-goal streak.
-async function updateStreak(userId) {
+async function updateStreak(userId, tz) {
   const prog = await getProgression(userId);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = startOfUserDay(tz);
 
-  const lastDate = prog.lastActivityDate ? new Date(prog.lastActivityDate) : null;
-  if (lastDate) lastDate.setHours(0, 0, 0, 0);
+  const lastDate = prog.lastActivityDate ? startOfUserDay(tz, new Date(prog.lastActivityDate)) : null;
 
-  if (lastDate && lastDate.getTime() === today.getTime()) {
-    // Already counted today
-    return prog;
+  // Already counted today, or the record is stamped in the future (clock skew /
+  // legacy bad data) — either way, don't award again. Return a uniform shape so
+  // callers never have to distinguish a Mongoose doc from a result object (#9).
+  if (lastDate && lastDate.getTime() >= today.getTime()) {
+    return {
+      currentStreak: prog.currentStreak,
+      longestStreak: prog.longestStreak,
+      leveledUp: false,
+      level: prog.level,
+      totalXP: prog.totalXP,
+      newBadges: [],
+      streakDayXP: null,
+      streakWeekXP: null,
+      alreadyCountedToday: true,
+    };
   }
 
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterday = startOfUserDayOffset(tz, -1, today);
 
   if (lastDate && lastDate.getTime() === yesterday.getTime()) {
     // Consecutive day
     prog.currentStreak += 1;
-  } else if (!lastDate || lastDate.getTime() < yesterday.getTime()) {
-    // Streak broken or first activity
+  } else {
+    // Streak broken or first activity (lastDate is null or older than yesterday)
     prog.currentStreak = 1;
   }
 
@@ -362,13 +420,12 @@ async function saveAndAwardStreak(prog) {
 }
 
 // Check and award nutrition goals
-async function checkNutritionGoals(userId, todayNutrition, targets) {
+async function checkNutritionGoals(userId, todayNutrition, targets, tz) {
   const prog = await getProgression(userId);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = startOfUserDay(tz);
 
   // Reset daily flags if new day
-  if (!prog.dailyFlags.date || new Date(prog.dailyFlags.date).getTime() !== today.getTime()) {
+  if (!prog.dailyFlags.date || startOfUserDay(tz, new Date(prog.dailyFlags.date)).getTime() !== today.getTime()) {
     prog.dailyFlags = { date: today, workoutDone: false, calorieGoalMet: false, proteinGoalMet: false };
   }
 
@@ -383,10 +440,8 @@ async function checkNutritionGoals(userId, todayNutrition, targets) {
       // Calorie-goal streak: consecutive days the target was hit. Separate
       // from currentStreak (general activity) — a user can work out every
       // day and still miss their calorie target, or vice versa.
-      const lastGoalDate = prog.lastCalorieGoalDate ? new Date(prog.lastCalorieGoalDate) : null;
-      if (lastGoalDate) lastGoalDate.setHours(0, 0, 0, 0);
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
+      const lastGoalDate = prog.lastCalorieGoalDate ? startOfUserDay(tz, new Date(prog.lastCalorieGoalDate)) : null;
+      const yesterday = startOfUserDayOffset(tz, -1, today);
 
       if (lastGoalDate && lastGoalDate.getTime() === yesterday.getTime()) {
         prog.calorieStreak = (prog.calorieStreak || 0) + 1;
@@ -453,14 +508,32 @@ function awardXPInternal(prog, eventType) {
 //   min ≤ hours < great:  +25 XP (sleep_goal)
 //   hours ≥ great:        +35 XP (sleep_great) — "recommended" tier
 // `recommendedMin` is the lower bound (e.g. 7), `recommendedTarget` is
-// the bonus tier (defaults to recommendedMin + 1).
-async function checkSleepGoal(userId, hours, recommendedMin, recommendedTarget) {
+// the bonus tier (defaults to recommendedMin + 1). `isNewLog` must be true
+// only the first time a given calendar night is saved — re-saving/editing
+// today's existing entry (e.g. correcting the hours) must not double-count
+// it as a second night in totalSleepLogs.
+async function checkSleepGoal(userId, { hours, recommendedMin, recommendedTarget, isNewLog = true, logDate = new Date(), tz } = {}) {
   const prog = await getProgression(userId);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = startOfUserDay(tz);
+  const logDay = startOfUserDay(tz, new Date(logDate));
+  const isToday = logDay.getTime() === today.getTime();
+
+  // A genuinely new night's record always counts toward the lifetime total,
+  // even if it's a back-filled past date.
+  if (isNewLog) {
+    prog.totalSleepLogs = (prog.totalSleepLogs || 0) + 1;
+  }
+
+  // XP, the daily "sleep goal met" flag, and the sleep streak are all tied to
+  // *today's* night only. Back-filling a past date records the log (above) but
+  // must never grant today's XP, flip today's flag, or move the streak (#2/#5).
+  if (!isToday) {
+    await prog.save();
+    return [];
+  }
 
   // Reset daily flags if new day
-  if (!prog.dailyFlags.date || new Date(prog.dailyFlags.date).getTime() !== today.getTime()) {
+  if (!prog.dailyFlags.date || startOfUserDay(tz, new Date(prog.dailyFlags.date)).getTime() !== today.getTime()) {
     prog.dailyFlags = { date: today, workoutDone: false, calorieGoalMet: false, proteinGoalMet: false, sleepGoalMet: false };
   }
 
@@ -469,26 +542,25 @@ async function checkSleepGoal(userId, hours, recommendedMin, recommendedTarget) 
     return [];
   }
 
-  // Increment total sleep logs
-  prog.totalSleepLogs = (prog.totalSleepLogs || 0) + 1;
-
   const greatThreshold = recommendedTarget || recommendedMin + 1;
   const results = [];
 
-  if (hours >= greatThreshold) {
-    // Bonus tier — solid full night's sleep
+  const qualifies = hours >= recommendedMin;
+  if (qualifies) {
     prog.dailyFlags.sleepGoalMet = true;
-    prog.sleepStreak = (prog.sleepStreak || 0) + 1;
-    const r = awardXPInternal(prog, 'sleep_great');
-    results.push(r);
-  } else if (hours >= recommendedMin) {
-    // Hit the minimum
-    prog.dailyFlags.sleepGoalMet = true;
-    prog.sleepStreak = (prog.sleepStreak || 0) + 1;
-    const r = awardXPInternal(prog, 'sleep_goal');
+    // Consecutive-day streak (matches calorieStreak): only +1 if the previous
+    // qualifying night was literally yesterday; otherwise it restarts at 1.
+    const lastSleep = prog.lastSleepGoalDate ? startOfUserDay(tz, new Date(prog.lastSleepGoalDate)) : null;
+    const yesterday = startOfUserDayOffset(tz, -1, today);
+    prog.sleepStreak = (lastSleep && lastSleep.getTime() === yesterday.getTime())
+      ? (prog.sleepStreak || 0) + 1
+      : 1;
+    prog.lastSleepGoalDate = today;
+
+    const r = awardXPInternal(prog, hours >= greatThreshold ? 'sleep_great' : 'sleep_goal');
     results.push(r);
   } else {
-    // Below minimum — reset sleep streak
+    // Below minimum tonight — break the sleep streak.
     prog.sleepStreak = 0;
   }
 
@@ -496,18 +568,41 @@ async function checkSleepGoal(userId, hours, recommendedMin, recommendedTarget) 
   return results;
 }
 
+// A streak stored in the DB only ever moves when the user *does* something
+// (updateStreak) or deletes something (recalcStreak). For a user who simply
+// stops opening the app, `currentStreak` stays frozen at its last value. On
+// read we must therefore report the *live* streak: it's only still alive if
+// the last activity was today or yesterday (in the user's timezone); otherwise
+// it has lapsed and should read as 0 even though the stored number is higher.
+function liveStreak(prog, tz) {
+  const stored = prog.currentStreak || 0;
+  if (stored === 0 || !prog.lastActivityDate) return 0;
+  const today = startOfUserDay(tz);
+  const yesterday = startOfUserDayOffset(tz, -1, today);
+  const last = startOfUserDay(tz, new Date(prog.lastActivityDate));
+  return last.getTime() >= yesterday.getTime() ? stored : 0;
+}
+
 // Build full status response
-async function getProgressionStatus(userId, goalData) {
+async function getProgressionStatus(userId, goalData, tz) {
   const prog = await getProgression(userId);
 
   // Save initial weight delta on first calculation if not set
+  let dirty = false;
   if (goalData?.weightProgress && !prog.initialWeightDelta) {
     prog.initialWeightDelta = Math.abs(goalData.weightProgress.weightDelta);
+    dirty = true;
   }
 
-  // Recalculate stats with real goal data
-  prog.stats = calculateStats(prog, goalData);
-  await prog.save();
+  // Recalculate stats with real goal data. This is a read endpoint, so only
+  // persist when something actually changed (#7) — avoids a DB write on every
+  // dashboard load and the concurrent-write race that came with it.
+  const nextStats = calculateStats(prog, goalData);
+  if (JSON.stringify(prog.stats) !== JSON.stringify(nextStats)) {
+    prog.stats = nextStats;
+    dirty = true;
+  }
+  if (dirty) await prog.save();
 
   const currentLevelXP = xpForLevel(prog.level);
   const nextLevelXP = xpForLevel(prog.level + 1);
@@ -522,10 +617,10 @@ async function getProgressionStatus(userId, goalData) {
     xpInCurrentLevel,
     xpNeededForNext,
     progressPercent: Math.round((xpInCurrentLevel / xpNeededForNext) * 100),
-    currentStreak: prog.currentStreak,
+    currentStreak: liveStreak(prog, tz),
     longestStreak: prog.longestStreak,
     weekStreaksCompleted: prog.weekStreaksCompleted,
-    stats: prog.stats,
+    stats: nextStats,
     badges: prog.badges,
     recentXP: prog.xpHistory.slice(-10).reverse(),
     sleepStreak: prog.sleepStreak || 0,
@@ -545,6 +640,7 @@ module.exports = {
   awardXP,
   revokeXP,
   recalcStreak,
+  reconcileStreakForToday,
   updateStreak,
   checkNutritionGoals,
   checkSleepGoal,
