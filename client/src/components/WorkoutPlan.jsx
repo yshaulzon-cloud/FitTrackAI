@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
 import WorkoutSession, { readActiveSession } from './WorkoutSession';
 
@@ -121,7 +121,7 @@ function toHomeExercises(exercises) {
   });
 }
 
-export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHistory, showXP }) {
+export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHistory, showXP, progressionData }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
   const [dayDurations, setDayDurations] = useState({});
@@ -133,7 +133,8 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   const [lastDeleted, setLastDeleted] = useState(null);
   const [showAllWorkouts, setShowAllWorkouts] = useState(false);
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
-  const [doneSets, setDoneSets] = useState({});
+  const [expandedPlanEx, setExpandedPlanEx] = useState(null);
+  const [perfMap, setPerfMap] = useState({});
   // Live session state: null | { exercises, dayName, location, restore? }
   const [session, setSession] = useState(null);
   const [resumeAvailable, setResumeAvailable] = useState(() => readActiveSession());
@@ -305,19 +306,57 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   }
   const workouts = workoutHistory?.workouts || [];
 
-  // Count done sets in the current day
   const currentDay = days[safeDayIdx];
   const baseExercises0 = currentDay ? (homeMode ? toHomeExercises(currentDay.exercises) : currentDay.exercises) : [];
   const adjExercises0 = getExercisesForDuration(baseExercises0, dayDurations[currentDay?.day] || 60);
-  const totalSets = adjExercises0.reduce((s, ex) => s + (ex.sets || 0), 0);
-  const doneSetsCount = Object.values(doneSets).filter(Boolean).length;
-  const wkPct = totalSets > 0 ? Math.min(100, Math.round((doneSetsCount / totalSets) * 100)) : 0;
 
-  function toggleSet(exIdx, setIdx) {
-    const key = `${safeDayIdx}-${exIdx}-${setIdx}`;
-    setDoneSets(prev => ({ ...prev, [key]: !prev[key] }));
-  }
-  function isSetDone(exIdx, setIdx) { return !!doneSets[`${safeDayIdx}-${exIdx}-${setIdx}`]; }
+  // Fetch last-performance data for the current day's exercises so the
+  // (read-only) accordion preview can show real suggested weights.
+  useEffect(() => {
+    const names = adjExercises0.map(ex => ex.name);
+    if (names.length === 0) { setPerfMap({}); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api('/workout/performance', {
+          method: 'POST',
+          body: JSON.stringify({ names }),
+        });
+        if (!cancelled) setPerfMap(res.performances || {});
+      } catch { /* non-critical */ }
+    })();
+    return () => { cancelled = true; };
+  }, [safeDayIdx, homeMode, dayDurations[currentDay?.day]]); // eslint-disable-line
+
+  // Week strip (Sun-start) — which days this week already have a logged workout.
+  const weekLetters = isHe ? ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const workoutDayStamps = new Set(workouts.map(w => {
+    const d = new Date(w.date);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }));
+  const todayIdx = new Date().getDay();
+  const startOfWeek = new Date();
+  startOfWeek.setHours(0, 0, 0, 0);
+  startOfWeek.setDate(startOfWeek.getDate() - todayIdx);
+  const weekDots = weekLetters.map((label, i) => {
+    const d = new Date(startOfWeek);
+    d.setDate(startOfWeek.getDate() + i);
+    const done = workoutDayStamps.has(d.getTime());
+    return { label, done, today: i === todayIdx && !done };
+  });
+  const doneThisWeek = weekDots.filter(d => d.done).length;
+
+  const totalWorkoutsCount = workouts.length;
+  const avgDurationMin = workouts.length
+    ? Math.round(workouts.reduce((s, w) => s + (w.durationMinutes || 0), 0) / workouts.length)
+    : 0;
+  const homeMuscleLabel = currentDay ? (bodyPartLabel(currentDay) || (isHe ? 'כוח' : 'Strength')) : '';
+  const nudgeText = doneThisWeek >= maxPerWeek
+    ? (isHe ? '🎉 השלמת את היעד השבועי — כל הכבוד!' : "🎉 You've hit your weekly goal — nice work!")
+    : doneThisWeek === maxPerWeek - 1
+      ? (isHe ? 'עוד אימון אחד ותשלים שבוע מושלם — קדימה!' : 'One more workout for a perfect week — go!')
+      : (isHe ? `עוד ${maxPerWeek - doneThisWeek} אימונים השבוע לפי התוכנית` : `${maxPerWeek - doneThisWeek} workouts left this week per your plan`);
 
   // Full-screen live session overlay takes over everything else.
   if (session) {
@@ -371,14 +410,81 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         </button>
       )}
 
-      {/* Header */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 13, color: '#a78bfa', fontWeight: 700, letterSpacing: '.5px', marginBottom: 2 }}>
-          {isHe ? `אימון · ${expLabels[profile?.experience] || ''}` : `Workout · ${expLabels[profile?.experience] || ''}`}
+      {/* Workout home card — day summary, week strip, stats, fast-path CTA */}
+      <div style={{ fontSize: 13, color: '#a78bfa', fontWeight: 700, letterSpacing: '.5px', marginBottom: 8 }}>
+        {isHe ? `אימון · ${expLabels[profile?.experience] || ''}` : `Workout · ${expLabels[profile?.experience] || ''}`}
+      </div>
+
+      <div style={{
+        padding: 22,
+        borderRadius: 22,
+        marginBottom: 14,
+        background: 'linear-gradient(155deg, rgba(46,230,196,0.16), rgba(10,15,22,0.35))',
+        border: '1px solid rgba(46,230,196,0.25)',
+      }}>
+        <div style={{ color: 'var(--accent)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em' }}>
+          {isHe ? 'האימון של היום' : "TODAY'S WORKOUT"}
         </div>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, color: 'var(--text-1)', margin: 0 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 21, color: 'var(--text-1)', marginTop: 6, lineHeight: 1.3 }}>
           {currentDay ? getDayName(currentDay.day, lang) : (isHe ? 'תוכנית אימון' : 'Workout plan')}
-        </h1>
+        </div>
+        <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 4 }}>
+          {homeMuscleLabel ? `${homeMuscleLabel} · ` : ''}{adjExercises0.length} {isHe ? 'תרגילים' : 'exercises'} · {isHe ? 'כ-' : '~'}{getDuration(currentDay?.day)} {isHe ? 'דקות' : 'min'}
+        </div>
+        {!alreadyTrainedToday && !weeklyLimitReached && (
+          <button
+            type="button"
+            onClick={startSession}
+            style={{
+              marginTop: 16, width: '100%', border: 'none', cursor: 'pointer',
+              background: 'linear-gradient(135deg,#2ee6c4,#16c5a7)', color: '#04231e',
+              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16,
+              padding: 15, borderRadius: 15,
+            }}
+          >
+            {isHe ? 'התחל אימון  ▶' : 'Start Workout  ▶'}
+          </button>
+        )}
+      </div>
+
+      {/* Week strip */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 18, padding: '14px 10px', marginBottom: 12 }}>
+        {weekDots.map((d, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1 }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 800,
+              background: d.done ? 'var(--accent)' : 'rgba(255,255,255,0.06)',
+              color: d.done ? '#04231e' : d.today ? 'var(--accent)' : 'var(--text-3)',
+              border: d.today ? '2px solid var(--accent)' : 'none',
+              animation: d.today ? 'wtRingPulse 2s infinite' : 'none',
+            }}>{d.done ? '✓' : d.label}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{d.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Stats row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 12 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: '13px 8px', textAlign: 'center' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: 'var(--text-1)' }}>{totalWorkoutsCount}</div>
+          <div style={{ fontSize: 10.5, color: 'var(--text-3)', marginTop: 2 }}>{isHe ? 'אימונים' : 'workouts'}</div>
+        </div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: '13px 8px', textAlign: 'center' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: 'var(--text-1)' }}>{avgDurationMin}{isHe ? 'ד׳' : 'm'}</div>
+          <div style={{ fontSize: 10.5, color: 'var(--text-3)', marginTop: 2 }}>{isHe ? 'ממוצע' : 'avg'}</div>
+        </div>
+        <div style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.28)', borderRadius: 16, padding: '13px 8px', textAlign: 'center' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#c4b5fd' }}>{progressionData?.level ?? 1}</div>
+          <div style={{ fontSize: 10.5, color: 'var(--text-3)', marginTop: 2 }}>{isHe ? `רמה · ${progressionData?.totalXP ?? 0} XP` : `Lvl · ${progressionData?.totalXP ?? 0} XP`}</div>
+        </div>
+      </div>
+
+      {/* Nudge */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: '13px 15px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: 19 }}>💪</span>
+        <span style={{ fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.4 }}>{nudgeText}</span>
       </div>
 
       {/* Gym / Home mode picker — prominent CTA so users know home
@@ -517,7 +623,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                 key={i}
                 role="tab"
                 aria-selected={isActive}
-                onClick={() => { setSelectedDayIdx(i); setDoneSets({}); }}
+                onClick={() => { setSelectedDayIdx(i); setExpandedPlanEx(null); }}
                 style={{
                   flex: 1, cursor: 'pointer',
                   border: isActive ? '1px solid rgba(167,139,250,.4)' : '1px solid var(--border-subtle)',
@@ -533,23 +639,6 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               </button>
             );
           })}
-        </div>
-      )}
-
-      {/* Progress bar */}
-      {totalSets > 0 && (
-        <div style={{ background: 'linear-gradient(135deg,rgba(167,139,250,.14),rgba(46,230,196,.06))', border: '1px solid rgba(167,139,250,.22)', borderRadius: 20, padding: '16px 18px', marginBottom: 18 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: 'var(--text-1)' }}>
-              {isHe ? 'התקדמות האימון' : 'Workout progress'}
-            </div>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15, color: '#c4b5fd' }}>
-              {doneSetsCount}/{totalSets} {isHe ? 'סטים' : 'sets'}
-            </div>
-          </div>
-          <div style={{ height: 9, background: 'rgba(255,255,255,.08)', borderRadius: 99, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${wkPct}%`, background: 'linear-gradient(90deg,#a78bfa,#2ee6c4)', borderRadius: 99, transition: 'width .5s cubic-bezier(.4,0,.2,1)' }} />
-          </div>
         </div>
       )}
 
@@ -576,8 +665,8 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{t.minutes}</span>
           </div>
 
-          {/* Exercise cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Exercise list — collapsed accordion; read-only set preview on expand */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {visibleExercises.map((ex, exIdx) => {
               const muscleColors = {
                 'חזה': '#ff5c7c', 'גב': '#4aa8ff', 'כתפיים': '#ffb020',
@@ -587,47 +676,48 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               const exColor = ex.muscleGroup ? (muscleColors[ex.muscleGroup] || '#2ee6c4') : '#2ee6c4';
               const isHeb = lang === 'he';
               const primary = isHeb ? ex.name : getEnglishName(ex.name);
-              const secondary = isHeb && getEnglishName(ex.name) !== ex.name ? getEnglishName(ex.name) : null;
+              const expanded = expandedPlanEx === exIdx;
+              const perf = perfMap[ex.name];
               return (
-                <div key={exIdx} style={{ background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 20, padding: '16px 16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
-                    <div style={{ width: 4, alignSelf: 'stretch', minHeight: 38, borderRadius: 99, flexShrink: 0, background: exColor }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text-1)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                        onClick={() => setSelectedExercise(ex)}
-                      >
-                        {primary}
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 1 }}>
-                        {secondary || (isHeb ? `${ex.reps} חזרות` : `${ex.reps} reps`)}
-                        {secondary ? ` · ${ex.reps} ${isHeb ? 'חזרות' : 'reps'}` : ''}
-                      </div>
+                <div key={exIdx} style={{ background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderInlineStart: `3px solid ${exColor}`, borderRadius: 16, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedPlanEx(expanded ? null : exIdx)}
+                      style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 6px 14px 16px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'start' }}
+                    >
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14.5, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {primary}
+                        </span>
+                        <span style={{ display: 'block', fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
+                          {ex.sets} {isHeb ? 'סטים' : 'sets'} · {ex.reps} {isHeb ? 'חזרות' : 'reps'}
+                        </span>
+                      </span>
+                      <span style={{ color: 'var(--text-3)', fontSize: 12, flexShrink: 0, marginInlineStart: 8, transform: expanded ? 'rotate(-90deg)' : 'none', transition: 'transform .15s' }}>◀</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedExercise(ex)}
+                      aria-label={isHe ? 'סרטון הדרכה' : 'Tutorial video'}
+                      style={{ width: 34, height: 34, marginInlineEnd: 12, flexShrink: 0, borderRadius: 10, border: '1px solid rgba(255,92,124,0.3)', background: 'rgba(255,92,124,0.1)', color: '#ff5c7c', fontSize: 12, cursor: 'pointer' }}
+                    >▶</button>
+                  </div>
+                  {expanded && (
+                    <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {Array.from({ length: ex.sets }, (_, si) => {
+                        const pSet = perf?.sets?.[Math.min(si, (perf.sets.length || 1) - 1)];
+                        return (
+                          <div key={si} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)' }}>
+                            <span style={{ color: 'var(--text-3)', fontSize: 12.5 }}>{isHeb ? 'סט' : 'Set'} {si + 1}</span>
+                            <span style={{ color: 'var(--text-2)', fontSize: 12.5, fontWeight: 600 }}>
+                              {pSet?.weight ? `${pSet.weight} ${isHeb ? 'ק"ג' : 'kg'} × ` : ''}{ex.reps}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
-                  {/* Set toggle buttons */}
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {Array.from({ length: ex.sets }, (_, si) => {
-                      const done = isSetDone(exIdx, si);
-                      return (
-                        <button
-                          key={si}
-                          onClick={() => toggleSet(exIdx, si)}
-                          style={{
-                            flex: 1, cursor: 'pointer',
-                            border: done ? `1.5px solid ${exColor}` : '1.5px solid rgba(255,255,255,.1)',
-                            background: done ? `${exColor}22` : 'rgba(255,255,255,.03)',
-                            borderRadius: 12, padding: '9px 0', textAlign: 'center',
-                            fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15,
-                            color: done ? exColor : '#8f9bab',
-                            transition: 'all .15s',
-                          }}
-                        >
-                          {done ? '✓' : si + 1}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  )}
                 </div>
               );
             })}
@@ -953,13 +1043,21 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
       )}
 
       {/* Primary action: start a tracked live session. Secondary: the old
-          one-tap quick log for users who don't want set tracking. */}
+          one-tap quick log for users who don't want set tracking. Sticky so
+          it's always reachable without scrolling — the doc's #1 fix. */}
       {visibleDays.length > 0 && !completingDay && !alreadyTrainedToday && !weeklyLimitReached && (
-        <>
+        <div style={{
+          position: 'sticky',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 68px)',
+          marginTop: 18,
+          paddingTop: 14,
+          background: 'linear-gradient(180deg, transparent, var(--bg-0) 40%)',
+          zIndex: 5,
+        }}>
           <button
             type="button"
             onClick={startSession}
-            style={{ width: '100%', marginTop: 18, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#2ee6c4,#16c5a7)', color: '#04231e', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 17, padding: 16, borderRadius: 17, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 10px 28px -10px rgba(46,230,196,.7)' }}
+            style={{ width: '100%', border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#2ee6c4,#16c5a7)', color: '#04231e', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 17, padding: 16, borderRadius: 17, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 10px 28px -10px rgba(46,230,196,.7)' }}
           >
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#04231e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
             {lang === 'he' ? 'התחל אימון' : 'Start workout'}
@@ -967,17 +1065,21 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           <button
             type="button"
             onClick={() => setCompletingDay(visibleDays[0].day)}
-            style={{ width: '100%', marginTop: 10, padding: '11px 0', borderRadius: 13, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-3)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+            style={{ width: '100%', marginTop: 10, padding: '11px 0', borderRadius: 13, border: '1px solid var(--border)', background: 'var(--bg-0)', color: 'var(--text-3)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
           >
             {lang === 'he' ? 'רישום מהיר בלי מעקב סטים' : 'Quick log without set tracking'}
           </button>
-        </>
+        </div>
       )}
 
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
+        }
+        @keyframes wtRingPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(46,230,196,0.35); }
+          50% { box-shadow: 0 0 0 6px rgba(46,230,196,0); }
         }
         @keyframes slideUp {
           from { opacity: 0; transform: translateY(30px) scale(0.95); }

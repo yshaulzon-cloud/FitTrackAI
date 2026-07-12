@@ -43,3 +43,20 @@ android/local.properties
 # Claude Code worktrees and local agent state
 .claude/worktrees/
 .claude/settings.local.json
+
+# Local tooling scripts & generated assets (not part of the app)
+cookies.txt
+_test_search.txt
+download.mjs
+make-*.mjs
+screenshot-*.mjs
+separate*.py
+photos2/
+photos3/
+play-assets/
+store-screenshots/
+store-screenshots-en/
+מסכי פתיחה/
+מסכים הגדרות/
+מערכת אימונים/
+*.docx

@@ -25,6 +25,8 @@ const MUSCLE_COLORS = {
   'ליבה': '#ffb020', 'אירובי': '#2ee6c4', 'כללי': '#5b6675',
 };
 
+const CONFETTI_COLORS = ['#ff5c7c', '#4aa8ff', '#ffb020', '#a78bfa', '#e879f9', '#2ee6c4'];
+
 function getEnglishName(name) {
   const match = name.match(/\(([^)]+)\)/);
   return match ? match[1] : name;
@@ -124,8 +126,20 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
   const [error, setError] = useState('');
   const [confirmExit, setConfirmExit] = useState(false);
   const [lastPerf, setLastPerf] = useState({});
+  const [xpAnimated, setXpAnimated] = useState(0);
   const perfApplied = useRef(!!restore);
   const wakeLockRef = useRef(null);
+  const touchXRef = useRef(null);
+  const xpTimerRef = useRef(null);
+
+  const confetti = useMemo(() => Array.from({ length: 18 }, (_, i) => ({
+    left: (i * 5.5) % 100,
+    size: 6 + (i % 3) * 3,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    radius: i % 2 === 0 ? '2px' : '50%',
+    dur: 2.5 + (i % 4) * 0.4,
+    delay: (i % 6) * 0.3,
+  })), []);
 
   const cur = exs[curIdx];
   const totalSets = exs.reduce((n, e) => n + e.sets.length, 0);
@@ -163,6 +177,8 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
       wakeLockRef.current?.release?.();
     };
   }, []);
+
+  useEffect(() => () => clearInterval(xpTimerRef.current), []);
 
   // ── Rest countdown ──
   useEffect(() => {
@@ -252,6 +268,38 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
     }
   }
 
+  // One-tap: mark every set in the current exercise done, start rest once.
+  function markAllSets() {
+    const ex = exs[curIdx];
+    const wasAllDone = ex.sets.every(s => s.done);
+    setExs(prev => prev.map((e, i) => i !== curIdx ? e : { ...e, sets: e.sets.map(s => ({ ...s, done: true })) }));
+    if (wasAllDone) return;
+    navigator.vibrate?.(40);
+    const isLastExercise = curIdx === exs.length - 1;
+    if (!isLastExercise) {
+      const secs = restSecondsFor(ex);
+      setRest({ total: secs, left: secs });
+    }
+  }
+
+  // Smart weight suggestion: last time's weight + progressive overload step.
+  function applySuggestion() {
+    const p = lastPerf[cur.name];
+    if (!p) return;
+    const suggested = (p.sets[0]?.weight ?? 0) + 2.5;
+    setExs(prev => prev.map((e, i) => i !== curIdx ? e : { ...e, sets: e.sets.map(s => ({ ...s, weight: suggested })) }));
+  }
+
+  // Swipe left/right to move between exercises.
+  function onTouchStart(e) { touchXRef.current = e.touches[0].clientX; }
+  function onTouchEnd(e) {
+    if (touchXRef.current == null) return;
+    const dx = e.changedTouches[0].clientX - touchXRef.current;
+    touchXRef.current = null;
+    if (dx < -60) setCurIdx(i => Math.min(exs.length - 1, i + 1));
+    else if (dx > 60) setCurIdx(i => Math.max(0, i - 1));
+  }
+
   const addSet = useCallback(() => {
     setExs(prev => prev.map((ex, i) => {
       if (i !== curIdx) return ex;
@@ -297,6 +345,20 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
       clearActiveSession();
       navigator.vibrate?.([100, 60, 100, 60, 200]);
       setSummary(result);
+      const xpTarget = result.xp?.xpGained || 0;
+      setXpAnimated(0);
+      clearInterval(xpTimerRef.current);
+      if (xpTarget > 0) {
+        let cur = 0;
+        xpTimerRef.current = setInterval(() => {
+          cur += Math.max(1, Math.round(xpTarget / 20));
+          if (cur >= xpTarget) {
+            cur = xpTarget;
+            clearInterval(xpTimerRef.current);
+          }
+          setXpAnimated(cur);
+        }, 40);
+      }
     } catch (err) {
       const msg = err?.message || '';
       if (msg === 'alreadyTrainedToday') setError(isHe ? 'כבר נרשם אימון היום' : 'Already logged a workout today');
@@ -321,6 +383,21 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
     const prs = summary.prs || [];
     return (
       <div className="ws-overlay">
+        {confetti.map((cf, i) => (
+          <div
+            key={i}
+            className="ws-confetti"
+            style={{
+              insetInlineStart: `${cf.left}%`,
+              width: cf.size,
+              height: cf.size,
+              background: cf.color,
+              borderRadius: cf.radius,
+              animationDuration: `${cf.dur}s`,
+              animationDelay: `${cf.delay}s`,
+            }}
+          />
+        ))}
         <div className="ws-summary">
           <div className="ws-summary__burst">🎉</div>
           <h2 className="ws-summary__title">{isHe ? 'כל הכבוד!' : 'Well done!'}</h2>
@@ -356,7 +433,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
             )}
             {xpGained > 0 && (
               <div className="ws-stat ws-stat--xp">
-                <div className="ws-stat__value">+{xpGained}</div>
+                <div className="ws-stat__value">+{xpAnimated}</div>
                 <div className="ws-stat__label">XP</div>
               </div>
             )}
@@ -425,7 +502,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
         <div className="ws-confirm">
           <div className="ws-confirm__box">
             <div className="ws-confirm__title">{isHe ? 'לצאת מהאימון?' : 'Leave workout?'}</div>
-            <div className="ws-confirm__sub">{isHe ? 'ההתקדמות שלך לא תישמר.' : 'Your progress will not be saved.'}</div>
+            <div className="ws-confirm__sub">{isHe ? 'ההתקדמות שלך תישמר — תוכל להמשיך מאוחר יותר.' : 'Your progress is saved — you can continue later.'}</div>
             <div className="ws-confirm__actions">
               <button type="button" className="ws-btn-danger" onClick={handleExit}>{isHe ? 'צא' : 'Leave'}</button>
               <button type="button" className="ws-btn-ghost" onClick={() => setConfirmExit(false)}>{isHe ? 'המשך אימון' : 'Keep training'}</button>
@@ -453,7 +530,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
         </div>
 
         {/* Exercise card */}
-        <div className="ws-exercise" key={curIdx}>
+        <div className="ws-exercise" key={curIdx} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
           <div className="ws-exercise__head">
             <div className="ws-exercise__bar" style={{ background: exColor }} />
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -482,6 +559,22 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
                 {perf.sets.length}×{perf.sets[0]?.reps || '—'}
                 {perf.sets[0]?.weight ? ` @ ${perf.sets[0].weight} ${isHe ? 'ק״ג' : 'kg'}` : ''}
               </strong>
+            </div>
+          )}
+
+          {/* Smart weight suggestion — last weight + progressive overload */}
+          {perf && cur.mode === 'reps' && location === 'gym' && perf.sets[0]?.weight != null && (
+            <div className="ws-suggest">
+              <span>⚡ {isHe ? 'הצעה חכמה' : 'Smart pick'}: {perf.sets[0].weight + 2.5} {isHe ? 'ק״ג' : 'kg'}</span>
+              <button type="button" onClick={applySuggestion}>{isHe ? 'החל' : 'Apply'}</button>
+            </div>
+          )}
+
+          {cur.mode === 'reps' && (
+            <div className="ws-markall-row">
+              <button type="button" className="ws-markall" onClick={markAllSets}>
+                ✓ {isHe ? 'סמן הכל כהושלם' : 'Mark all done'}
+              </button>
             </div>
           )}
 
@@ -515,31 +608,22 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
                 ) : (
                   <>
                     {location === 'gym' && (
-                      <div className="ws-set__field">
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step="2.5"
-                          min="0"
-                          dir="ltr"
-                          value={s.weight ?? ''}
-                          placeholder="—"
-                          onChange={(e) => updateSet(si, { weight: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                        />
-                        <span className="ws-set__unit">{isHe ? 'ק״ג' : 'kg'}</span>
+                      <div className="ws-set__stepper">
+                        <button type="button" className="ws-stepper__btn" onClick={() => updateSet(si, { weight: Math.max(0, (s.weight ?? 0) - 2.5) })} aria-label={isHe ? 'הפחת משקל' : 'Decrease weight'}>−</button>
+                        <div className="ws-stepper__val">
+                          <span>{s.weight ?? 0}</span>
+                          <span className="ws-set__unit">{isHe ? 'ק״ג' : 'kg'}</span>
+                        </div>
+                        <button type="button" className="ws-stepper__btn" onClick={() => updateSet(si, { weight: (s.weight ?? 0) + 2.5 })} aria-label={isHe ? 'הוסף משקל' : 'Increase weight'}>+</button>
                       </div>
                     )}
-                    <div className="ws-set__field">
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min="0"
-                        dir="ltr"
-                        value={s.reps ?? ''}
-                        placeholder="—"
-                        onChange={(e) => updateSet(si, { reps: e.target.value === '' ? null : parseInt(e.target.value) })}
-                      />
-                      <span className="ws-set__unit">{isHe ? 'חזרות' : 'reps'}</span>
+                    <div className="ws-set__stepper">
+                      <button type="button" className="ws-stepper__btn" onClick={() => updateSet(si, { reps: Math.max(0, (s.reps ?? 0) - 1) })} aria-label={isHe ? 'הפחת חזרות' : 'Decrease reps'}>−</button>
+                      <div className="ws-stepper__val">
+                        <span>{s.reps ?? 0}</span>
+                        <span className="ws-set__unit">{isHe ? 'חזרות' : 'reps'}</span>
+                      </div>
+                      <button type="button" className="ws-stepper__btn" onClick={() => updateSet(si, { reps: (s.reps ?? 0) + 1 })} aria-label={isHe ? 'הוסף חזרות' : 'Increase reps'}>+</button>
                     </div>
                   </>
                 )}

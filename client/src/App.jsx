@@ -3,10 +3,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useLang } from './context/LanguageContext';
 import Login from './pages/Login';
-import Register from './pages/Register';
-import Onboarding from './pages/Onboarding';
+import OnboardingFlow from './pages/OnboardingFlow';
 import Dashboard from './pages/Dashboard';
-import Welcome from './pages/Welcome';
 
 const INTRO_FLAG = 'areto:intro-seen';
 
@@ -158,10 +156,15 @@ function AuthRoute({ children }) {
 
   if (user && user.onboardingComplete) return <Navigate to="/dashboard" />;
   if (user && !user.onboardingComplete) return <Navigate to="/onboarding" />;
-  if (!user && shouldShowIntroSync()) return <Navigate to="/welcome" />;
+  if (!user && shouldShowIntroSync()) return <Navigate to="/onboarding" />;
   return children;
 }
 
+// Unlike the old flow, onboarding now comes BEFORE account creation — the
+// whole point of the redesign is that anonymous visitors answer every
+// personalization question first and only sign up at the end to save the
+// plan. So this route must admit anonymous users too; it only redirects
+// away once onboarding is actually complete.
 function OnboardingRoute({ children }) {
   const { user, loading } = useAuth();
 
@@ -173,8 +176,7 @@ function OnboardingRoute({ children }) {
     );
   }
 
-  if (!user) return <Navigate to="/login" />;
-  if (user.onboardingComplete) return <Navigate to="/dashboard" />;
+  if (user && user.onboardingComplete) return <Navigate to="/dashboard" />;
   return children;
 }
 
@@ -226,18 +228,10 @@ export default function App() {
         }
       />
       <Route
-        path="/register"
-        element={
-          <AuthRoute>
-            <Register />
-          </AuthRoute>
-        }
-      />
-      <Route
         path="/onboarding"
         element={
           <OnboardingRoute>
-            <Onboarding />
+            <OnboardingFlow />
           </OnboardingRoute>
         }
       />
@@ -249,7 +243,11 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      <Route path="/welcome" element={<Welcome />} />
+      {/* Signup and the old welcome page are now the first/last steps of the
+          single onboarding flow — keep these as redirects so old links and
+          bookmarks still land somewhere sensible. */}
+      <Route path="/welcome" element={<Navigate to="/onboarding" />} />
+      <Route path="/register" element={<Navigate to="/onboarding" />} />
       <Route path="*" element={<Navigate to="/dashboard" />} />
     </Routes>
     </ErrorBoundary>

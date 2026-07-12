@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useMemo, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 
 const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
 import { useAuth } from '../context/AuthContext';
@@ -59,7 +60,10 @@ export default function Dashboard() {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
   const { setLanguage } = useLang();
-  const [activeTab, setActiveTab] = useState('overview');
+  const location = useLocation();
+  // Lets the end of the onboarding flow land directly on a specific tab
+  // (e.g. the workout tab) instead of always opening on the overview.
+  const [activeTab, setActiveTab] = useState(() => location.state?.tab || 'overview');
   const [profileData, setProfileData] = useState(null);
   const [todayNutrition, setTodayNutrition] = useState(null);
   const [workoutHistory, setWorkoutHistory] = useState(null);
@@ -114,6 +118,7 @@ export default function Dashboard() {
       setWorkoutHistory(workouts);
       setProgressionData(progression);
       reconcileStreak(progression?.currentStreak);
+      syncTimezone(profile?.profile?.timezone);
     } catch (err) {
       console.error('Error loading data:', err);
     } finally {
@@ -134,6 +139,20 @@ export default function Dashboard() {
       setStreakToast(serverStreak);
     }
     prevStreakRef.current = serverStreak;
+  }
+
+  // If the device's timezone no longer matches what the server has stored
+  // (user travelled / changed region), quietly push the new one so streak
+  // day-boundaries follow them. Fires at most once per mount, only on a real
+  // mismatch, and never blocks the UI.
+  const tzSyncedRef = useRef(false);
+  function syncTimezone(storedTz) {
+    if (tzSyncedRef.current) return;
+    let deviceTz;
+    try { deviceTz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return; }
+    if (!deviceTz || deviceTz === storedTz) return;
+    tzSyncedRef.current = true;
+    api('/user/profile', { method: 'PUT', body: JSON.stringify({ timezone: deviceTz }) }).catch(() => {});
   }
 
   function showXP(xpEvents) {
@@ -216,6 +235,7 @@ export default function Dashboard() {
             onComplete={loadData}
             workoutHistory={workoutHistory}
             showXP={showXP}
+            progressionData={progressionData}
           />
         )}
 
@@ -768,6 +788,20 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
   );
 }
 
+// ── Settings v2 icons ──────────────────────────────────────────────────────
+function StIc({ type, color = '#fff', size = 18 }) {
+  const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  if (type === 'user')    return <svg {...p}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>;
+  if (type === 'target')  return <svg {...p}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill={color} stroke="none"/></svg>;
+  if (type === 'bell')    return <svg {...p}><path d="M6 9a6 6 0 0 1 12 0v4l2 4H4l2-4z"/><path d="M9.5 20a2.5 2.5 0 0 0 5 0"/></svg>;
+  if (type === 'display') return <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><path d="M15 3a9 9 0 1 0 6 15 7 7 0 0 1-6-15z"/></svg>;
+  if (type === 'sliders') return <svg {...p}><line x1="5" y1="7" x2="19" y2="7"/><circle cx="9" cy="7" r="2" fill={color}/><line x1="5" y1="12" x2="19" y2="12"/><circle cx="15" cy="12" r="2" fill={color}/><line x1="5" y1="17" x2="19" y2="17"/><circle cx="11" cy="17" r="2" fill={color}/></svg>;
+  if (type === 'lock')    return <svg {...p}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>;
+  if (type === 'shield')  return <svg {...p}><path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z"/></svg>;
+  if (type === 'chat')    return <svg {...p}><path d="M4 5h16v11H8l-4 3z"/></svg>;
+  return null;
+}
+
 function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
   const { t, lang, setLanguage } = useLang();
   const { theme, setTheme } = useTheme();
@@ -775,16 +809,24 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
   const { user } = useAuth();
   const isHe = lang === 'he';
 
-  const [section, setSection] = useState('body');
-  // Mobile push-navigation: when user taps a section item, we go into "detail
-  // view" (only the section content is shown, with a back button). On
-  // desktop both list and content are visible side-by-side (CSS).
-  const [showingDetail, setShowingDetail] = useState(false);
-  const openSection = (id) => { setSection(id); setShowingDetail(true); };
-  const closeDetail = () => setShowingDetail(false);
+  // ── Navigation ───────────────────────────────────────────
+  const [screen, setScreen] = useState('home');
+  const [sheet,  setSheet]  = useState(null);
+  const [toast,  setToast]  = useState('');
+  const [search, setSearch] = useState('');
+  const toastTimerRef = useRef(null);
+
+  const flashToast = (msg) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(msg);
+    toastTimerRef.current = setTimeout(() => setToast(''), 2500);
+  };
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
+
+  // ── Body data ────────────────────────────────────────────
   const [weight, setWeight] = useState(profile?.weight || '');
   const [height, setHeight] = useState(profile?.height || '');
-  const [goal, setGoal] = useState(profile?.goal || '');
+  const [goal,   setGoal]   = useState(profile?.goal   || 'maintain');
   const [gender, setGender] = useState(profile?.gender || 'male');
   const [workoutsPerWeek, setWorkoutsPerWeek] = useState(profile?.workoutsPerWeek || 3);
 
@@ -848,94 +890,66 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
   }, []);
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [confirmingLogout, setConfirmingLogout] = useState(false);
-  const autoSaveBodyRef = useRef(null);
-  const [confirmingReset,  setConfirmingReset]  = useState(false);
-  const [resetText, setResetText] = useState('');
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleteText, setDeleteText] = useState('');
   const [dangerLoading, setDangerLoading] = useState(false);
-  const [dangerMessage, setDangerMessage] = useState('');
+  const [confirmText, setConfirmText] = useState('');
 
-  // ─── Password reset flow (in-app) ────────────────────────
-  // Reuses the existing /auth/forgot-password + /auth/reset-password
-  // endpoints. The user is signed in, so we already know their email.
+  // Accessibility prefs (localStorage)
+  const [textSize, setTextSizeState] = useState(() => localStorage.getItem('a11y:textSize') || 'normal');
+  const [reduceMotion, setReduceMotionState] = useState(() => localStorage.getItem('a11y:reduceMotion') === '1');
+  const [highContrast, setHighContrastState] = useState(() => localStorage.getItem('a11y:highContrast') === '1');
+  const setTextSize = (v) => { localStorage.setItem('a11y:textSize', v); setTextSizeState(v); };
+  const setReduceMotion = (v) => { localStorage.setItem('a11y:reduceMotion', v ? '1' : '0'); setReduceMotionState(v); };
+  const setHighContrast = (v) => { localStorage.setItem('a11y:highContrast', v ? '1' : '0'); setHighContrastState(v); };
+
+  const [tfa, setTfaState] = useState(() => localStorage.getItem('sec:tfa') === '1');
+  const setTfa = (v) => { localStorage.setItem('sec:tfa', v ? '1' : '0'); setTfaState(v); };
+
+  // Password reset (reuses /auth/forgot-password + /auth/reset-password)
   const [pwStep, setPwStep] = useState('idle'); // idle | code-sent | done
   const [pwCode, setPwCode] = useState('');
   const [pwNew,  setPwNew]  = useState('');
   const [pwLoading, setPwLoading] = useState(false);
-  const [pwMessage, setPwMessage] = useState('');
-  const [pwError,   setPwError]   = useState('');
+  const [pwError, setPwError] = useState('');
 
   async function handleSendPasswordCode() {
-    if (!user?.email) {
-      setPwError(isHe ? 'לא נמצאה כתובת אימייל' : 'No email on file');
-      return;
-    }
-    setPwLoading(true);
-    setPwError('');
-    setPwMessage('');
+    if (!user?.email) { setPwError(isHe ? 'לא נמצאה כתובת אימייל' : 'No email on file'); return; }
+    setPwLoading(true); setPwError('');
     try {
       const res = await fetch(`${API_BASE}/auth/forgot-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email }),
       });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.message);
-      }
-      setPwMessage(t.codeSent || (isHe ? 'קוד נשלח לאימייל שלך' : 'Code sent to your email'));
+      if (!res.ok) { const d = await res.json(); throw new Error(d.message); }
+      flashToast(isHe ? 'קוד נשלח לאימייל שלך' : 'Code sent to your email');
       setPwStep('code-sent');
     } catch (err) {
       setPwError(err.message || (isHe ? 'שגיאה בשליחת הקוד' : 'Failed to send code'));
-    } finally {
-      setPwLoading(false);
-    }
+    } finally { setPwLoading(false); }
   }
 
   async function handleConfirmPasswordReset() {
-    if (pwCode.length < 6) {
-      setPwError(isHe ? 'הקוד חייב 6 ספרות' : 'Code must be 6 digits');
-      return;
-    }
-    // Mirror the server rules (8+ chars incl. a digit) so the user isn't
-    // let through client-side only to be rejected by the server.
+    if (pwCode.length < 6) { setPwError(isHe ? 'הקוד חייב 6 ספרות' : 'Code must be 6 digits'); return; }
     if (pwNew.length < 8 || !/\d/.test(pwNew)) {
-      setPwError(t.passwordMin || (isHe ? 'הסיסמה חייבת להכיל לפחות 8 תווים וספרה אחת' : 'Password must be at least 8 characters and include a digit'));
+      setPwError(isHe ? 'הסיסמה חייבת להכיל לפחות 8 תווים וספרה אחת' : 'Password must be at least 8 characters and include a digit');
       return;
     }
-    setPwLoading(true);
-    setPwError('');
+    setPwLoading(true); setPwError('');
     try {
       await api('/auth/reset-password', {
         method: 'POST',
-        body: JSON.stringify({
-          email: user.email,
-          code: pwCode.trim(),
-          newPassword: pwNew,
-        }),
+        body: JSON.stringify({ email: user.email, code: pwCode.trim(), newPassword: pwNew }),
       });
       setPwStep('done');
-      setPwMessage(t.passwordResetSuccess || (isHe ? 'הסיסמה שונתה בהצלחה' : 'Password changed successfully'));
-      setPwCode('');
-      setPwNew('');
-      // Auto-collapse after a moment
-      setTimeout(() => { setPwStep('idle'); setPwMessage(''); }, 4000);
+      flashToast(isHe ? 'הסיסמה שונתה בהצלחה' : 'Password changed successfully');
+      setPwCode(''); setPwNew('');
+      setTimeout(() => setPwStep('idle'), 4000);
     } catch (err) {
       setPwError(err.message || (isHe ? 'שגיאה באיפוס הסיסמה' : 'Reset failed'));
-    } finally {
-      setPwLoading(false);
-    }
+    } finally { setPwLoading(false); }
   }
 
   function cancelPasswordReset() {
-    setPwStep('idle');
-    setPwCode('');
-    setPwNew('');
-    setPwError('');
-    setPwMessage('');
+    setPwStep('idle'); setPwCode(''); setPwNew(''); setPwError('');
   }
 
   // ─── Live preview: how do current changes affect calorie target? ──
@@ -964,824 +978,550 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
 
   const currentCalories = nutrition?.calorieTarget;
   const calorieDelta = (liveCalories != null && currentCalories) ? liveCalories - currentCalories : 0;
-  const parsedWeight = parseFloat(weight);
-  const parsedHeight = parseFloat(height);
-  const hasUnsavedChanges = (
-    (!isNaN(parsedWeight) && parsedWeight !== profile?.weight) ||
-    (!isNaN(parsedHeight) && parsedHeight !== profile?.height) ||
-    goal !== profile?.goal ||
-    gender !== profile?.gender ||
-    parseInt(workoutsPerWeek) !== profile?.workoutsPerWeek
-  );
 
-  // Autosave state — shown as a tiny indicator at the top of the section.
-  //   'idle' (no recent change), 'pending' (typing), 'saving' (mid-flight),
-  //   'saved' (briefly after success), 'error'.
-  const [autoSaveStatus, setAutoSaveStatus] = useState('idle');
-
-  // Debounced auto-save for body + goal fields. Fires 800ms after the
-  // last change so the user can finish typing before we hit the server.
-  useEffect(() => {
-    if (!hasUnsavedChanges) return;
-    setAutoSaveStatus('pending');
-    autoSaveBodyRef.current = setTimeout(async () => {
-      try {
-        setAutoSaveStatus('saving');
-        await api('/user/profile', {
-          method: 'PUT',
-          body: JSON.stringify({
-            weight: isNaN(parsedWeight) ? profile?.weight : parsedWeight,
-            height: isNaN(parsedHeight) ? profile?.height : parsedHeight,
-            goal,
-            gender,
-            workoutsPerWeek: parseInt(workoutsPerWeek),
-          }),
-        });
-        setAutoSaveStatus('saved');
-        onUpdate();
-        setTimeout(() => setAutoSaveStatus('idle'), 1800);
-      } catch {
-        setAutoSaveStatus('error');
-        setTimeout(() => setAutoSaveStatus('idle'), 3000);
-      }
-    }, 800);
-    return () => clearTimeout(autoSaveBodyRef.current);
-  }, [weight, height, goal, gender, workoutsPerWeek, hasUnsavedChanges]); // eslint-disable-line
-
-  // Same pattern for the Account section (name + age).
-  useEffect(() => {
-    const dirty = (name && name.trim() !== (userName || '')) ||
-                  (age && parseInt(age) !== profile?.age);
-    if (!dirty) return;
-    setAutoSaveStatus('pending');
-    const timer = setTimeout(async () => {
-      try {
-        setAutoSaveStatus('saving');
-        const payload = {};
-        if (name && name.trim() !== (userName || '')) payload.name = name.trim();
-        if (age && parseInt(age) !== profile?.age) payload.age = parseInt(age);
-        if (Object.keys(payload).length === 0) {
-          setAutoSaveStatus('idle');
-          return;
-        }
-        await api('/user/profile', { method: 'PUT', body: JSON.stringify(payload) });
-        setAutoSaveStatus('saved');
-        onUpdate();
-        setTimeout(() => setAutoSaveStatus('idle'), 1800);
-      } catch {
-        setAutoSaveStatus('error');
-        setTimeout(() => setAutoSaveStatus('idle'), 3000);
-      }
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [name, age]); // eslint-disable-line
-
-  async function handleSave(e) {
-    if (e) e.preventDefault();
-    if (autoSaveBodyRef.current) clearTimeout(autoSaveBodyRef.current);
+  async function handleSaveBody() {
     setLoading(true);
-    setMessage('');
     try {
+      const pw = parseFloat(weight); const ph = parseFloat(height);
       await api('/user/profile', {
         method: 'PUT',
         body: JSON.stringify({
-          weight: isNaN(parsedWeight) ? profile?.weight : parsedWeight,
-          height: isNaN(parsedHeight) ? profile?.height : parsedHeight,
-          goal,
-          gender,
+          weight: isNaN(pw) ? profile?.weight : pw,
+          height: isNaN(ph) ? profile?.height : ph,
+          goal, gender,
           workoutsPerWeek: parseInt(workoutsPerWeek),
         }),
       });
-      setMessage(t.profileUpdated);
-      setTimeout(() => setMessage(''), 3000);
       onUpdate();
+      flashToast(isHe ? 'נשמר ✓' : 'Saved ✓');
     } catch (err) {
-      setMessage(t.errorUpdating);
-    } finally {
-      setLoading(false);
-    }
+      flashToast(err.message || (isHe ? 'שגיאה בשמירה' : 'Save failed'));
+    } finally { setLoading(false); }
   }
 
   async function handleSaveAccount() {
+    const payload = {};
+    if (name.trim() && name.trim() !== (userName || '')) payload.name = name.trim();
+    if (age && parseInt(age) !== profile?.age) payload.age = parseInt(age);
+    if (!Object.keys(payload).length) { flashToast(isHe ? 'לא בוצעו שינויים' : 'No changes'); return; }
     setLoading(true);
-    setMessage('');
     try {
-      const payload = {};
-      if (name && name.trim() !== userName) payload.name = name.trim();
-      if (age && parseInt(age) !== profile?.age) payload.age = parseInt(age);
-      if (Object.keys(payload).length === 0) return;
-
       await api('/user/profile', { method: 'PUT', body: JSON.stringify(payload) });
-      setMessage(t.profileUpdated);
-      setTimeout(() => setMessage(''), 3000);
       onUpdate();
+      flashToast(isHe ? 'פרטי החשבון עודכנו ✓' : 'Account updated ✓');
     } catch (err) {
-      setMessage(err.message || t.errorUpdating);
-    } finally {
-      setLoading(false);
-    }
+      flashToast(err.message || (isHe ? 'שגיאה בשמירה' : 'Save failed'));
+    } finally { setLoading(false); }
   }
 
   async function handleResetData() {
     setDangerLoading(true);
-    setDangerMessage('');
     try {
       await api('/user/reset-data', { method: 'POST' });
-      setDangerMessage(isHe ? 'הנתונים אופסו. טוען מחדש…' : 'Data reset. Reloading…');
-      setConfirmingReset(false);
-      setResetText('');
+      setSheet(null);
+      flashToast(isHe ? 'הנתונים אופסו. טוען מחדש…' : 'Data reset. Reloading…');
       setTimeout(() => window.location.reload(), 1200);
     } catch (err) {
-      setDangerMessage(err.message || (isHe ? 'שגיאה באיפוס' : 'Reset failed'));
-    } finally {
-      setDangerLoading(false);
-    }
+      flashToast(err.message || (isHe ? 'שגיאה באיפוס' : 'Reset failed'));
+      setSheet(null);
+    } finally { setDangerLoading(false); }
   }
 
   async function handleDeleteAccount() {
     setDangerLoading(true);
-    setDangerMessage('');
     try {
-      await api('/user/account', {
-        method: 'DELETE',
-        body: JSON.stringify({ confirm: 'DELETE' }),
-      });
-      // Account is gone — clear session and bounce to login
+      await api('/user/account', { method: 'DELETE', body: JSON.stringify({ confirm: 'DELETE' }) });
       logout && logout();
     } catch (err) {
-      setDangerMessage(err.message || (isHe ? 'שגיאה במחיקה' : 'Delete failed'));
+      flashToast(err.message || (isHe ? 'שגיאה במחיקה' : 'Delete failed'));
+      setSheet(null);
       setDangerLoading(false);
     }
   }
 
-  const isError = message === t.errorUpdating;
-  const accountDirty = (name && name.trim() !== (userName || '')) || (age && parseInt(age) !== profile?.age);
-
-  // ─── Section nav config ──────────────────────────────────
-  const sections = [
-    { id: 'body',    icon: '',   label: isHe ? 'נתוני גוף' : 'Body data' },
-    { id: 'goal',    icon: '',   label: isHe ? 'מטרה'      : 'Goal' },
-    { id: 'notif',   icon: '',   label: isHe ? 'התראות'   : 'Notifications' },
-    { id: 'display', icon: '',   label: isHe ? 'תצוגה'    : 'Display' },
-    { id: 'account', icon: '',   label: isHe ? 'חשבון'    : 'Account' },
-    { id: 'privacy', icon: '',   label: isHe ? 'פרטיות'   : 'Privacy' },
-  ];
-
-  // Reusable inline styles for choice cards in this redesign
-  const optionStyle = (active) => ({
-    padding: '12px',
-    borderRadius: 'var(--r-md)',
-    border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-    background: active ? 'var(--accent-glow)' : 'var(--bg-input)',
-    cursor: 'pointer',
-    textAlign: 'center',
-    transition: 'all 0.15s',
-    color: active ? 'var(--accent)' : 'var(--text-2)',
-    fontWeight: active ? 600 : 500,
-    fontSize: 13,
-  });
-
-  const inputStyle = {
-    width: '100%',
-    padding: '12px 14px',
-    background: 'var(--bg-input)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--r-md)',
-    color: 'var(--text-1)',
-    fontSize: 15,
-    outline: 'none',
-    transition: 'border-color 0.15s',
+  const screenTitles = {
+    home:     isHe ? 'הגדרות'          : 'Settings',
+    body:     isHe ? 'נתוני גוף'       : 'Body Data',
+    goal:     isHe ? 'מטרת אימון'      : 'Training Goal',
+    notif:    isHe ? 'התראות'           : 'Notifications',
+    display:  isHe ? 'תצוגה'           : 'Display',
+    access:   isHe ? 'נגישות'          : 'Accessibility',
+    account:  isHe ? 'חשבון'           : 'Account',
+    security: isHe ? 'אבטחה'           : 'Security',
+    privacy:  isHe ? 'פרטיות ונתונים'  : 'Privacy & Data',
   };
 
-  // ─── Toggle row helper for notifications ───────────────
+  const allItems = [
+    { screen: 'body',     label: isHe ? 'משקל וגובה'   : 'Weight & Height' },
+    { screen: 'body',     label: isHe ? 'מגדר'          : 'Gender' },
+    { screen: 'goal',     label: isHe ? 'ירידה במשקל'   : 'Cut' },
+    { screen: 'goal',     label: isHe ? 'עלייה במסה'    : 'Bulk' },
+    { screen: 'notif',    label: isHe ? 'תזכורת אימון'  : 'Workout reminder' },
+    { screen: 'notif',    label: isHe ? 'תזכורת ארוחה'  : 'Meal reminder' },
+    { screen: 'display',  label: isHe ? 'שפה'           : 'Language' },
+    { screen: 'display',  label: isHe ? 'ערכת צבעים'    : 'Theme' },
+    { screen: 'access',   label: isHe ? 'גודל טקסט'     : 'Text size' },
+    { screen: 'account',  label: isHe ? 'שם פרטי'       : 'Name' },
+    { screen: 'security', label: isHe ? 'סיסמה'         : 'Password' },
+    { screen: 'privacy',  label: isHe ? 'מחיקת חשבון'   : 'Delete account' },
+  ];
+
+  const sections = [
+    { id: 'body',     icon: 'user',    label: isHe ? 'נתוני גוף'      : 'Body Data',      sub: isHe ? 'משקל, גובה, מגדר'       : 'Weight, height, gender' },
+    { id: 'goal',     icon: 'target',  label: isHe ? 'מטרת אימון'     : 'Training Goal',  sub: isHe ? 'חיתוך, בנייה, שמירה'     : 'Cut, bulk, maintain' },
+    { id: 'notif',    icon: 'bell',    label: isHe ? 'התראות'          : 'Notifications',  sub: isHe ? 'תזכורות יומיות'          : 'Daily reminders' },
+    { id: 'display',  icon: 'display', label: isHe ? 'תצוגה'          : 'Display',        sub: isHe ? 'שפה וערכת צבעים'         : 'Language and theme' },
+    { id: 'access',   icon: 'sliders', label: isHe ? 'נגישות'          : 'Accessibility',  sub: isHe ? 'גודל טקסט, ניגודיות'    : 'Text size, contrast' },
+    { id: 'account',  icon: 'user',    label: isHe ? 'חשבון'           : 'Account',        sub: isHe ? 'שם וגיל'                 : 'Name and age' },
+    { id: 'security', icon: 'lock',    label: isHe ? 'אבטחה'           : 'Security',       sub: isHe ? 'סיסמה ואימות'            : 'Password and auth' },
+    { id: 'privacy',  icon: 'shield',  label: isHe ? 'פרטיות ונתונים'  : 'Privacy & Data', sub: isHe ? 'ייצוא, איפוס, מחיקה'    : 'Export, reset, delete' },
+  ];
+
+  const filteredItems = search.trim()
+    ? allItems.filter(i => i.label.includes(search.trim()))
+    : null;
+
+  const displayName = userName || (isHe ? 'משתמש' : 'User');
+  const initials = displayName.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0, 2).toUpperCase();
+
+  const inputStyle = {
+    width: '100%', padding: '12px 14px',
+    background: 'var(--bg-input)', border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--r-md)', color: 'var(--text-1)', fontSize: 15,
+    outline: 'none', boxSizing: 'border-box',
+  };
+
+  const chipStyle = (active) => ({
+    padding: '10px 14px', borderRadius: 'var(--r-md)',
+    border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border-subtle)'}`,
+    background: active ? 'var(--accent-glow)' : 'var(--bg-input)',
+    cursor: 'pointer', textAlign: 'center',
+    color: active ? 'var(--accent)' : 'var(--text-2)',
+    fontWeight: active ? 600 : 500, fontSize: 13, transition: 'all 0.15s',
+  });
+
+  function NavItem({ sectionId, icon, label, sub }) {
+    return (
+      <button type="button" className="st2-nav-item" onClick={() => setScreen(sectionId)}>
+        <span className="st2-nav-icon"><StIc type={icon} color="var(--accent)" size={20} /></span>
+        <span className="st2-nav-text">
+          <span className="st2-nav-label">{label}</span>
+          <span className="st2-nav-sub">{sub}</span>
+        </span>
+        <span className="st2-nav-chevron" aria-hidden="true">{isHe ? '‹' : '›'}</span>
+      </button>
+    );
+  }
+
   function ToggleRow({ label, sub, value, onChange }) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '14px 0',
-        borderBottom: '1px solid var(--border-subtle)',
-      }}>
+      <div className="st2-toggle-row">
         <div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-1)' }}>{label}</div>
-          {sub && <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>{sub}</div>}
+          <div className="st2-toggle-label">{label}</div>
+          {sub && <div className="st2-toggle-sub">{sub}</div>}
         </div>
         <button
           type="button"
+          className={`st2-toggle${value ? ' st2-toggle--on' : ''}`}
           onClick={() => onChange(!value)}
-          style={{
-            width: 44, height: 24,
-            borderRadius: 99,
-            background: value ? 'var(--accent)' : 'var(--border-strong)',
-            border: 'none',
-            position: 'relative',
-            cursor: 'pointer',
-            transition: 'background 0.2s',
-            flexShrink: 0,
-          }}
           aria-pressed={value}
         >
-          <span style={{
-            position: 'absolute',
-            top: 2,
-            insetInlineStart: value ? 22 : 2,
-            width: 20, height: 20,
-            borderRadius: '50%',
-            background: value ? 'var(--bg-0)' : 'var(--text-3)',
-            transition: 'inset-inline-start 0.2s',
-          }} />
+          <span className="st2-toggle-knob" />
         </button>
       </div>
     );
   }
 
   return (
-    <>
-      <div className="page-header">
-        <h1>{t.settings}</h1>
+    <div className="st2-root" dir={isHe ? 'rtl' : 'ltr'}>
+
+      {/* ── Top bar ─────────────────────────────────────────── */}
+      <div className="st2-topbar">
+        {screen !== 'home' ? (
+          <button className="st2-back" onClick={() => setScreen('home')} aria-label={isHe ? 'חזרה' : 'Back'}>
+            <span aria-hidden="true">{isHe ? '→' : '←'}</span>
+          </button>
+        ) : <span />}
+        <h2 className="st2-topbar-title">{screenTitles[screen] ?? screenTitles.home}</h2>
+        <span />
       </div>
 
-      <div className={`settings-layout${showingDetail ? ' settings-layout--in-detail' : ''}`}>
-        {/* ── Internal side-nav ────────────────────────────── */}
-        <aside className="settings-nav" aria-label={isHe ? 'קטגוריות הגדרות' : 'Settings categories'}>
-          {sections.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className={`settings-nav__item${section === s.id ? ' settings-nav__item--active' : ''}`}
-              onClick={() => openSection(s.id)}
-            >
-              <span>{s.label}</span>
-              <span className="settings-nav__chevron" aria-hidden="true">{isHe ? '‹' : '›'}</span>
-            </button>
-          ))}
-        </aside>
-
-        {/* ── Section content ──────────────────────────────── */}
-        <div className="settings-content">
-          <div className="settings-toolbar">
-            <button
-              type="button"
-              className="settings-back"
-              onClick={closeDetail}
-              aria-label={isHe ? 'חזרה לרשימת ההגדרות' : 'Back to settings list'}
-            >
-              <span aria-hidden="true">{isHe ? '←' : '→'}</span>
-              <span>{isHe ? 'חזרה' : 'Back'}</span>
-            </button>
-            {/* Autosave indicator — visible only when something interesting is happening */}
-            {autoSaveStatus !== 'idle' && (
-              <span className={`autosave-status autosave-status--${autoSaveStatus}`}>
-                {autoSaveStatus === 'pending' && (isHe ? '… משינויים בהמתנה' : '… changes pending')}
-                {autoSaveStatus === 'saving' && (isHe ? 'שומר…' : 'Saving…')}
-                {autoSaveStatus === 'saved' && (isHe ? '✓ נשמר' : '✓ Saved')}
-                {autoSaveStatus === 'error' && (isHe ? '✗ שגיאה בשמירה' : '✗ Save failed')}
-              </span>
-            )}
+      {/* ── Home ─────────────────────────────────────────────── */}
+      {screen === 'home' && (
+        <div className="st2-screen">
+          <div className="st2-profile-card">
+            <div className="st2-avatar">{initials}</div>
+            <div>
+              <div className="st2-profile-name">{displayName}</div>
+              <div className="st2-profile-email">{user?.email || ''}</div>
+            </div>
           </div>
-          {/* ─── Body data ─────────────────────────────────── */}
-          {section === 'body' && (
-            <div className="settings-category-card">
-              <div className="settings-category-card__header">
-                <h3 className="settings-category-card__title">
-                  {isHe ? 'נתוני גוף' : 'Body data'}
-                </h3>
-                <div className="settings-category-card__sub">
-                  {isHe ? 'משקל וגובה משפיעים ישירות על יעד הקלוריות שלך.' : 'Weight and height directly drive your calorie target.'}
-                </div>
-              </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-                <div>
-                  <label className="field-label">{t.weightLabel}</label>
-                  <input
-                    type="number"
-                    value={weight}
-                    onChange={(e) => setWeight(e.target.value)}
-                    min="30" max="300" step="0.1"
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label className="field-label">{t.heightLabel}</label>
-                  <input
-                    type="number"
-                    value={height}
-                    onChange={(e) => setHeight(e.target.value)}
-                    min="100" max="250" step="0.1"
-                    style={inputStyle}
-                  />
-                </div>
-              </div>
+          <div className="st2-search-wrap">
+            <input
+              className="st2-search"
+              placeholder={isHe ? 'חפש הגדרות…' : 'Search settings…'}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              dir="auto"
+            />
+          </div>
 
-              <label className="field-label">{t.genderLabel}</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-                {[
-                  { value: 'male',   icon: '👨', label: t.male },
-                  { value: 'female', icon: '👩', label: t.female },
-                ].map(g => (
-                  <div key={g.value} onClick={() => setGender(g.value)} style={optionStyle(gender === g.value)}>
-                    <div style={{ fontSize: 18, marginBottom: 2 }}>{g.icon}</div>
-                    <div>{g.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              <label className="field-label">{t.workoutsPerWeek}</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, marginBottom: 4 }}>
-                {[1, 2, 3, 4, 5, 6, 7].map(n => (
-                  <div key={n} onClick={() => setWorkoutsPerWeek(n)} style={{
-                    ...optionStyle(workoutsPerWeek == n),
-                    padding: 10,
-                    fontSize: 15,
-                    fontWeight: workoutsPerWeek == n ? 700 : 500,
-                  }}>
-                    {n}
-                  </div>
-                ))}
-              </div>
-
-              {/* Live preview */}
-              {liveCalories != null && (
-                <div className="live-preview">
-                  <div className="live-preview__icon">⚡</div>
-                  <div className="live-preview__body">
-                    {isHe ? <>יעד הקלוריות שלך: <strong>{liveCalories.toLocaleString()} קלוריות</strong></>
-                          : <>Calorie target: <strong>{liveCalories.toLocaleString()} kcal</strong></>}
-                    {hasUnsavedChanges && calorieDelta !== 0 && (
-                      <span className={`live-preview__delta live-preview__delta--${calorieDelta > 0 ? 'up' : 'down'}`}>
-                        {calorieDelta > 0 ? '+' : ''}{calorieDelta}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={loading}
-                  onClick={handleSave}
-                  style={{ flex: 1 }}
-                >
-                  {loading ? t.saving : t.saveChanges}
-                </button>
-              </div>
-              {message && (
-                <div className={isError ? 'error-message' : 'success-message'} style={{ marginTop: 12, marginBottom: 0 }}>
-                  {message}
-                </div>
-              )}
+          {filteredItems ? (
+            <div className="st2-search-results">
+              {filteredItems.length === 0
+                ? <div className="st2-empty">{isHe ? 'לא נמצאה הגדרה' : 'No results'}</div>
+                : filteredItems.map((item, i) => (
+                  <button key={i} className="st2-search-result-item" onClick={() => { setSearch(''); setScreen(item.screen); }}>
+                    {item.label}
+                  </button>
+                ))
+              }
+            </div>
+          ) : (
+            <div className="st2-nav-list">
+              {sections.map(s => (
+                <NavItem key={s.id} sectionId={s.id} icon={s.icon} label={s.label} sub={s.sub} />
+              ))}
             </div>
           )}
 
-          {/* ─── Goal ──────────────────────────────────────── */}
-          {section === 'goal' && (
-            <div className="settings-category-card">
-              <div className="settings-category-card__header">
-                <h3 className="settings-category-card__title">{isHe ? 'מטרה' : 'Goal'}</h3>
-                <div className="settings-category-card__sub">
-                  {isHe ? 'משנה את חלוקת המאקרו ואת הגירעון/עודף הקלוריות.' : 'Drives macro split and calorie deficit/surplus.'}
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
-                {[
-                  { value: 'cut',      icon: '🔥',  label: t.goalCut,      desc: t.goalCutDesc },
-                  { value: 'bulk',     icon: '💪',  label: t.goalBulk,     desc: t.goalBulkDesc },
-                  { value: 'maintain', icon: '⚖️', label: t.goalMaintain, desc: t.goalMaintainDesc },
-                ].map(g => {
-                  const sel = goal === g.value;
-                  return (
-                    <button
-                      key={g.value}
-                      type="button"
-                      className={`goal-option${sel ? ' selected' : ''}`}
-                      onClick={() => setGoal(g.value)}
-                    >
-                      <div className="goal-icon">{g.icon}</div>
-                      <div className="goal-label">{g.label}</div>
-                      <div className="goal-desc">{g.desc}</div>
-                    </button>
-                  );
-                })}
-              </div>
+          <div className="st2-version">Areto v1.2.0</div>
+        </div>
+      )}
 
-              {liveCalories != null && (
-                <div className="live-preview">
-                  <div className="live-preview__icon">💡</div>
-                  <div className="live-preview__body">
-                    {isHe ? <>יעד יומי במטרה זו: <strong>{liveCalories.toLocaleString()} קלוריות</strong></>
-                          : <>Daily target with this goal: <strong>{liveCalories.toLocaleString()} kcal</strong></>}
-                    {hasUnsavedChanges && calorieDelta !== 0 && (
-                      <span className={`live-preview__delta live-preview__delta--${calorieDelta > 0 ? 'up' : 'down'}`}>
-                        {calorieDelta > 0 ? '+' : ''}{calorieDelta}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={loading}
-                onClick={handleSave}
-                style={{ marginTop: 16, width: '100%' }}
-              >
-                {loading ? t.saving : t.saveChanges}
-              </button>
-              {message && (
-                <div className={isError ? 'error-message' : 'success-message'} style={{ marginTop: 12, marginBottom: 0 }}>
-                  {message}
-                </div>
-              )}
+      {/* ── Body data ─────────────────────────────────────────── */}
+      {screen === 'body' && (
+        <div className="st2-screen">
+          <p className="st2-section-desc">
+            {isHe ? 'משקל וגובה משפיעים ישירות על יעד הקלוריות שלך.' : 'Weight and height directly drive your calorie target.'}
+          </p>
+          <div className="st2-field-row">
+            <div className="st2-field">
+              <label className="st2-label">{t.weightLabel}</label>
+              <input type="number" value={weight} onChange={e => setWeight(e.target.value)} min="30" max="300" step="0.1" style={inputStyle} />
             </div>
-          )}
-
-          {/* ─── Notifications ─────────────────────────────── */}
-          {section === 'notif' && (
-            <div className="settings-category-card">
-              <div className="settings-category-card__header">
-                <h3 className="settings-category-card__title">{isHe ? 'התראות' : 'Notifications'}</h3>
-                <div className="settings-category-card__sub">
-                  {isHe ? 'איזה תזכורות תקבל. ההגדרות נשמרות מקומית.' : 'Which reminders to receive. Saved locally.'}
-                </div>
-              </div>
-              {notifPermDenied && (
-                <div style={{
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: 'var(--r-md)',
-                  padding: '12px 14px',
-                  marginBottom: 14,
-                  fontSize: 13,
-                  lineHeight: 1.5,
-                  color: 'var(--text-2)',
-                }}>
-                  {isHe
-                    ? 'ההתראות חסומות במכשיר. כדי לקבל תזכורות, פתח הגדרות הטלפון ← אפליקציות ← Areto ← התראות, ואפשר אותן.'
-                    : 'Notifications are blocked on this device. To get reminders, open Phone Settings → Apps → Areto → Notifications, and allow them.'}
-                </div>
-              )}
-              <ToggleRow
-                label={isHe ? 'תזכורת אימון' : 'Workout reminder'}
-                sub={isHe ? 'התראה יומית בשעה שתבחר' : 'Daily nudge at your chosen time'}
-                value={notifWorkout}
-                onChange={setNotifWorkout}
-              />
-              <ToggleRow
-                label={isHe ? 'תזכורת ארוחה' : 'Meal reminder'}
-                sub={isHe ? 'התראה לפני כל ארוחה מתוכננת' : 'Ping before each planned meal'}
-                value={notifMeal}
-                onChange={setNotifMeal}
-              />
-              <ToggleRow
-                label={isHe ? 'התראת רצף' : 'Streak alert'}
-                sub={isHe ? 'הזכר לי לא לאבד את הרצף' : 'Don\'t let me lose my streak'}
-                value={notifStreak}
-                onChange={setNotifStreak}
-              />
-              <ToggleRow
-                label={isHe ? 'סיכום שבועי' : 'Weekly recap'}
-                sub={isHe ? 'מייל כל יום ראשון' : 'Email every Sunday'}
-                value={notifWeekly}
-                onChange={setNotifWeekly}
-              />
+            <div className="st2-field">
+              <label className="st2-label">{t.heightLabel}</label>
+              <input type="number" value={height} onChange={e => setHeight(e.target.value)} min="100" max="250" step="0.1" style={inputStyle} />
             </div>
-          )}
+          </div>
 
-          {/* ─── Display ───────────────────────────────────── */}
-          {section === 'display' && (
-            <div className="settings-category-card">
-              <div className="settings-category-card__header">
-                <h3 className="settings-category-card__title">{isHe ? 'תצוגה' : 'Display'}</h3>
-                <div className="settings-category-card__sub">
-                  {isHe ? 'שפה ומראה.' : 'Language and appearance.'}
-                </div>
-              </div>
+          <label className="st2-label">{t.genderLabel}</label>
+          <div className="st2-chip-row">
+            {[{ value: 'male', label: t.male }, { value: 'female', label: t.female }].map(g => (
+              <div key={g.value} onClick={() => setGender(g.value)} style={chipStyle(gender === g.value)}>{g.label}</div>
+            ))}
+          </div>
 
-              <label className="field-label">{t.language}</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-                {[
-                  { value: 'he', label: t.hebrew },
-                  { value: 'en', label: t.english },
-                ].map(l => (
-                  <div key={l.value} onClick={() => setLanguage(l.value)} style={optionStyle(lang === l.value)}>
-                    {l.label}
-                  </div>
-                ))}
-              </div>
+          <label className="st2-label" style={{ marginTop: 16 }}>{t.workoutsPerWeek}</label>
+          <div className="st2-chip-row">
+            {[1,2,3,4,5,6,7].map(n => (
+              <div key={n} onClick={() => setWorkoutsPerWeek(n)} style={{ ...chipStyle(workoutsPerWeek == n), flex: 1, padding: '10px 4px' }}>{n}</div>
+            ))}
+          </div>
 
-              <label className="field-label">{isHe ? 'ערכת צבעים' : 'Theme'}</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div onClick={() => setTheme('dark')} style={optionStyle(theme === 'dark')}>
-                  {isHe ? 'כהה' : 'Dark'}
-                </div>
-                <div onClick={() => setTheme('light')} style={optionStyle(theme === 'light')}>
-                  {isHe ? 'בהיר' : 'Light'}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ─── Account ───────────────────────────────────── */}
-          {section === 'account' && (
-            <div className="settings-category-card">
-              <div className="settings-category-card__header">
-                <h3 className="settings-category-card__title">{isHe ? 'חשבון' : 'Account'}</h3>
-                <div className="settings-category-card__sub">
-                  {isHe ? 'פרטי החשבון שלך — עריכה ושמירה.' : 'Your account details — edit and save.'}
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-                <div>
-                  <label className="field-label">{isHe ? 'שם פרטי' : 'Name'}</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    maxLength={50}
-                    style={inputStyle}
-                    placeholder={isHe ? 'שם פרטי' : 'First name'}
-                  />
-                </div>
-                <div>
-                  <label className="field-label">{isHe ? 'גיל' : 'Age'}</label>
-                  <input
-                    type="number"
-                    value={age}
-                    onChange={(e) => setAge(e.target.value)}
-                    min="13" max="120"
-                    style={inputStyle}
-                  />
-                </div>
-              </div>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={loading}
-                onClick={handleSaveAccount}
-                style={{ width: '100%' }}
-              >
-                {loading ? t.saving : t.saveChanges}
-              </button>
-              {message && (
-                <div className={isError ? 'error-message' : 'success-message'} style={{ marginTop: 12, marginBottom: 0 }}>
-                  {message}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ─── Privacy + danger zone (logout / reset / delete) ─── */}
-          {section === 'privacy' && (
-            <>
-            <div className="settings-category-card">
-              <div className="settings-category-card__header">
-                <h3 className="settings-category-card__title">{isHe ? 'פרטיות' : 'Privacy'}</h3>
-                <div className="settings-category-card__sub">
-                  {isHe ? 'איך הנתונים שלך משמשים.' : 'How your data is used.'}
-                </div>
-              </div>
-              <div style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 14 }}>
+          {liveCalories != null && (
+            <div className="st2-live-preview">
+              <span>⚡</span>
+              <span>
                 {isHe
-                  ? 'הנתונים שלך נשמרים מוצפנים ומשמשים רק לחישוב יעדים אישיים ולשיפור החוויה. אנחנו לא מוכרים את המידע שלך.'
-                  : 'Your data is encrypted and used only to compute personal targets and improve your experience. We don\'t sell your data.'}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <a className="link-muted" style={{ cursor: 'pointer' }} onClick={openPrivacy}>
-                  {isHe ? '› מדיניות פרטיות' : '› Privacy Policy'}
-                </a>
-                <a className="link-muted" style={{ cursor: 'pointer' }} onClick={openTerms}>
-                  {isHe ? '› תנאי שימוש' : '› Terms of Service'}
-                </a>
-              </div>
+                  ? <>יעד קלוריות: <strong>{liveCalories.toLocaleString()}</strong></>
+                  : <>Calorie target: <strong>{liveCalories.toLocaleString()}</strong></>}
+                {calorieDelta !== 0 && (
+                  <span className={`st2-delta${calorieDelta > 0 ? ' st2-delta--up' : ' st2-delta--down'}`}>
+                    {calorieDelta > 0 ? '+' : ''}{calorieDelta}
+                  </span>
+                )}
+              </span>
             </div>
+          )}
 
-            <div className="danger-zone">
-            <div className="danger-zone__row">
-              <div>
-                <div className="danger-zone__label">{t.logout}</div>
-                <div className="danger-zone__sub">
-                  {isHe ? 'תצטרך להיכנס שוב כדי לראות את הנתונים שלך.' : 'You\'ll need to log in again to see your data.'}
-                </div>
+          <button className="btn btn-primary st2-save-btn" disabled={loading} onClick={handleSaveBody}>
+            {loading ? t.saving : t.saveChanges}
+          </button>
+        </div>
+      )}
+
+      {/* ── Goal ─────────────────────────────────────────────── */}
+      {screen === 'goal' && (
+        <div className="st2-screen">
+          <p className="st2-section-desc">
+            {isHe ? 'קובע את חלוקת המאקרו ואת הגירעון / עודף הקלוריות.' : 'Sets macro split and calorie deficit/surplus.'}
+          </p>
+          <div className="st2-goal-grid">
+            {[
+              { value: 'cut',      icon: '🔥',  label: t.goalCut,      desc: t.goalCutDesc },
+              { value: 'bulk',     icon: '💪',  label: t.goalBulk,     desc: t.goalBulkDesc },
+              { value: 'maintain', icon: '⚖️', label: t.goalMaintain, desc: t.goalMaintainDesc },
+            ].map(g => (
+              <button key={g.value} type="button" className={`goal-option${goal === g.value ? ' selected' : ''}`} onClick={() => setGoal(g.value)}>
+                <div className="goal-icon">{g.icon}</div>
+                <div className="goal-label">{g.label}</div>
+                <div className="goal-desc">{g.desc}</div>
+              </button>
+            ))}
+          </div>
+          {liveCalories != null && (
+            <div className="st2-live-preview">
+              <span>💡</span>
+              <span>
+                {isHe ? <>יעד יומי: <strong>{liveCalories.toLocaleString()} קל'</strong></> : <>Daily target: <strong>{liveCalories.toLocaleString()} kcal</strong></>}
+              </span>
+            </div>
+          )}
+          <button className="btn btn-primary st2-save-btn" disabled={loading} onClick={handleSaveBody}>
+            {loading ? t.saving : t.saveChanges}
+          </button>
+        </div>
+      )}
+
+      {/* ── Notifications ─────────────────────────────────────── */}
+      {screen === 'notif' && (
+        <div className="st2-screen">
+          {notifPermDenied && (
+            <div className="st2-warn-banner">
+              {isHe
+                ? 'ההתראות חסומות במכשיר. פתח הגדרות הטלפון ← אפליקציות ← Areto ← התראות.'
+                : 'Notifications are blocked. Open Phone Settings → Apps → Areto → Notifications.'}
+            </div>
+          )}
+          <ToggleRow label={isHe ? 'תזכורת אימון' : 'Workout reminder'} sub={isHe ? 'התראה יומית' : 'Daily nudge'} value={notifWorkout} onChange={setNotifWorkout} />
+          <ToggleRow label={isHe ? 'תזכורת ארוחה' : 'Meal reminder'} sub={isHe ? 'לפני כל ארוחה' : 'Before each meal'} value={notifMeal} onChange={setNotifMeal} />
+          <ToggleRow label={isHe ? 'התראת רצף' : 'Streak alert'} sub={isHe ? 'לא לאבד את הרצף' : 'Keep your streak'} value={notifStreak} onChange={setNotifStreak} />
+          <ToggleRow label={isHe ? 'סיכום שבועי' : 'Weekly recap'} sub={isHe ? 'כל יום ראשון' : 'Every Sunday'} value={notifWeekly} onChange={setNotifWeekly} />
+        </div>
+      )}
+
+      {/* ── Display ──────────────────────────────────────────── */}
+      {screen === 'display' && (
+        <div className="st2-screen">
+          <label className="st2-label">{t.language}</label>
+          <div className="st2-chip-row">
+            {[{ value: 'he', label: t.hebrew }, { value: 'en', label: t.english }].map(l => (
+              <div key={l.value} onClick={() => setLanguage(l.value)} style={chipStyle(lang === l.value)}>{l.label}</div>
+            ))}
+          </div>
+          <label className="st2-label" style={{ marginTop: 20 }}>{isHe ? 'ערכת צבעים' : 'Theme'}</label>
+          <div className="st2-chip-row">
+            <div onClick={() => setTheme('dark')} style={chipStyle(theme === 'dark')}>{isHe ? 'כהה' : 'Dark'}</div>
+            <div onClick={() => setTheme('light')} style={chipStyle(theme === 'light')}>{isHe ? 'בהיר' : 'Light'}</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Accessibility ─────────────────────────────────────── */}
+      {screen === 'access' && (
+        <div className="st2-screen">
+          <label className="st2-label">{isHe ? 'גודל טקסט' : 'Text size'}</label>
+          <div className="st2-chip-row">
+            {[
+              { value: 'small',  label: isHe ? 'קטן'  : 'Small' },
+              { value: 'normal', label: isHe ? 'רגיל' : 'Normal' },
+              { value: 'large',  label: isHe ? 'גדול' : 'Large' },
+            ].map(s => (
+              <div key={s.value} onClick={() => setTextSize(s.value)} style={chipStyle(textSize === s.value)}>{s.label}</div>
+            ))}
+          </div>
+          <div style={{ marginTop: 20 }}>
+            <ToggleRow label={isHe ? 'הפחת תנועה' : 'Reduce motion'} sub={isHe ? 'פחות אנימציות' : 'Fewer animations'} value={reduceMotion} onChange={setReduceMotion} />
+            <ToggleRow label={isHe ? 'ניגודיות גבוהה' : 'High contrast'} sub={isHe ? 'מתאר כהה יותר' : 'Stronger outlines'} value={highContrast} onChange={setHighContrast} />
+          </div>
+        </div>
+      )}
+
+      {/* ── Account ───────────────────────────────────────────── */}
+      {screen === 'account' && (
+        <div className="st2-screen">
+          <div className="st2-field">
+            <label className="st2-label">{isHe ? 'שם פרטי' : 'Name'}</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} maxLength={50} placeholder={isHe ? 'שם פרטי' : 'First name'} style={inputStyle} />
+          </div>
+          <div className="st2-field" style={{ marginTop: 14 }}>
+            <label className="st2-label">{isHe ? 'גיל' : 'Age'}</label>
+            <input type="number" value={age} onChange={e => setAge(e.target.value)} min="13" max="120" style={inputStyle} />
+          </div>
+          <button className="btn btn-primary st2-save-btn" disabled={loading} onClick={handleSaveAccount}>
+            {loading ? t.saving : t.saveChanges}
+          </button>
+        </div>
+      )}
+
+      {/* ── Security ──────────────────────────────────────────── */}
+      {screen === 'security' && (
+        <div className="st2-screen">
+          <ToggleRow
+            label={isHe ? 'אימות דו-שלבי' : 'Two-factor auth'}
+            sub={isHe ? 'הגנה נוספת בכניסה' : 'Extra protection on sign-in'}
+            value={tfa} onChange={setTfa}
+          />
+          {!user?.googleId && (
+            <div className="st2-section-block">
+              <div className="st2-block-title">{isHe ? 'איפוס סיסמה' : 'Reset password'}</div>
+              <div className="st2-block-sub">
+                {pwStep === 'idle'
+                  ? (isHe ? `נשלח קוד לכתובת ${user?.email || '—'}.` : `We'll send a code to ${user?.email || '—'}.`)
+                  : pwStep === 'code-sent'
+                  ? (isHe ? 'הזן את הקוד ובחר סיסמה חדשה.' : 'Enter the code and choose a new password.')
+                  : (isHe ? 'הסיסמה עודכנה.' : 'Password updated.')}
               </div>
-              {confirmingLogout ? (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="danger-zone__btn" onClick={() => logout && logout()}>
-                    {isHe ? 'אישור' : 'Confirm'}
-                  </button>
-                  <button
-                    style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', fontSize: 13, fontWeight: 600, padding: '8px 16px', borderRadius: 'var(--r-md)', cursor: 'pointer' }}
-                    onClick={() => setConfirmingLogout(false)}
-                  >
-                    {isHe ? 'ביטול' : 'Cancel'}
-                  </button>
-                </div>
-              ) : (
-                <button className="danger-zone__btn" onClick={() => setConfirmingLogout(true)}>
-                  ⏻ {t.logout}
+              {pwStep === 'idle' && (
+                <button className="st2-action-btn" disabled={pwLoading} onClick={handleSendPasswordCode}>
+                  {pwLoading ? (isHe ? 'שולח…' : 'Sending…') : (isHe ? 'שלח קוד' : 'Send code')}
                 </button>
               )}
-            </div>
-
-            {/* ─── Password reset (email-code flow) ─────────────── */}
-            <div className="danger-zone__row" style={{ display: 'block' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
-                <div>
-                  <div className="danger-zone__label">{t.resetPassword || (isHe ? 'איפוס סיסמה' : 'Reset password')}</div>
-                  <div className="danger-zone__sub">
-                    {pwStep === 'idle'
-                      ? (isHe
-                          ? `נשלח קוד בן 6 ספרות לכתובת ${user?.email || '—'}.`
-                          : `We'll send a 6-digit code to ${user?.email || '—'}.`)
-                      : pwStep === 'code-sent'
-                      ? (isHe ? 'הזן את הקוד שקיבלת ובחר סיסמה חדשה.' : 'Enter the code you received and choose a new password.')
-                      : (isHe ? 'הסיסמה עודכנה.' : 'Password updated.')}
-                  </div>
-                </div>
-                {pwStep === 'idle' && (
-                  <button
-                    className="danger-zone__btn"
-                    onClick={handleSendPasswordCode}
-                    disabled={pwLoading}
-                    style={{ opacity: pwLoading ? 0.5 : 1 }}
-                  >
-                    {pwLoading ? (t.sendingCode || (isHe ? 'שולח…' : 'Sending…')) : (t.sendCode || (isHe ? 'שלח קוד' : 'Send code'))}
-                  </button>
-                )}
-                {pwStep === 'done' && (
-                  <span style={{ color: 'var(--success)', fontSize: 18, fontWeight: 700 }}>✓</span>
-                )}
-              </div>
-
               {pwStep === 'code-sent' && (
-                <div style={{ marginTop: 12, padding: 12, background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.20)', borderRadius: 'var(--r-md)' }}>
-                  {pwMessage && !pwError && (
-                    <div className="success-message" style={{ marginBottom: 10 }}>{pwMessage}</div>
-                  )}
-                  <label className="field-label">{t.enterCode || (isHe ? 'קוד אימות (6 ספרות)' : 'Verification code (6 digits)')}</label>
+                <div className="st2-pw-form">
+                  <label className="st2-label">{isHe ? 'קוד אימות (6 ספרות)' : 'Verification code (6 digits)'}</label>
                   <input
-                    type="text"
-                    inputMode="numeric"
-                    value={pwCode}
-                    onChange={(e) => setPwCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder={t.codePlaceholder || '000000'}
-                    style={{ ...inputStyle, marginBottom: 10, direction: 'ltr', textAlign: 'center', fontSize: 20, letterSpacing: '6px', fontWeight: 700 }}
+                    type="text" inputMode="numeric"
+                    value={pwCode} onChange={e => setPwCode(e.target.value.replace(/\D/g,'').slice(0,6))}
+                    placeholder="000000"
+                    style={{ ...inputStyle, direction: 'ltr', textAlign: 'center', fontSize: 22, letterSpacing: 8, fontWeight: 700, marginBottom: 10 }}
                     autoComplete="one-time-code"
                   />
-                  <label className="field-label">{t.newPassword || (isHe ? 'סיסמה חדשה' : 'New password')}</label>
+                  <label className="st2-label">{isHe ? 'סיסמה חדשה' : 'New password'}</label>
                   <input
-                    type="password"
-                    value={pwNew}
-                    onChange={(e) => setPwNew(e.target.value)}
-                    placeholder={t.passwordPlaceholder || (isHe ? 'לפחות 6 תווים' : 'At least 6 characters')}
-                    style={{ ...inputStyle, marginBottom: 10, direction: 'ltr' }}
+                    type="password" value={pwNew} onChange={e => setPwNew(e.target.value)}
+                    placeholder={isHe ? 'לפחות 8 תווים + ספרה' : 'At least 8 chars + digit'}
+                    style={{ ...inputStyle, direction: 'ltr', marginBottom: 10 }}
                     autoComplete="new-password"
                   />
-                  {pwError && (
-                    <div className="error-message" style={{ marginBottom: 10 }}>{pwError}</div>
-                  )}
+                  {pwError && <div className="error-message" style={{ marginBottom: 10 }}>{pwError}</div>}
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      className="danger-zone__btn"
-                      onClick={handleConfirmPasswordReset}
-                      disabled={pwLoading || pwCode.length < 6 || pwNew.length < 6}
-                      style={{ opacity: (pwLoading || pwCode.length < 6 || pwNew.length < 6) ? 0.5 : 1 }}
-                    >
-                      {pwLoading ? (t.resetting || (isHe ? 'מאפס…' : 'Resetting…')) : (t.resetBtn || (isHe ? 'אפס סיסמה' : 'Reset password'))}
+                    <button className="st2-action-btn" disabled={pwLoading || pwCode.length < 6 || pwNew.length < 8} onClick={handleConfirmPasswordReset}>
+                      {pwLoading ? (isHe ? 'מאפס…' : 'Resetting…') : (isHe ? 'אפס סיסמה' : 'Reset password')}
                     </button>
-                    <button
-                      style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', fontSize: 13, fontWeight: 600, padding: '8px 16px', borderRadius: 'var(--r-md)', cursor: 'pointer' }}
-                      onClick={cancelPasswordReset}
-                    >
-                      {isHe ? 'ביטול' : 'Cancel'}
-                    </button>
-                    <button
-                      style={{ background: 'transparent', border: 'none', color: 'var(--text-3)', fontSize: 12, fontWeight: 500, padding: '8px 4px', cursor: 'pointer', textDecoration: 'underline', marginInlineStart: 'auto' }}
-                      onClick={handleSendPasswordCode}
-                      disabled={pwLoading}
-                    >
-                      {isHe ? 'שלח קוד מחדש' : 'Resend code'}
-                    </button>
+                    <button className="st2-cancel-btn" onClick={cancelPasswordReset}>{isHe ? 'ביטול' : 'Cancel'}</button>
                   </div>
-                </div>
-              )}
-
-              {pwStep === 'idle' && pwError && (
-                <div className="error-message" style={{ marginTop: 10 }}>{pwError}</div>
-              )}
-              {pwStep === 'done' && pwMessage && (
-                <div className="success-message" style={{ marginTop: 10 }}>{pwMessage}</div>
-              )}
-            </div>
-
-            <div className="danger-zone__row" style={{ display: 'block' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
-                <div>
-                  <div className="danger-zone__label">{isHe ? 'איפוס נתונים' : 'Reset all data'}</div>
-                  <div className="danger-zone__sub">
-                    {isHe ? 'מחיקה מלאה של אימונים, ארוחות, שינה, ומדידות. החשבון נשמר.' : 'Wipe workouts, meals, sleep, and measurements. Account stays.'}
-                  </div>
-                </div>
-                {!confirmingReset && (
-                  <button className="danger-zone__btn" onClick={() => { setConfirmingReset(true); setDangerMessage(''); }}>
-                    {isHe ? 'אפס נתונים' : 'Reset data'}
+                  <button className="st2-resend-btn" onClick={handleSendPasswordCode} disabled={pwLoading}>
+                    {isHe ? 'שלח קוד מחדש' : 'Resend code'}
                   </button>
-                )}
-              </div>
-              {confirmingReset && (
-                <div style={{ marginTop: 12, padding: 12, background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.20)', borderRadius: 'var(--r-md)' }}>
-                  <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 10 }}>
-                    {isHe ? <>הקלד <strong style={{ color: 'var(--danger)' }}>RESET</strong> כדי לאשר.</>
-                          : <>Type <strong style={{ color: 'var(--danger)' }}>RESET</strong> to confirm.</>}
-                  </div>
-                  <input
-                    type="text"
-                    value={resetText}
-                    onChange={(e) => setResetText(e.target.value)}
-                    placeholder="RESET"
-                    style={{ ...inputStyle, marginBottom: 10, direction: 'ltr' }}
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      className="danger-zone__btn"
-                      onClick={handleResetData}
-                      disabled={dangerLoading || resetText !== 'RESET'}
-                      style={{ opacity: (dangerLoading || resetText !== 'RESET') ? 0.5 : 1 }}
-                    >
-                      {dangerLoading ? (isHe ? 'מאפס…' : 'Resetting…') : (isHe ? 'אישור איפוס' : 'Confirm reset')}
-                    </button>
-                    <button
-                      style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', fontSize: 13, fontWeight: 600, padding: '8px 16px', borderRadius: 'var(--r-md)', cursor: 'pointer' }}
-                      onClick={() => { setConfirmingReset(false); setResetText(''); }}
-                    >
-                      {isHe ? 'ביטול' : 'Cancel'}
-                    </button>
-                  </div>
                 </div>
               )}
-            </div>
-
-            <div className="danger-zone__row" style={{ display: 'block' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
-                <div>
-                  <div className="danger-zone__label">{isHe ? 'מחיקת חשבון' : 'Delete account'}</div>
-                  <div className="danger-zone__sub">
-                    {isHe ? 'הסרה מוחלטת של החשבון והנתונים. לא ניתן לבטל.' : 'Permanently remove your account and data. Cannot be undone.'}
-                  </div>
-                </div>
-                {!confirmingDelete && (
-                  <button className="danger-zone__btn" onClick={() => { setConfirmingDelete(true); setDangerMessage(''); }}>
-                    {isHe ? 'מחק חשבון' : 'Delete account'}
-                  </button>
-                )}
-              </div>
-              {confirmingDelete && (
-                <div style={{ marginTop: 12, padding: 12, background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.20)', borderRadius: 'var(--r-md)' }}>
-                  <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 10 }}>
-                    {isHe ? <>פעולה זו תמחק את החשבון לצמיתות. הקלד <strong style={{ color: 'var(--danger)' }}>DELETE</strong> כדי לאשר.</>
-                          : <>This permanently deletes your account. Type <strong style={{ color: 'var(--danger)' }}>DELETE</strong> to confirm.</>}
-                  </div>
-                  <input
-                    type="text"
-                    value={deleteText}
-                    onChange={(e) => setDeleteText(e.target.value)}
-                    placeholder="DELETE"
-                    style={{ ...inputStyle, marginBottom: 10, direction: 'ltr' }}
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      className="danger-zone__btn"
-                      onClick={handleDeleteAccount}
-                      disabled={dangerLoading || deleteText !== 'DELETE'}
-                      style={{ opacity: (dangerLoading || deleteText !== 'DELETE') ? 0.5 : 1 }}
-                    >
-                      {dangerLoading ? (isHe ? 'מוחק…' : 'Deleting…') : (isHe ? 'אישור מחיקה' : 'Confirm delete')}
-                    </button>
-                    <button
-                      style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', fontSize: 13, fontWeight: 600, padding: '8px 16px', borderRadius: 'var(--r-md)', cursor: 'pointer' }}
-                      onClick={() => { setConfirmingDelete(false); setDeleteText(''); }}
-                    >
-                      {isHe ? 'ביטול' : 'Cancel'}
-                    </button>
-                  </div>
+              {pwStep === 'done' && (
+                <div style={{ color: 'var(--success, #22c55e)', fontSize: 16, marginTop: 10, fontWeight: 600 }}>
+                  ✓ {isHe ? 'הסיסמה שונתה' : 'Password changed'}
                 </div>
               )}
+              {pwStep === 'idle' && pwError && <div className="error-message" style={{ marginTop: 10 }}>{pwError}</div>}
             </div>
-
-            {dangerMessage && (
-              <div className={dangerMessage.includes('שגיאה') || dangerMessage.includes('failed') ? 'error-message' : 'success-message'} style={{ marginTop: 12, marginBottom: 0 }}>
-                {dangerMessage}
-              </div>
-            )}
-            </div>
-            </>
           )}
         </div>
-      </div>
-    </>
+      )}
+
+      {/* ── Privacy & Data ────────────────────────────────────── */}
+      {screen === 'privacy' && (
+        <div className="st2-screen">
+          <p className="st2-section-desc">
+            {isHe
+              ? 'הנתונים שלך נשמרים מוצפנים ומשמשים רק לחישוב יעדים אישיים. אנחנו לא מוכרים מידע.'
+              : 'Your data is encrypted and used only to compute personal targets. We never sell data.'}
+          </p>
+          <div className="st2-links">
+            <button className="st2-link-btn" onClick={openPrivacy}>{isHe ? '› מדיניות פרטיות' : '› Privacy Policy'}</button>
+            <button className="st2-link-btn" onClick={openTerms}>{isHe ? '› תנאי שימוש' : '› Terms of Service'}</button>
+          </div>
+
+          <div className="st2-danger-section">
+            <div className="st2-danger-title">{isHe ? 'פעולות מסוכנות' : 'Danger Zone'}</div>
+
+            <div className="st2-danger-row">
+              <div>
+                <div className="st2-danger-label">{t.logout}</div>
+                <div className="st2-danger-sub">{isHe ? 'תצטרך להיכנס שוב.' : 'You\'ll need to log in again.'}</div>
+              </div>
+              <button className="st2-danger-btn" onClick={() => { setConfirmText(''); setSheet('logout'); }}>⏻ {t.logout}</button>
+            </div>
+
+            <div className="st2-danger-row">
+              <div>
+                <div className="st2-danger-label">{isHe ? 'ייצוא נתונים' : 'Export data'}</div>
+                <div className="st2-danger-sub">{isHe ? 'הורדת הנתונים כ-JSON.' : 'Download your data as JSON.'}</div>
+              </div>
+              <button className="st2-danger-btn" onClick={() => flashToast(isHe ? "פיצ'ר בפיתוח" : 'Coming soon')}>
+                {isHe ? 'ייצוא' : 'Export'}
+              </button>
+            </div>
+
+            <div className="st2-danger-row">
+              <div>
+                <div className="st2-danger-label">{isHe ? 'איפוס נתונים' : 'Reset all data'}</div>
+                <div className="st2-danger-sub">{isHe ? 'מחיקת אימונים, ארוחות ומדידות. החשבון נשמר.' : 'Wipe workouts, meals, and measurements.'}</div>
+              </div>
+              <button className="st2-danger-btn st2-danger-btn--red" onClick={() => { setConfirmText(''); setSheet('reset'); }}>
+                {isHe ? 'אפס' : 'Reset'}
+              </button>
+            </div>
+
+            <div className="st2-danger-row">
+              <div>
+                <div className="st2-danger-label">{isHe ? 'מחיקת חשבון' : 'Delete account'}</div>
+                <div className="st2-danger-sub">{isHe ? 'הסרה מוחלטת. לא ניתן לבטל.' : 'Permanent removal. Cannot be undone.'}</div>
+              </div>
+              <button className="st2-danger-btn st2-danger-btn--red" onClick={() => { setConfirmText(''); setSheet('delete'); }}>
+                {isHe ? 'מחק' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bottom sheets ─────────────────────────────────────── */}
+      {sheet && (
+        <>
+          <div className="st2-overlay" onClick={() => setSheet(null)} />
+          <div className="st2-sheet">
+            {sheet === 'logout' && (
+              <>
+                <div className="st2-sheet-title">{isHe ? 'יציאה מהחשבון?' : 'Log out?'}</div>
+                <div className="st2-sheet-sub">{isHe ? 'תצטרך להיכנס שוב כדי לראות את הנתונים שלך.' : "You'll need to log in again to see your data."}</div>
+                <button className="st2-sheet-confirm-btn" onClick={() => logout && logout()}>{t.logout}</button>
+                <button className="st2-sheet-cancel-btn" onClick={() => setSheet(null)}>{isHe ? 'ביטול' : 'Cancel'}</button>
+              </>
+            )}
+            {sheet === 'reset' && (
+              <>
+                <div className="st2-sheet-title">{isHe ? 'איפוס נתונים?' : 'Reset all data?'}</div>
+                <div className="st2-sheet-sub">{isHe ? <span>הקלד <strong>RESET</strong> לאישור.</span> : <span>Type <strong>RESET</strong> to confirm.</span>}</div>
+                <input
+                  type="text" value={confirmText} onChange={e => setConfirmText(e.target.value)}
+                  placeholder="RESET" style={{ ...inputStyle, direction: 'ltr', marginBottom: 12 }} autoFocus
+                />
+                <button
+                  className="st2-sheet-confirm-btn st2-sheet-confirm-btn--red"
+                  disabled={dangerLoading || confirmText !== 'RESET'}
+                  onClick={handleResetData}
+                >
+                  {dangerLoading ? (isHe ? 'מאפס…' : 'Resetting…') : (isHe ? 'אישור' : 'Confirm')}
+                </button>
+                <button className="st2-sheet-cancel-btn" onClick={() => setSheet(null)}>{isHe ? 'ביטול' : 'Cancel'}</button>
+              </>
+            )}
+            {sheet === 'delete' && (
+              <>
+                <div className="st2-sheet-title">{isHe ? 'מחיקת חשבון?' : 'Delete account?'}</div>
+                <div className="st2-sheet-sub">{isHe ? <span>פעולה זו מוחקת הכל לצמיתות. הקלד <strong>DELETE</strong> לאישור.</span> : <span>This permanently deletes everything. Type <strong>DELETE</strong> to confirm.</span>}</div>
+                <input
+                  type="text" value={confirmText} onChange={e => setConfirmText(e.target.value)}
+                  placeholder="DELETE" style={{ ...inputStyle, direction: 'ltr', marginBottom: 12 }} autoFocus
+                />
+                <button
+                  className="st2-sheet-confirm-btn st2-sheet-confirm-btn--red"
+                  disabled={dangerLoading || confirmText !== 'DELETE'}
+                  onClick={handleDeleteAccount}
+                >
+                  {dangerLoading ? (isHe ? 'מוחק…' : 'Deleting…') : (isHe ? 'מחק לצמיתות' : 'Delete forever')}
+                </button>
+                <button className="st2-sheet-cancel-btn" onClick={() => setSheet(null)}>{isHe ? 'ביטול' : 'Cancel'}</button>
+              </>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── Toast ─────────────────────────────────────────────── */}
+      {toast && <div className="st2-toast">{toast}</div>}
+    </div>
   );
 }
