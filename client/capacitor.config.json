@@ -18,6 +18,10 @@
     "StatusBar": {
       "style": "DARK",
       "backgroundColor": "#0a0e1a"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon_config_sample",
+      "iconColor": "#2dd4bf"
     }
   }
 }
