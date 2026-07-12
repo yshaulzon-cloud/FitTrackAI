@@ -1186,7 +1186,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
             </div>
           )}
 
-          <div className="st2-version">Areto v1.2.0</div>
+          <div className="st2-version">Areto v1.0.8</div>
         </div>
       )}
 

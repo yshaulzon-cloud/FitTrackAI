@@ -94,7 +94,7 @@ app.use('/sleep', sleepRoutes);
 
 // Bump on each release so a deployed build is verifiable from the health
 // endpoints (poll GET / or /health after pushing to confirm Render redeployed).
-const API_VERSION = '1.2.0';
+const API_VERSION = '1.0.8';
 
 // Health check
 app.get('/health', (req, res) => {
