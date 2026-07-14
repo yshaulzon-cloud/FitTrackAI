@@ -129,16 +129,11 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   const [message, setMessage] = useState('');
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [homeMode, setHomeMode] = useState(false);
-  const [deletingId, setDeletingId] = useState(null);
-  const [lastDeleted, setLastDeleted] = useState(null);
-  const [showAllWorkouts, setShowAllWorkouts] = useState(false);
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
-  const [expandedPlanEx, setExpandedPlanEx] = useState(null);
   const [perfMap, setPerfMap] = useState({});
   // Live session state: null | { exercises, dayName, location, restore? }
   const [session, setSession] = useState(null);
   const [resumeAvailable, setResumeAvailable] = useState(() => readActiveSession());
-  const [expandedWorkout, setExpandedWorkout] = useState(null);
 
   const days = plan?.days || plan || [];
   // One-day view: render only the active day card. Audit recommendation.
@@ -179,13 +174,6 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     const daysSinceCycleStart = (now - cycleStart) / (1000 * 60 * 60 * 24);
     weeklyLimitReached = cycleCount >= maxPerWeek && daysSinceCycleStart < 7;
   }
-
-  const expLabels = { beginner: t.expBeginner, intermediate: t.expIntermediate, advanced: t.expAdvanced };
-  const typeColors = {
-    strength: { bg: 'rgba(108, 92, 231, 0.1)', border: 'rgba(108, 92, 231, 0.2)', color: 'var(--primary-light)', label: t.strength },
-    hypertrophy: { bg: 'rgba(0, 206, 201, 0.1)', border: 'rgba(0, 206, 201, 0.2)', color: 'var(--accent)', label: t.hypertrophy },
-    cardio: { bg: 'rgba(253, 203, 110, 0.1)', border: 'rgba(253, 203, 110, 0.2)', color: 'var(--warning)', label: t.cardio },
-  };
 
   // Day-tab labels: surface "Upper body" / "Lower body" instead of the
   // generic "Hypertrophy" / "Strength" so the chip describes what the
@@ -280,30 +268,8 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     }));
   }
 
-  const isUndo = message === '__WORKOUT_DELETED__';
-  const isError = message === t.errorSavingWorkout || message === t.errorDeletingWorkout;
+  const isError = message === t.errorSavingWorkout;
   const isWarning = message === t.alreadyTrainedToday || message === t.weeklyLimitReached;
-
-  async function handleUndoWorkout() {
-    if (!lastDeleted || lastDeleted.type !== 'workout') return;
-    try {
-      await api('/workout/complete', {
-        method: 'POST',
-        body: JSON.stringify({
-          dayName: lastDeleted.data.dayName,
-          exercises: lastDeleted.data.exercises,
-          durationMinutes: lastDeleted.data.durationMinutes,
-        }),
-      });
-      setLastDeleted(null);
-      setMessage(t.workoutSaved);
-      setTimeout(() => setMessage(''), 3000);
-      onComplete();
-    } catch {
-      setMessage(t.errorSavingWorkout);
-      setTimeout(() => setMessage(''), 3000);
-    }
-  }
   const workouts = workoutHistory?.workouts || [];
 
   const currentDay = days[safeDayIdx];
@@ -328,35 +294,13 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     return () => { cancelled = true; };
   }, [safeDayIdx, homeMode, dayDurations[currentDay?.day]]); // eslint-disable-line
 
-  // Week strip (Sun-start) — which days this week already have a logged workout.
-  const weekLetters = isHe ? ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  const workoutDayStamps = new Set(workouts.map(w => {
-    const d = new Date(w.date);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime();
-  }));
+  // Workouts logged since this week's Sunday — feeds the "done" state's
+  // next-workout card ("2 left this week").
   const todayIdx = new Date().getDay();
   const startOfWeek = new Date();
   startOfWeek.setHours(0, 0, 0, 0);
   startOfWeek.setDate(startOfWeek.getDate() - todayIdx);
-  const weekDots = weekLetters.map((label, i) => {
-    const d = new Date(startOfWeek);
-    d.setDate(startOfWeek.getDate() + i);
-    const done = workoutDayStamps.has(d.getTime());
-    return { label, done, today: i === todayIdx && !done };
-  });
-  const doneThisWeek = weekDots.filter(d => d.done).length;
-
-  const totalWorkoutsCount = workouts.length;
-  const avgDurationMin = workouts.length
-    ? Math.round(workouts.reduce((s, w) => s + (w.durationMinutes || 0), 0) / workouts.length)
-    : 0;
-  const homeMuscleLabel = currentDay ? (bodyPartLabel(currentDay) || (isHe ? 'כוח' : 'Strength')) : '';
-  const nudgeText = doneThisWeek >= maxPerWeek
-    ? (isHe ? '🎉 השלמת את היעד השבועי — כל הכבוד!' : "🎉 You've hit your weekly goal — nice work!")
-    : doneThisWeek === maxPerWeek - 1
-      ? (isHe ? 'עוד אימון אחד ותשלים שבוע מושלם — קדימה!' : 'One more workout for a perfect week — go!')
-      : (isHe ? `עוד ${maxPerWeek - doneThisWeek} אימונים השבוע לפי התוכנית` : `${maxPerWeek - doneThisWeek} workouts left this week per your plan`);
+  const doneThisWeek = workouts.filter(w => new Date(w.date) >= startOfWeek).length;
 
   // ── Redesign (pre-workout screen) derived values ─────────────────────
   const accentVar = homeMode ? 'var(--violet)' : 'var(--accent)';
@@ -624,7 +568,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         </div>
       )}
 
-      {message && !isUndo && (
+      {message && (
         <div
           className="card"
           style={{
@@ -650,7 +594,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                 key={i}
                 role="tab"
                 aria-selected={isActive}
-                onClick={() => { setSelectedDayIdx(i); setExpandedPlanEx(null); }}
+                onClick={() => setSelectedDayIdx(i)}
                 style={{
                   flex: 1, cursor: 'pointer',
                   border: isActive ? '1px solid rgba(167,139,250,.4)' : '1px solid var(--border-subtle)',
@@ -731,173 +675,6 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           </div>
         );
       })}
-
-      {/* Recent-workouts history was removed from the pre-workout screen in the
-          redesign (one CTA, zero scroll to start). It still lives on the
-          progress/journey tab; kept here gated-off to avoid a large deletion. */}
-      {false && workouts.length > 0 && (
-        <div className="card">
-          <div className="card-header">
-            <h3>{t.recentWorkouts}</h3>
-          </div>
-          <div>
-            {isUndo && (
-              <div
-                style={{
-                  padding: '10px 16px',
-                  marginBottom: '8px',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'rgba(0,184,148,0.1)',
-                  border: '1px solid rgba(0,184,148,0.3)',
-                  color: 'var(--success)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '12px',
-                  fontWeight: 600,
-                  fontSize: '14px',
-                }}
-              >
-                <span>{t.workoutDeleted}</span>
-                <button
-                  onClick={handleUndoWorkout}
-                  style={{
-                    padding: '4px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--accent)',
-                    background: 'rgba(0, 206, 201, 0.15)',
-                    color: 'var(--accent)',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  ↩ {t.undo}
-                </button>
-              </div>
-            )}
-            {workouts.slice(0, showAllWorkouts ? workouts.length : 3).map((w, idx) => {
-              const hasLog = (w.exercises || []).some(e => (e.setLog || []).some(s => s.done));
-              const isExpanded = expandedWorkout === (w._id || idx);
-              return (
-              <div key={idx} style={{ marginBottom: '8px' }}>
-              <div
-                className="meal-item"
-                style={{ alignItems: 'center', cursor: hasLog ? 'pointer' : 'default' }}
-                onClick={() => hasLog && setExpandedWorkout(isExpanded ? null : (w._id || idx))}
-              >
-                <span className="meal-desc">
-                  {w.location === 'home' ? '🏠 ' : ''}{getDayName(w.dayName, lang) || t.workout}{' '}
-                  <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-                    {new Date(w.date).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US')}
-                  </span>
-                  {hasLog && (
-                    <span style={{ color: 'var(--accent)', fontSize: 11, marginInlineStart: 6 }}>
-                      {isExpanded ? '▲' : '▼'}
-                    </span>
-                  )}
-                </span>
-                <div className="meal-macros" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ color: 'var(--warning)' }}>{w.caloriesBurned} {t.kcal}</span>
-                  <span style={{ color: 'var(--text-muted)' }}>{w.durationMinutes} {t.minutes}</span>
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      if (deletingId) return;
-                      setDeletingId(w._id);
-                      try {
-                        const res = await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : ''}/workout/${w._id}`, {
-                          method: 'DELETE',
-                          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-                        });
-                        if (!res.ok) throw new Error('Failed');
-                        setLastDeleted({ type: 'workout', data: w });
-                        setMessage('__WORKOUT_DELETED__');
-                        setTimeout(() => { setMessage(''); setLastDeleted(null); }, 8000);
-                        onComplete();
-                      } catch {
-                        setMessage(t.errorDeletingWorkout);
-                        setTimeout(() => setMessage(''), 3000);
-                      } finally {
-                        setDeletingId(null);
-                      }
-                    }}
-                    disabled={deletingId === w._id}
-                    style={{
-                      padding: '3px 10px',
-                      borderRadius: '6px',
-                      border: '1px solid rgba(255,107,107,0.3)',
-                      background: 'rgba(255,107,107,0.08)',
-                      color: 'var(--danger)',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      opacity: deletingId === w._id ? 0.5 : 1,
-                    }}
-                  >
-                    {t.deleteWorkout}
-                  </button>
-                </div>
-              </div>
-              {/* Expanded per-set details from a tracked session */}
-              {isExpanded && hasLog && (
-                <div style={{
-                  margin: '2px 8px 4px',
-                  padding: '10px 14px',
-                  borderRadius: 12,
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid var(--border-subtle)',
-                }}>
-                  {(w.exercises || []).filter(e => (e.setLog || []).some(s => s.done)).map((e, ei) => {
-                    const done = e.setLog.filter(s => s.done);
-                    const isTime = e.mode === 'time';
-                    const detail = isTime
-                      ? `${Math.round(done.reduce((n, s) => n + (s.durationSec || 0), 0) / 60 * 10) / 10} ${lang === 'he' ? 'דק׳' : 'min'}`
-                      : done.map(s => `${s.reps ?? '—'}${s.weight ? `×${s.weight}` : ''}`).join(' · ');
-                    return (
-                      <div key={ei} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5, padding: '3px 0' }}>
-                        <span style={{ color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {lang === 'he' ? e.name : getEnglishName(e.name)}
-                        </span>
-                        <span dir="ltr" style={{ color: 'var(--text-3)', flexShrink: 0, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
-                          {detail}
-                        </span>
-                      </div>
-                    );
-                  })}
-                  {w.totalVolume > 0 && (
-                    <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--border-subtle)', fontSize: 12, color: 'var(--accent)', fontWeight: 700, textAlign: 'end' }}>
-                      {lang === 'he' ? `נפח כולל: ${w.totalVolume.toLocaleString()} ק״ג` : `Total volume: ${w.totalVolume.toLocaleString()} kg`}
-                    </div>
-                  )}
-                </div>
-              )}
-              </div>
-            );})}
-            {workouts.length > 3 && (
-              <button
-                type="button"
-                onClick={() => setShowAllWorkouts(v => !v)}
-                style={{
-                  width: '100%',
-                  marginTop: 8,
-                  padding: '10px 0',
-                  borderRadius: 'var(--r-md)',
-                  border: '1px solid var(--border)',
-                  background: 'rgba(255,255,255,0.03)',
-                  color: 'var(--accent)',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                {showAllWorkouts
-                  ? (lang === 'he' ? 'הצג פחות' : 'Show less')
-                  : (lang === 'he' ? `הצג אימונים ישנים יותר (${workouts.length - 3})` : `Show older workouts (${workouts.length - 3})`)}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Exercise Detail Modal */}
       {selectedExercise && (
