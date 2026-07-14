@@ -211,7 +211,7 @@ export default function Dashboard() {
         </div>
       </aside>
 
-      <main className="main-content">
+      <main className={`main-content${activeTab === 'settings' ? ' main-content--settings' : ''}`}>
         {activeTab === 'overview' && (
           <OverviewTab userName={profileData?.name}
             profile={profileData?.profile}
@@ -236,6 +236,7 @@ export default function Dashboard() {
             workoutHistory={workoutHistory}
             showXP={showXP}
             progressionData={progressionData}
+            dailyStreak={dailyStreak}
           />
         )}
 

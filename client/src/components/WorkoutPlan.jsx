@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
-import WorkoutSession, { readActiveSession } from './WorkoutSession';
+import WorkoutSession, { readActiveSession, clearActiveSession } from './WorkoutSession';
 
 // Muscle group translations
 const muscleGroupMap = {
@@ -121,7 +121,7 @@ function toHomeExercises(exercises) {
   });
 }
 
-export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHistory, showXP, progressionData }) {
+export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHistory, showXP, progressionData, dailyStreak = 0 }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
   const [dayDurations, setDayDurations] = useState({});
@@ -358,6 +358,60 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
       ? (isHe ? 'עוד אימון אחד ותשלים שבוע מושלם — קדימה!' : 'One more workout for a perfect week — go!')
       : (isHe ? `עוד ${maxPerWeek - doneThisWeek} אימונים השבוע לפי התוכנית` : `${maxPerWeek - doneThisWeek} workouts left this week per your plan`);
 
+  // ── Redesign (pre-workout screen) derived values ─────────────────────
+  const accentVar = homeMode ? 'var(--violet)' : 'var(--accent)';
+  const nowD = new Date();
+  const heDows = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'שבת'];
+  const dateLabel = isHe
+    ? `יום ${heDows[nowD.getDay()]} · ${nowD.getDate()}.${nowD.getMonth() + 1}`
+    : nowD.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const dayTitle = currentDay ? getDayName(currentDay.day, lang) : (isHe ? 'תוכנית אימון' : 'Workout plan');
+  const muscleChip =[...new Set((currentDay?.exercises || []).map((e) => getMuscleGroup(e.muscleGroup, lang)).filter(Boolean))].slice(0, 3).join(' · ');
+  const lastWorkout = workouts[0] || null; // history is sorted newest-first
+  const lastVolume = lastWorkout?.totalVolume || 0;
+  const lastDurMin = lastWorkout?.durationMinutes || 0;
+  // Heaviest logged lift among today's exercises → the PR nudge line.
+  let topPr = null;
+  for (const ex of adjExercises0) {
+    const p = perfMap[ex.name];
+    if (p?.bestWeight > 0 && (!topPr || p.bestWeight > topPr.weight)) {
+      topPr = { name: isHe ? ex.name : getEnglishName(ex.name), weight: p.bestWeight };
+    }
+  }
+  // Per-exercise "last time" chip shown at the end of each row.
+  function lastPerf(ex) {
+    const p = perfMap[ex.name];
+    if (!p) return null;
+    if (p.bestWeight > 0) return { value: `${p.bestWeight} ${isHe ? 'ק"ג' : 'kg'}`, label: isHe ? 'פעם קודמת' : 'last time' };
+    const s = p.sets?.[0];
+    if (s?.reps) return { value: `${s.reps}`, label: isHe ? 'חזרות' : 'reps' };
+    if (s?.durationSec) return { value: `${Math.round(s.durationSec)}${isHe ? ' שנ׳' : 's'}`, label: isHe ? 'זמן' : 'time' };
+    return { value: isHe ? 'משקל גוף' : 'BW', label: '' };
+  }
+  // Current cycle progress → the weekly-goal ring.
+  let cycleDone = 0;
+  if (allWorkouts.length > 0) {
+    let cs = new Date(allWorkouts[0].date), c = 0;
+    for (const w of allWorkouts) {
+      const dd = (new Date(w.date) - cs) / 864e5;
+      if (dd >= 7) { cs = new Date(w.date); c = 1; } else c++;
+    }
+    cycleDone = c;
+  }
+  // Resume-session progress + elapsed minutes (active state).
+  const resumeExs = resumeAvailable?.exercises || [];
+  let resumeDone = 0, resumeTotal = 0;
+  for (const e of resumeExs) for (const s of (e.setLog || [])) { resumeTotal++; if (s.done) resumeDone++; }
+  const resumePct = resumeTotal ? Math.round((resumeDone / resumeTotal) * 100) : 0;
+  const resumeElapsedMin = resumeAvailable ? Math.max(0, Math.round((Date.now() - resumeAvailable.startedAt) / 60000)) : 0;
+  const nextDay = days.length > 0 ? days[(safeDayIdx + 1) % days.length] : null;
+
+  // Which of the four pre-workout states to render.
+  const showActive = !!resumeAvailable;
+  const showDone = !resumeAvailable && alreadyTrainedToday;
+  const showWeek = !resumeAvailable && !alreadyTrainedToday && weeklyLimitReached;
+  const screenReady = !showActive && !showDone && !showWeek;
+
   // Full-screen live session overlay takes over everything else.
   if (session) {
     return (
@@ -383,219 +437,192 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
 
   return (
     <>
-      {/* Resume banner — an unfinished session survives app restarts */}
-      {resumeAvailable && (
-        <button
-          type="button"
-          onClick={resumeSession}
-          style={{
-            width: '100%', marginBottom: 14, cursor: 'pointer',
-            border: '1px solid rgba(255,176,32,0.4)',
-            background: 'rgba(255,176,32,0.1)',
-            borderRadius: 16, padding: '14px 16px',
-            display: 'flex', alignItems: 'center', gap: 12,
-            fontFamily: 'inherit', textAlign: 'start',
-          }}
-        >
-          <span style={{ fontSize: 22 }}>⏸</span>
-          <span style={{ flex: 1 }}>
-            <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15, color: '#ffb020' }}>
-              {isHe ? 'יש לך אימון פעיל' : 'You have an active workout'}
-            </span>
-            <span style={{ display: 'block', fontSize: 12.5, color: 'var(--text-3)', marginTop: 2 }}>
-              {isHe ? 'לחץ כדי להמשיך מאיפה שהפסקת' : 'Tap to continue where you left off'}
-            </span>
-          </span>
-          <span style={{ fontSize: 18, color: '#ffb020' }}>▶</span>
-        </button>
+      {/* ── ACTIVE state — an unfinished session survives app restarts ── */}
+      {showActive && (
+        <div>
+          <div style={{
+            padding: '20px 18px', borderRadius: 20, marginBottom: 18,
+            background: 'linear-gradient(150deg, rgba(255,171,64,.14), rgba(255,171,64,.04))',
+            border: '1.5px solid rgba(255,171,64,.45)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span className="wp2-live-dot" style={{ width: 9, height: 9, borderRadius: 99, background: '#ffab40', display: 'inline-block' }} />
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#ffab40', letterSpacing: '.03em' }}>
+                {isHe ? 'אימון פעיל · מושהה' : 'Active workout · paused'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
+              <span dir="ltr" style={{ fontSize: 38, fontWeight: 900, color: 'var(--text-1)', fontFamily: 'var(--font-display)' }}>{resumeElapsedMin}</span>
+              <span style={{ fontSize: 14, color: 'var(--text-3)', fontWeight: 600 }}>
+                {isHe ? `דקות · מתוך ~${getDuration(currentDay?.day)} דק׳` : `min · of ~${getDuration(currentDay?.day)} min`}
+              </span>
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-2)', fontWeight: 600, marginBottom: 12 }}>
+              {getDayName(resumeAvailable.dayName, lang)}{resumeTotal ? ` · ${resumeDone}/${resumeTotal} ${isHe ? 'סטים' : 'sets'}` : ''}
+            </div>
+            <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
+              <div style={{ width: `${resumePct}%`, height: '100%', borderRadius: 99, background: '#ffab40' }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <button
+              type="button"
+              onClick={resumeSession}
+              style={{
+                width: '100%', height: 58, border: 'none', borderRadius: 18, cursor: 'pointer',
+                background: 'linear-gradient(135deg,#ffc24d,#ff9f1c)', color: '#2a1a00',
+                fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 18,
+              }}
+            >
+              {isHe ? 'המשך אימון מאיפה שהפסקת' : 'Continue where you left off'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { clearActiveSession(); setResumeAvailable(null); }}
+              style={{
+                width: '100%', height: 44, borderRadius: 14, cursor: 'pointer',
+                border: '1px solid var(--border)', background: 'transparent',
+                color: 'var(--text-3)', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
+              }}
+            >
+              {isHe ? 'בטל את האימון הפעיל' : 'Discard active workout'}
+            </button>
+          </div>
+        </div>
       )}
 
-      {/* Workout home card — day summary, week strip, stats, fast-path CTA */}
-      <div style={{ fontSize: 13, color: '#a78bfa', fontWeight: 700, letterSpacing: '.5px', marginBottom: 8 }}>
-        {isHe ? `אימון · ${expLabels[profile?.experience] || ''}` : `Workout · ${expLabels[profile?.experience] || ''}`}
-      </div>
-
-      <div style={{
-        padding: 22,
-        borderRadius: 22,
-        marginBottom: 14,
-        background: 'linear-gradient(155deg, rgba(46,230,196,0.16), rgba(10,15,22,0.35))',
-        border: '1px solid rgba(46,230,196,0.25)',
-      }}>
-        <div style={{ color: 'var(--accent)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em' }}>
-          {isHe ? 'האימון של היום' : "TODAY'S WORKOUT"}
-        </div>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 21, color: 'var(--text-1)', marginTop: 6, lineHeight: 1.3 }}>
-          {currentDay ? getDayName(currentDay.day, lang) : (isHe ? 'תוכנית אימון' : 'Workout plan')}
-        </div>
-        <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 4 }}>
-          {homeMuscleLabel ? `${homeMuscleLabel} · ` : ''}{adjExercises0.length} {isHe ? 'תרגילים' : 'exercises'} · {isHe ? 'כ-' : '~'}{getDuration(currentDay?.day)} {isHe ? 'דקות' : 'min'}
-        </div>
-        {!alreadyTrainedToday && !weeklyLimitReached && (
-          <button
-            type="button"
-            onClick={startSession}
-            style={{
-              marginTop: 16, width: '100%', border: 'none', cursor: 'pointer',
-              background: 'linear-gradient(135deg,#2ee6c4,#16c5a7)', color: '#04231e',
-              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16,
-              padding: 15, borderRadius: 15,
-            }}
-          >
-            {isHe ? 'התחל אימון  ▶' : 'Start Workout  ▶'}
-          </button>
-        )}
-      </div>
-
-      {/* Week strip */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 18, padding: '14px 10px', marginBottom: 12 }}>
-        {weekDots.map((d, i) => (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1 }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: '50%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 800,
-              background: d.done ? 'var(--accent)' : 'rgba(255,255,255,0.06)',
-              color: d.done ? '#04231e' : d.today ? 'var(--accent)' : 'var(--text-3)',
-              border: d.today ? '2px solid var(--accent)' : 'none',
-              animation: d.today ? 'wtRingPulse 2s infinite' : 'none',
-            }}>{d.done ? '✓' : d.label}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{d.label}</div>
+      {/* ── DONE state — already trained today ─────────────────────────── */}
+      {showDone && (
+        <div>
+          <div style={{ textAlign: 'center', padding: '20px 0 18px' }}>
+            <div style={{ width: 72, height: 72, margin: '0 auto 14px', borderRadius: 99, background: 'var(--accent-glow, rgba(46,230,196,.12))', border: '2px solid rgba(46,230,196,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: 'var(--accent)', fontWeight: 900 }}>✓</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 900, color: 'var(--text-1)', marginBottom: 4 }}>
+              {isHe ? 'האימון של היום הושלם' : "Today's workout is done"}
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-3)', fontWeight: 500 }}>
+              {getDayName(todayWorkout?.dayName || dayTitle, lang)} — {isHe ? 'כל הכבוד!' : 'nice work!'}
+            </div>
           </div>
-        ))}
-      </div>
-
-      {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 12 }}>
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: '13px 8px', textAlign: 'center' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: 'var(--text-1)' }}>{totalWorkoutsCount}</div>
-          <div style={{ fontSize: 10.5, color: 'var(--text-3)', marginTop: 2 }}>{isHe ? 'אימונים' : 'workouts'}</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <div style={{ flex: 1, textAlign: 'center', padding: '14px 6px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-1)', fontFamily: 'var(--font-display)' }}>{todayWorkout?.durationMinutes || 0}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 600 }}>{isHe ? 'דקות' : 'minutes'}</div>
+            </div>
+            <div style={{ flex: 1, textAlign: 'center', padding: '14px 6px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-1)', fontFamily: 'var(--font-display)' }}>{(todayWorkout?.totalVolume || 0).toLocaleString()}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 600 }}>{isHe ? 'ק״ג נפח' : 'kg volume'}</div>
+            </div>
+            <div style={{ flex: 1, textAlign: 'center', padding: '14px 6px', borderRadius: 14, background: 'var(--accent-glow, rgba(46,230,196,.07))', border: '1px solid rgba(46,230,196,.3)' }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--accent)', fontFamily: 'var(--font-display)' }}>🔥 {dailyStreak}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--accent)', fontWeight: 600 }}>{isHe ? 'רצף' : 'streak'}</div>
+            </div>
+          </div>
+          {nextDay && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border-subtle)', marginBottom: 4 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 700, marginBottom: 2 }}>{isHe ? 'האימון הבא' : 'Next workout'}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-1)' }}>{getDayName(nextDay.day, lang)}</div>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>
+                {maxPerWeek - doneThisWeek > 0 ? (isHe ? `עוד ${maxPerWeek - doneThisWeek} השבוע` : `${maxPerWeek - doneThisWeek} left this week`) : (isHe ? 'שבוע מלא' : 'week complete')}
+              </div>
+            </div>
+          )}
+          <div style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.5, marginTop: 12, textAlign: 'center' }}>
+            {isHe ? 'מערכת האימון החי — מעקב סטים, משקלים וטיימר מנוחה — תיפתח באימון הבא שלך.' : 'The live workout — set tracking, weights and rest timer — opens on your next session.'}
+          </div>
         </div>
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: '13px 8px', textAlign: 'center' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: 'var(--text-1)' }}>{avgDurationMin}{isHe ? 'ד׳' : 'm'}</div>
-          <div style={{ fontSize: 10.5, color: 'var(--text-3)', marginTop: 2 }}>{isHe ? 'ממוצע' : 'avg'}</div>
-        </div>
-        <div style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.28)', borderRadius: 16, padding: '13px 8px', textAlign: 'center' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#c4b5fd' }}>{progressionData?.level ?? 1}</div>
-          <div style={{ fontSize: 10.5, color: 'var(--text-3)', marginTop: 2 }}>{isHe ? `רמה · ${progressionData?.totalXP ?? 0} XP` : `Lvl · ${progressionData?.totalXP ?? 0} XP`}</div>
-        </div>
-      </div>
+      )}
 
-      {/* Nudge */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: '13px 15px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 19 }}>💪</span>
-        <span style={{ fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.4 }}>{nudgeText}</span>
-      </div>
+      {/* ── WEEK state — every workout in the cycle is done ─────────────── */}
+      {showWeek && (
+        <div>
+          <div style={{ textAlign: 'center', padding: '16px 0 14px' }}>
+            <svg width="120" height="120" viewBox="0 0 120 120" style={{ display: 'block', margin: '0 auto 12px' }}>
+              <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(127,127,127,.18)" strokeWidth="9" />
+              <circle cx="60" cy="60" r="52" fill="none" stroke="var(--accent)" strokeWidth="9" strokeLinecap="round"
+                strokeDasharray={`${Math.min(1, maxPerWeek ? cycleDone / maxPerWeek : 0) * 326.7} 326.7`} transform="rotate(-90 60 60)" />
+              <text x="60" y="57" textAnchor="middle" fill="var(--text-1)" fontSize="26" fontWeight="900" fontFamily="var(--font-display)">{cycleDone}/{maxPerWeek}</text>
+              <text x="60" y="76" textAnchor="middle" fill="var(--text-3)" fontSize="11" fontWeight="600">{isHe ? 'אימונים' : 'workouts'}</text>
+            </svg>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 900, color: 'var(--text-1)', marginBottom: 4 }}>
+              {isHe ? 'היעד השבועי הושלם!' : 'Weekly goal complete!'}
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-3)', fontWeight: 500 }}>
+              {isHe ? `כל ${maxPerWeek} האימונים של המחזור — בוצעו` : `All ${maxPerWeek} workouts of the cycle — done`}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+            {workouts.slice(0, maxPerWeek).map((w, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ width: 26, height: 26, borderRadius: 99, background: 'var(--accent-glow, rgba(46,230,196,.13))', color: 'var(--accent)', fontSize: 13, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>✓</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.location === 'home' ? '🏠 ' : ''}{getDayName(w.dayName, lang) || (isHe ? 'אימון' : 'Workout')}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{new Date(w.date).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US')}</div>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-3)', fontWeight: 600, flex: 'none' }}>{w.durationMinutes} {isHe ? 'דק׳' : 'min'}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ padding: 14, borderRadius: 14, background: 'var(--accent-glow, rgba(46,230,196,.06))', border: '1px solid rgba(46,230,196,.2)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, fontWeight: 500 }}>
+            <span style={{ color: 'var(--accent)', fontWeight: 800 }}>{isHe ? 'המחזור הבא ייפתח בהמשך.' : 'The next cycle unlocks soon.'}</span>{' '}
+            {isHe ? 'הגוף בונה שריר במנוחה — נצל את הימים הקרובים להתאוששות, שינה ותזונה טובה.' : 'Muscle is built during rest — use the coming days for recovery, sleep and good nutrition.'}
+          </div>
+        </div>
+      )}
 
-      {/* Gym / Home mode picker — prominent CTA so users know home
-          alternatives exist. Each option is a full card with icon, label
-          and tagline explaining the tradeoff. */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: 12,
-        marginBottom: 16,
-      }}>
-        <button
-          type="button"
-          onClick={() => setHomeMode(false)}
-          style={{
-            padding: '18px 16px',
-            borderRadius: 'var(--r-lg)',
-            border: !homeMode ? '2px solid var(--accent)' : '1px solid var(--border)',
-            background: !homeMode ? 'var(--accent-glow)' : 'var(--surface)',
-            cursor: 'pointer',
-            textAlign: 'start',
-            transition: 'all 0.15s',
-            fontFamily: 'inherit',
-            position: 'relative',
-            boxShadow: !homeMode ? '0 0 0 4px rgba(45,212,191,0.10)' : 'none',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <span style={{ fontSize: 22 }}>🏋️</span>
-            <span style={{
-              fontFamily: 'var(--font-display)',
-              fontWeight: 700,
-              fontSize: 16,
-              color: !homeMode ? 'var(--accent)' : 'var(--text-1)',
-            }}>{t.gymWorkout}</span>
-            {!homeMode && (
-              <span style={{
-                marginInlineStart: 'auto',
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                padding: '3px 8px',
-                borderRadius: 99,
-                background: 'var(--accent)',
-                color: 'var(--bg-0)',
-              }}>{lang === 'he' ? 'נבחר' : 'ACTIVE'}</span>
+      {/* ── READY state — header, title, context, gym/home toggle ───────── */}
+      {screenReady && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 500 }}>{dateLabel}</span>
+            {dailyStreak > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 99, background: 'rgba(255,171,64,.1)', border: '1px solid rgba(255,171,64,.25)', fontSize: 12.5, fontWeight: 700, color: '#ffab40' }}>
+                🔥 {isHe ? `רצף ${dailyStreak} ימים` : `${dailyStreak}-day streak`}
+              </span>
             )}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', lineHeight: 1.5 }}>
-            {lang === 'he'
-              ? 'משקולות, מכונות ומשקל גוף — תוכנית הליבה.'
-              : 'Free weights, machines & bodyweight — the core plan.'}
-          </div>
-        </button>
 
-        <button
-          type="button"
-          onClick={() => setHomeMode(true)}
-          style={{
-            padding: '18px 16px',
-            borderRadius: 'var(--r-lg)',
-            border: homeMode ? '2px solid var(--violet)' : '1px solid var(--border)',
-            background: homeMode ? 'rgba(139, 92, 246, 0.10)' : 'var(--surface)',
-            cursor: 'pointer',
-            textAlign: 'start',
-            transition: 'all 0.15s',
-            fontFamily: 'inherit',
-            position: 'relative',
-            boxShadow: homeMode ? '0 0 0 4px rgba(139, 92, 246, 0.10)' : 'none',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <span style={{ fontSize: 22 }}>🏠</span>
-            <span style={{
-              fontFamily: 'var(--font-display)',
-              fontWeight: 700,
-              fontSize: 16,
-              color: homeMode ? 'var(--violet)' : 'var(--text-1)',
-            }}>{t.homeWorkout}</span>
-            {homeMode && (
-              <span style={{
-                marginInlineStart: 'auto',
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                padding: '3px 8px',
-                borderRadius: 99,
-                background: 'var(--violet)',
-                color: '#ffffff',
-              }}>{lang === 'he' ? 'נבחר' : 'ACTIVE'}</span>
-            )}
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: accentVar, letterSpacing: '.04em', marginBottom: 6 }}>
+            {isHe ? `האימון של היום · יום ${safeDayIdx + 1} בתוכנית` : `Today's workout · day ${safeDayIdx + 1} of your plan`}
+            {homeMode ? (isHe ? ' · גרסת בית' : ' · home version') : ''}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', lineHeight: 1.5 }}>
-            {lang === 'he'
-              ? 'אותה תוכנית, חלופות ביתיות לכל תרגיל — בלי ציוד.'
-              : 'Same plan, home-friendly swap for every exercise — no gear.'}
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 900, lineHeight: 1.15, color: 'var(--text-1)', marginBottom: 12 }}>
+            {dayTitle}
           </div>
-        </button>
-      </div>
 
-      {/* Tip: click exercise for tutorial */}
-      <div className="card" style={{
-        textAlign: 'center',
-        padding: '12px 16px',
-        background: 'rgba(0, 206, 201, 0.06)',
-        borderColor: 'rgba(0, 206, 201, 0.15)',
-      }}>
-        <span style={{ fontSize: '15px', color: 'var(--accent)' }}>
-          {t.clickForTutorial}
-        </span>
-      </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            <span style={{ padding: '6px 12px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border-subtle)', fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' }}>{isHe ? '~' : '~'}{getDuration(currentDay?.day)} {isHe ? 'דק׳' : 'min'}</span>
+            <span style={{ padding: '6px 12px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border-subtle)', fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' }}>{adjExercises0.length} {isHe ? 'תרגילים' : 'exercises'}</span>
+            {muscleChip && <span style={{ padding: '6px 12px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border-subtle)', fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' }}>{muscleChip}</span>}
+          </div>
+
+          {lastWorkout && lastVolume > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 14, background: 'var(--accent-glow, rgba(46,230,196,.07))', border: '1px solid rgba(46,230,196,.2)', marginBottom: 16 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(46,230,196,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: 16, fontWeight: 800, flex: 'none' }}>↗</div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>
+                  {isHe ? `בפעם הקודמת: ${lastDurMin} דק׳ · נפח ${lastVolume.toLocaleString()} ק״ג` : `Last time: ${lastDurMin} min · ${lastVolume.toLocaleString()} kg volume`}
+                </div>
+                {topPr && (
+                  <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>
+                    {isHe ? `שיא אישי ב${topPr.name} — ${topPr.weight} ק״ג. היום מנסים ${topPr.weight + 2.5}?` : `PR in ${topPr.name} — ${topPr.weight} kg. Try ${topPr.weight + 2.5} today?`}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+
+      {/* Gym / Home segmented toggle */}
+      {screenReady && (
+        <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 4, marginBottom: 20 }}>
+          <button type="button" onClick={() => setHomeMode(false)} style={{ flex: 1, textAlign: 'center', padding: '9px 0', borderRadius: 9, border: !homeMode ? '1px solid rgba(46,230,196,.4)' : '1px solid transparent', background: !homeMode ? 'rgba(46,230,196,.13)' : 'transparent', color: !homeMode ? 'var(--accent)' : 'var(--text-3)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: !homeMode ? 700 : 600, cursor: 'pointer' }}>{t.gymWorkout}</button>
+          <button type="button" onClick={() => setHomeMode(true)} style={{ flex: 1, textAlign: 'center', padding: '9px 0', borderRadius: 9, border: homeMode ? '1px solid rgba(139,92,246,.45)' : '1px solid transparent', background: homeMode ? 'rgba(139,92,246,.14)' : 'transparent', color: homeMode ? 'var(--violet)' : 'var(--text-3)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: homeMode ? 700 : 600, cursor: 'pointer' }}>{t.homeWorkout}</button>
+        </div>
+      )}
 
       {message && !isUndo && (
         <div
@@ -613,7 +640,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
       )}
 
       {/* Day selector */}
-      {days.length > 1 && (
+      {screenReady && days.length > 1 && (
         <div style={{ display: 'flex', gap: 9, marginBottom: 18 }}>
           {days.map((d, i) => {
             const isActive = i === safeDayIdx;
@@ -642,112 +669,73 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         </div>
       )}
 
-      {visibleDays.map((day) => {
+      {screenReady && visibleDays.map((day) => {
         const idx = day.__idx;
-        const typeStyle = typeColors[day.type] || typeColors.strength;
         const isCompleting = completingDay === day.day;
         const duration = getDuration(day.day);
         const baseExercises = homeMode ? toHomeExercises(day.exercises) : day.exercises;
         const visibleExercises = getExercisesForDuration(baseExercises, duration);
-        const hiddenCount = day.exercises.length - visibleExercises.length;
-        const setsChanged = duration !== 60;
-
+        const isHeb = lang === 'he';
+        const muscleColors = {
+          'חזה': '#ff5c7c', 'גב': '#4aa8ff', 'כתפיים': '#ffb020',
+          'זרועות': '#a78bfa', 'רגליים': '#2ee6c4', 'תאומים': '#4aa8ff',
+          'ליבה': '#ffb020', 'אירובי': '#2ee6c4', 'כללי': '#5b6675',
+        };
         return (
           <div key={idx}>
-          {/* Duration selector */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 0', marginBottom: 18, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13, color: 'var(--text-3)' }}>{t.availableTime}</span>
-            {DURATION_OPTIONS.map(opt => (
-              <button key={opt} onClick={() => setDuration(day.day, opt)} style={{ padding: '4px 12px', borderRadius: 12, border: duration === opt ? '1.5px solid rgba(167,139,250,.5)' : '1px solid rgba(255,255,255,.1)', background: duration === opt ? 'rgba(167,139,250,.15)' : 'transparent', color: duration === opt ? '#c4b5fd' : '#7c8899', fontSize: 13, fontWeight: duration === opt ? 700 : 400, cursor: 'pointer', transition: 'all .15s' }}>
-                {opt}
-              </button>
-            ))}
-            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{t.minutes}</span>
-          </div>
-
-          {/* Exercise list — collapsed accordion; read-only set preview on expand */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {visibleExercises.map((ex, exIdx) => {
-              const muscleColors = {
-                'חזה': '#ff5c7c', 'גב': '#4aa8ff', 'כתפיים': '#ffb020',
-                'זרועות': '#a78bfa', 'רגליים': '#2ee6c4', 'תאומים': '#4aa8ff',
-                'ליבה': '#ffb020', 'אירובי': '#2ee6c4', 'כללי': '#5b6675',
-              };
-              const exColor = ex.muscleGroup ? (muscleColors[ex.muscleGroup] || '#2ee6c4') : '#2ee6c4';
-              const isHeb = lang === 'he';
-              const primary = isHeb ? ex.name : getEnglishName(ex.name);
-              const expanded = expandedPlanEx === exIdx;
-              const perf = perfMap[ex.name];
-              return (
-                <div key={exIdx} style={{ background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderInlineStart: `3px solid ${exColor}`, borderRadius: 16, overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() => setExpandedPlanEx(expanded ? null : exIdx)}
-                      style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 6px 14px 16px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'start' }}
-                    >
-                      <span style={{ minWidth: 0 }}>
-                        <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14.5, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {primary}
-                        </span>
-                        <span style={{ display: 'block', fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
-                          {ex.sets} {isHeb ? 'סטים' : 'sets'} · {ex.reps} {isHeb ? 'חזרות' : 'reps'}
-                        </span>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-1)' }}>{isHeb ? 'התרגילים' : 'Exercises'}</span>
+              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{isHeb ? 'המשקל האחרון שלך ליד כל תרגיל' : 'Your last weight beside each'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {visibleExercises.map((ex, exIdx) => {
+                const exColor = ex.muscleGroup ? (muscleColors[ex.muscleGroup] || '#2ee6c4') : '#2ee6c4';
+                const primary = isHeb ? ex.name : getEnglishName(ex.name);
+                const lp = lastPerf(ex);
+                return (
+                  <button
+                    key={exIdx}
+                    type="button"
+                    onClick={() => setSelectedExercise(ex)}
+                    aria-label={isHe ? `${primary} — סרטון הדרכה` : `${primary} — tutorial`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border-subtle)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'start', width: '100%' }}
+                  >
+                    <span style={{ width: 4, height: 36, borderRadius: 99, background: exColor, flex: 'none' }} />
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{primary}</span>
+                      <span dir="ltr" style={{ display: 'block', fontSize: 11.5, color: 'var(--text-3)', textAlign: 'start' }}>{getEnglishName(ex.name)} · {ex.sets}×{ex.reps}</span>
+                    </span>
+                    {lp && (
+                      <span style={{ textAlign: 'end', flex: 'none' }}>
+                        <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: accentVar }}>{lp.value}</span>
+                        {lp.label && <span style={{ display: 'block', fontSize: 10.5, color: 'var(--text-3)' }}>{lp.label}</span>}
                       </span>
-                      <span style={{ color: 'var(--text-3)', fontSize: 12, flexShrink: 0, marginInlineStart: 8, transform: expanded ? 'rotate(-90deg)' : 'none', transition: 'transform .15s' }}>◀</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedExercise(ex)}
-                      aria-label={isHe ? 'סרטון הדרכה' : 'Tutorial video'}
-                      style={{ width: 34, height: 34, marginInlineEnd: 12, flexShrink: 0, borderRadius: 10, border: '1px solid rgba(255,92,124,0.3)', background: 'rgba(255,92,124,0.1)', color: '#ff5c7c', fontSize: 12, cursor: 'pointer' }}
-                    >▶</button>
-                  </div>
-                  {expanded && (
-                    <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {Array.from({ length: ex.sets }, (_, si) => {
-                        const pSet = perf?.sets?.[Math.min(si, (perf.sets.length || 1) - 1)];
-                        return (
-                          <div key={si} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)' }}>
-                            <span style={{ color: 'var(--text-3)', fontSize: 12.5 }}>{isHeb ? 'סט' : 'Set'} {si + 1}</span>
-                            <span style={{ color: 'var(--text-2)', fontSize: 12.5, fontWeight: 600 }}>
-                              {pSet?.weight ? `${pSet.weight} ${isHeb ? 'ק"ג' : 'kg'} × ` : ''}{ex.reps}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {(hiddenCount > 0 || setsChanged) && (
-            <div style={{ padding: '8px 0', textAlign: 'center', fontSize: 12, color: duration < 60 ? '#ffb020' : '#2ee6c4', fontStyle: 'italic', marginTop: 8 }}>
-              {duration < 60
-                ? `${t.shortWorkoutNote}${hiddenCount > 0 ? ` | ${hiddenCount} ${t.exercisesSkipped}` : ''}`
-                : t.longWorkoutNote}
+                    )}
+                    <span aria-hidden="true" style={{ color: '#ff5c7c', fontSize: 11, flex: 'none' }}>▶</span>
+                  </button>
+                );
+              })}
             </div>
-          )}
 
-          {/* Inline confirm when completing */}
-          {isCompleting && (
-            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-              <button className="btn btn-accent" onClick={() => handleComplete(day)} style={{ flex: 1, padding: '12px', fontWeight: 700, fontSize: 15 }}>
-                {t.confirm}
-              </button>
-              <button onClick={() => setCompletingDay(null)} style={{ padding: '12px 18px', borderRadius: 'var(--r-md)', border: '1px solid rgba(255,92,124,.3)', background: 'rgba(255,92,124,.08)', color: '#ff5c7c', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
-                ✕
-              </button>
-            </div>
-          )}
+            {/* Inline confirm for the quick-log path */}
+            {isCompleting && (
+              <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                <button className="btn btn-accent" onClick={() => handleComplete(day)} style={{ flex: 1, padding: '12px', fontWeight: 700, fontSize: 15 }}>
+                  {t.confirm}
+                </button>
+                <button onClick={() => setCompletingDay(null)} style={{ padding: '12px 18px', borderRadius: 'var(--r-md)', border: '1px solid rgba(255,92,124,.3)', background: 'rgba(255,92,124,.08)', color: '#ff5c7c', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
         );
       })}
 
-      {/* Recent Workouts with delete */}
-      {workouts.length > 0 && (
+      {/* Recent-workouts history was removed from the pre-workout screen in the
+          redesign (one CTA, zero scroll to start). It still lives on the
+          progress/journey tab; kept here gated-off to avoid a large deletion. */}
+      {false && workouts.length > 0 && (
         <div className="card">
           <div className="card-header">
             <h3>{t.recentWorkouts}</h3>
@@ -1012,40 +1000,8 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         </div>
       )}
 
-      {/* Completed / locked state — previously nothing rendered here at all,
-          which made the workout tab look identical to the old version for
-          anyone who had already trained today. Make the state explicit. */}
-      {visibleDays.length > 0 && (alreadyTrainedToday || weeklyLimitReached) && (
-        <div style={{
-          marginTop: 18,
-          padding: '18px 16px',
-          borderRadius: 17,
-          border: '1px solid rgba(46,230,196,0.28)',
-          background: 'rgba(46,230,196,0.07)',
-          textAlign: 'center',
-        }}>
-          <div style={{ fontSize: 26, marginBottom: 6 }}>✅</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: 'var(--text-1)' }}>
-            {alreadyTrainedToday
-              ? (isHe ? 'האימון של היום הושלם' : "Today's workout is done")
-              : (isHe ? 'השלמת את כל האימונים של המחזור' : 'All workouts for this cycle are done')}
-          </div>
-          <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 4, lineHeight: 1.5 }}>
-            {alreadyTrainedToday
-              ? (isHe
-                  ? 'מערכת האימון החי — מעקב סטים, משקלים וטיימר מנוחה — תיפתח באימון הבא שלך.'
-                  : 'The live workout — set tracking, weights and rest timer — opens on your next session.')
-              : (isHe
-                  ? `לפי התוכנית שלך (${maxPerWeek} אימונים בשבוע). האימון הבא ייפתח בהמשך המחזור.`
-                  : `Per your plan (${maxPerWeek} workouts/week). The next session unlocks later this cycle.`)}
-          </div>
-        </div>
-      )}
-
-      {/* Primary action: start a tracked live session. Secondary: the old
-          one-tap quick log for users who don't want set tracking. Sticky so
-          it's always reachable without scrolling — the doc's #1 fix. */}
-      {visibleDays.length > 0 && !completingDay && !alreadyTrainedToday && !weeklyLimitReached && (
+      {/* Primary CTA — one action, fixed in the thumb zone above the tab bar. */}
+      {screenReady && visibleDays.length > 0 && !completingDay && (
         <div style={{
           position: 'sticky',
           bottom: 'calc(env(safe-area-inset-bottom, 0px) + 68px)',
@@ -1057,17 +1013,33 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           <button
             type="button"
             onClick={startSession}
-            style={{ width: '100%', border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#2ee6c4,#16c5a7)', color: '#04231e', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 17, padding: 16, borderRadius: 17, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 10px 28px -10px rgba(46,230,196,.7)' }}
+            className="wp2-cta"
+            style={{ width: '100%', height: 60, border: 'none', cursor: 'pointer', background: homeMode ? 'linear-gradient(135deg,#c4a1ff,#9b6df2)' : 'linear-gradient(135deg,#35f0b2,#1fc98f)', color: homeMode ? '#1b0e33' : '#04231a', fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 18, borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
           >
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#04231e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-            {lang === 'he' ? 'התחל אימון' : 'Start workout'}
+            {homeMode ? (isHe ? 'התחל אימון בית' : 'Start home workout') : (isHe ? 'התחל אימון' : 'Start workout')}
+            <svg width="16" height="16" viewBox="0 0 16 16" style={{ transform: 'scaleX(-1)' }}><path d="M4 2l9 6-9 6z" fill={homeMode ? '#1b0e33' : '#04231a'} /></svg>
           </button>
           <button
             type="button"
             onClick={() => setCompletingDay(visibleDays[0].day)}
-            style={{ width: '100%', marginTop: 10, padding: '11px 0', borderRadius: 13, border: '1px solid var(--border)', background: 'var(--bg-0)', color: 'var(--text-3)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+            style={{ width: '100%', marginTop: 10, padding: '11px 0', borderRadius: 13, border: 'none', background: 'transparent', color: 'var(--text-3)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
           >
             {lang === 'he' ? 'רישום מהיר בלי מעקב סטים' : 'Quick log without set tracking'}
+          </button>
+        </div>
+      )}
+
+      {/* Secondary CTAs for the done / week states. */}
+      {(showDone || showWeek) && (
+        <div style={{ position: 'sticky', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 68px)', marginTop: 18, paddingTop: 14, background: 'linear-gradient(180deg, transparent, var(--bg-0) 40%)', zIndex: 5 }}>
+          <button
+            type="button"
+            onClick={startSession}
+            style={{ width: '100%', height: 54, borderRadius: 18, cursor: 'pointer', border: '1.5px solid rgba(46,230,196,.5)', background: 'var(--accent-glow, rgba(46,230,196,.08))', color: 'var(--accent)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}
+          >
+            {showWeek
+              ? (isHe ? 'בכל זאת רוצה להתאמן? אימון חופשי' : 'Still want to train? Free workout')
+              : (isHe ? 'רוצה עוד? התחל אימון נוסף' : 'Want more? Start another workout')}
           </button>
         </div>
       )}
@@ -1077,14 +1049,21 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           from { opacity: 0; }
           to { opacity: 1; }
         }
-        @keyframes wtRingPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(46,230,196,0.35); }
-          50% { box-shadow: 0 0 0 6px rgba(46,230,196,0); }
-        }
         @keyframes slideUp {
           from { opacity: 0; transform: translateY(30px) scale(0.95); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
+        @keyframes wp2CtaPulse {
+          0%, 100% { box-shadow: 0 8px 28px rgba(46,230,196,.35); }
+          50% { box-shadow: 0 8px 40px rgba(46,230,196,.6); }
+        }
+        @keyframes wp2LiveDot {
+          0%, 100% { opacity: 1; }
+          50% { opacity: .25; }
+        }
+        .wp2-cta { animation: wp2CtaPulse 2.6s ease-in-out infinite; }
+        .wp2-cta:active { transform: scale(.97); }
+        .wp2-live-dot { animation: wp2LiveDot 1.4s ease-in-out infinite; }
       `}</style>
     </>
   );

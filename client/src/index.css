@@ -3420,6 +3420,15 @@ select:focus-visible {
     padding-inline: 16px;
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 100px);
   }
+  /* The settings tab renders its own topbar (.st2-topbar) and manages its own
+     inline/bottom padding, so the shared main-content padding double-counts —
+     a gap above the settings topbar and ~180px of dead space at the bottom.
+     Sit flush under the fixed mobile-topbar and let st2 own the rest. */
+  .main-content--settings {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 56px);
+    padding-inline: 0;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+  }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .form-row { grid-template-columns: 1fr; }
   .goal-options { grid-template-columns: 1fr; }
@@ -4520,7 +4529,7 @@ svg { overflow: hidden; }
 
 /* Screen container */
 .st2-screen {
-  padding: 16px 16px 80px;
+  padding: 16px 16px 24px;
   flex: 1;
 }
 
