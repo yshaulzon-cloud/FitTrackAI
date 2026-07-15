@@ -157,11 +157,12 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
     } catch { /* storage unavailable */ }
   }, [exs, curIdx, startedAt, dayName, location, summary]);
 
-  // ── Elapsed clock ──
+  // ── Elapsed clock — stops when summary (finish screen) is shown ──
   useEffect(() => {
+    if (summary) return;
     const iv = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
     return () => clearInterval(iv);
-  }, [startedAt]);
+  }, [startedAt, summary]);
 
   // ── Keep the screen awake during the session (best-effort) ──
   useEffect(() => {

@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLang } from '../context/LanguageContext';
-import { downloadTextFile } from '../lib/downloadFile';
 function isNativeShell() {
   try {
     return typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true;
@@ -118,7 +117,7 @@ function MealRow({ time, emoji, name, desc, cal, p, c, f, status, onLog, onDelet
         )}
         {status !== 'done' && onLog && (
           <button
-            className={`meal-row__cta${status === 'now' ? ' meal-row__cta--primary' : ''}`}
+            className="meal-row__cta meal-row__cta--primary"
             onClick={onLog}
             type="button"
           >
@@ -350,34 +349,89 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
     }
   }
 
-  // ─── Download the loaded menu as a text file ──────────────────
-  const mealTypeLabel = (type) => isHe
-    ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' }[type] || type)
-    : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[type] || type);
+  // ─── Generate styled PDF / printable HTML for the menu ───────
+  function generateMenuHTML() {
+    const typeHe = { breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' };
+    const typeEn = { breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' };
+    const typeLabel = (type) => isHe ? (typeHe[type] || type) : (typeEn[type] || type);
+    const dateStr = new Date().toLocaleDateString(isHe ? 'he-IL' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  function formatDailyMenuText(dayMenu, heading) {
-    const lines = [heading, ''];
-    for (const meal of dayMenu.meals) {
-      lines.push(`${mealTypeLabel(meal.type)}: ${isHe ? meal.he : (meal.en || meal.he)}`);
-      lines.push(`  ${meal.calories} ${t.kcal} · ${meal.protein}g ${isHe ? 'חלבון' : 'protein'} · ${meal.carbs}g ${isHe ? 'פחמ\'' : 'carbs'} · ${meal.fat}g ${isHe ? 'שומן' : 'fat'}`);
+    function renderDayHTML(dayMenu, title) {
+      const meals = dayMenu.meals.map(m => `
+        <div class="meal-card">
+          <div class="meal-type">${typeLabel(m.type)}</div>
+          <div class="meal-name">${isHe ? m.he : (m.en || m.he)}</div>
+          <div class="meal-macros">
+            <span class="m-cal">${m.calories} ${isHe ? 'קק"ל' : 'kcal'}</span>
+            <span class="m-p">${isHe ? 'חלבון' : 'protein'} ${m.protein}g</span>
+            <span class="m-c">${isHe ? 'פחמ\'' : 'carbs'} ${m.carbs}g</span>
+            <span class="m-f">${isHe ? 'שומן' : 'fat'} ${m.fat}g</span>
+          </div>
+        </div>`).join('');
+      return `<div class="day-title">${title}</div>${meals}
+        <div class="day-total">
+          <span>${isHe ? 'סה"כ' : 'Total'}: ${dayMenu.totalCalories} ${isHe ? 'קק"ל' : 'kcal'}</span>
+          <span>${isHe ? 'חלבון' : 'Protein'}: ${dayMenu.totalProtein}g</span>
+        </div>`;
     }
-    lines.push('');
-    lines.push(`${isHe ? 'סה"כ' : 'Total'}: ${dayMenu.totalCalories} ${t.kcal} · ${dayMenu.totalProtein}g ${isHe ? 'חלבון' : 'protein'}`);
-    return lines.join('\n');
+
+    let content = '';
+    let pageTitle = '';
+    if (menuMode === 'weekly' && weeklyMenu) {
+      pageTitle = isHe ? 'התפריט השבועי שלי' : 'My Weekly Menu';
+      const dayNames = isHe
+        ? ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת']
+        : ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
+      content = weeklyMenu.map((d, i) => renderDayHTML(d, isHe ? `יום ${dayNames[i]}` : dayNames[i])).join('');
+    } else if (menu) {
+      pageTitle = isHe ? 'התפריט היומי שלי' : 'My Daily Menu';
+      content = renderDayHTML(menu, isHe ? 'ארוחות היום' : 'Today\'s meals');
+    }
+    if (!content) return null;
+
+    return `<!DOCTYPE html>
+<html dir="${isHe ? 'rtl' : 'ltr'}" lang="${isHe ? 'he' : 'en'}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${pageTitle} — Areto</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0e1a;color:#e2e8f0;padding:24px;max-width:700px;margin:0 auto;direction:${isHe ? 'rtl' : 'ltr'}}
+@media print{body{background:#fff;color:#111;padding:0}.no-print{display:none!important}.meal-card{background:#f8f9fa;border-color:#dee2e6}.day-total{background:#e8f8f5;border-color:#2ee6c4;color:#0d6e60}.logo{-webkit-text-fill-color:#1a1a2e;background:none;color:#1a1a2e}}
+.header{text-align:center;margin-bottom:28px;padding:22px;background:linear-gradient(135deg,rgba(46,230,196,.12),rgba(167,139,250,.08));border-radius:20px;border:1px solid rgba(46,230,196,.2)}
+.logo{font-size:30px;font-weight:900;background:linear-gradient(135deg,#2ee6c4,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.subtitle{font-size:13px;color:#94a3b8;margin-top:4px}
+.day-title{font-size:18px;font-weight:800;color:#2ee6c4;margin:24px 0 12px;display:flex;align-items:center;gap:10px}
+.day-title::before{content:"";display:block;width:4px;height:22px;background:linear-gradient(#2ee6c4,#a78bfa);border-radius:99px;flex-shrink:0}
+.meal-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 18px;margin-bottom:9px}
+.meal-type{font-size:11px;font-weight:700;color:#2ee6c4;letter-spacing:.6px;text-transform:uppercase;margin-bottom:5px}
+.meal-name{font-size:15px;font-weight:600;color:#f1f5f9;margin-bottom:9px;line-height:1.4}
+.meal-macros{display:flex;gap:12px;font-size:12px;font-weight:600;flex-wrap:wrap}
+.m-cal{color:#fbbf24}.m-p{color:#f87171}.m-c{color:#60a5fa}.m-f{color:#c084fc}
+.day-total{background:rgba(46,230,196,.1);border:1px solid rgba(46,230,196,.35);border-radius:12px;padding:11px 15px;margin-top:4px;margin-bottom:6px;display:flex;gap:20px;font-size:14px;font-weight:700;color:#2ee6c4}
+.print-btn{position:fixed;bottom:20px;${isHe ? 'left' : 'right'}:20px;background:linear-gradient(135deg,#2ee6c4,#16c5a7);color:#04231e;border:none;border-radius:50px;padding:13px 26px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(46,230,196,.45);font-family:inherit}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">Areto</div>
+  <div class="subtitle">${pageTitle} · ${dateStr}</div>
+</div>
+${content}
+<button class="print-btn no-print" onclick="window.print()">${isHe ? '📥 שמור כ-PDF' : '📥 Save as PDF'}</button>
+</body>
+</html>`;
   }
 
   async function handleDownloadMenu() {
     try {
-      if (menuMode === 'weekly' && weeklyMenu) {
-        const dayNamesHe = ['יום 1','יום 2','יום 3','יום 4','יום 5','יום 6','יום 7'];
-        const dayNamesEn = ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
-        const text = weeklyMenu
-          .map((d, i) => formatDailyMenuText(d, `=== ${isHe ? dayNamesHe[i] : dayNamesEn[i]} ===`))
-          .join('\n\n');
-        await downloadTextFile('areto-weekly-menu.txt', text);
-      } else if (menu) {
-        const text = formatDailyMenuText(menu, isHe ? 'התפריט היומי שלי — Areto' : 'My Daily Menu — Areto');
-        await downloadTextFile('areto-daily-menu.txt', text);
+      const html = generateMenuHTML();
+      if (!html) return;
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.write(html);
+        win.document.close();
       }
     } catch (err) {
       console.error('Download menu error:', err);
@@ -538,6 +592,15 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
         setLastDeletedMeal(meal);
         setMessage('__MEAL_DELETED__');
         setTimeout(() => { setMessage(''); setLastDeletedMeal(null); }, 8000);
+        // Un-mark the matching menu row so the button flips back to "סמן שאכלתי"
+        const mealDesc = (meal.description || '').trim().toLowerCase();
+        const matchedIdx = (menu?.meals || []).findIndex(m => {
+          return (m.he || '').trim().toLowerCase() === mealDesc ||
+                 (m.en || '').trim().toLowerCase() === mealDesc;
+        });
+        if (matchedIdx >= 0) {
+          setMenuLogged(prev => ({ ...prev, idxs: prev.idxs.filter(i => i !== matchedIdx) }));
+        }
       } else {
         setMessage(t.mealDeleted);
         setTimeout(() => setMessage(''), 3000);

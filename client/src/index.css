@@ -2139,9 +2139,9 @@ select:focus-visible {
 /* "Now" = the next meal the user should eat. Visually elevated so it doesn't
    blend in with the wall of upcoming meals (audit: density problem). */
 .meal-row--now {
-  background: linear-gradient(135deg, rgba(45, 212, 191, 0.14), rgba(45, 212, 191, 0.04) 60%);
-  border-color: rgba(45, 212, 191, 0.45);
-  box-shadow: 0 10px 26px -10px rgba(45, 212, 191, 0.32), 0 0 0 1px rgba(45, 212, 191, 0.18);
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.18), rgba(45, 212, 191, 0.06) 60%);
+  border: 2px solid rgba(45, 212, 191, 0.85);
+  box-shadow: 0 10px 28px -8px rgba(45, 212, 191, 0.45), 0 0 0 3px rgba(45, 212, 191, 0.12);
   position: relative;
 }
 .meal-row--now::before {

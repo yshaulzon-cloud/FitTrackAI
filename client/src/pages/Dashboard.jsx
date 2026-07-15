@@ -224,6 +224,7 @@ export default function Dashboard() {
             showXP={showXP}
             setActiveTab={setActiveTab}
             progressionData={progressionData}
+            dailyStreak={dailyStreak}
           />
         )}
 
@@ -316,7 +317,7 @@ export default function Dashboard() {
         {/* Flame streak pill — first child = rightmost in RTL */}
         {dailyStreak > 0 ? (
           <div className="mobile-topbar__streak" aria-label={isHe ? `${dailyStreak} ימים ברצף` : `${dailyStreak}-day streak`}>
-            🔥
+            <img src="/streak-logo.png" alt="" style={{ width: 22, height: 22, objectFit: 'contain', display: 'block' }} />
             <span className="mobile-topbar__streak-count">{dailyStreak}</span>
           </div>
         ) : (
@@ -571,7 +572,7 @@ function dismissBodyPrompt() {
   localStorage.setItem(BODY_UPDATE_KEY, String(Date.now()));
 }
 
-function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userName, api, showXP, setActiveTab, progressionData }) {
+function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userName, api, showXP, setActiveTab, progressionData, dailyStreak }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
   const [showBodyPrompt, setShowBodyPrompt] = useState(() => shouldShowBodyPrompt());
@@ -597,6 +598,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
   const workoutDates = new Set((workoutHistory?.workouts || []).map(w => {
     const dt = new Date(w.date); dt.setHours(0, 0, 0, 0); return dt.getTime();
   }));
+  const hasWorkoutToday = workoutDates.has(today.getTime());
   const dayLabels = isHe ? ['א','ב','ג','ד','ה','ו','ש'] : ['S','M','T','W','T','F','S'];
   const week = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
@@ -618,13 +620,17 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
     nextTitle = isHe ? `נותרו ${Math.round(proteinRemaining)}g חלבון להיעד` : `${Math.round(proteinRemaining)}g protein left`;
     nextSub = isHe ? 'שייק חלבון, יוגורט יווני או חזה עוף יסגרו את הפער.' : 'A shake, Greek yogurt, or chicken will close the gap.';
     nextAction = () => setActiveTab('nutrition');
-  } else {
+  } else if (!hasWorkoutToday) {
     nextTitle = isHe ? `אימון של היום מחכה לך` : `Today's workout is waiting`;
     nextSub = isHe ? `${profile?.workoutsPerWeek || 4} אימונים השבוע. אל תפספס.` : `${profile?.workoutsPerWeek || 4} workouts this week. Don't miss it.`;
     nextAction = () => setActiveTab('workout');
+  } else {
+    nextTitle = isHe ? 'כל הכבוד! עמדת ביעדים להיום' : 'Great work! All goals done for today';
+    nextSub = isHe ? 'אכלת טוב ואימנת — נח ותתאושש.' : 'You ate well and trained — rest and recover.';
+    nextAction = () => {};
   }
 
-  const streak = workoutHistory?.streak || 0;
+  const streak = dailyStreak || 0;
 
   return (
     <>
@@ -724,8 +730,9 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
             {isHe ? 'השבוע שלך' : 'Your week'}
           </div>
           {streak > 0 && (
-            <div style={{ fontSize: 13, color: '#ffb43a', fontWeight: 600 }}>
-              🔥 {isHe ? `רצף של ${streak} ימים` : `${streak}-day streak`}
+            <div style={{ fontSize: 13, color: '#ffb43a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <img src="/streak-logo.png" alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />
+              {isHe ? `רצף של ${streak} ימים` : `${streak}-day streak`}
             </div>
           )}
         </div>
@@ -734,7 +741,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
             let bg, border, icon;
             if (day.status === 'full') {
               bg = 'linear-gradient(135deg,rgba(255,150,40,.22),rgba(255,90,30,.12))';
-              border = '1px solid rgba(255,150,40,.3)'; icon = '🔥';
+              border = '1px solid rgba(255,150,40,.3)'; icon = <img src="/streak-logo.png" alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />;
             } else if (day.status === 'today') {
               bg = 'rgba(46,230,196,.14)'; border = '1.5px dashed #2ee6c4'; icon = '●';
             } else if (day.status === 'miss') {
