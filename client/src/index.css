@@ -4562,34 +4562,119 @@ svg { overflow: hidden; }
 .st2-profile-email { font-size: 12px; color: var(--text-3); margin-top: 2px; }
 
 /* Search */
+/* Visually hidden but available to assistive tech. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
 .st2-search-wrap { margin-bottom: 16px; }
-.st2-search {
-  width: 100%;
-  padding: 10px 14px;
+
+/* Pill field: magnifier + input + clear button share one bordered box. */
+.st2-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: 99px;
-  color: var(--text-1);
-  font-size: 14px;
-  outline: none;
-  box-sizing: border-box;
   transition: border-color 0.15s;
 }
-.st2-search:focus { border-color: var(--accent); }
-.st2-search-results { display: flex; flex-direction: column; gap: 4px; }
+.st2-search-box:focus-within { border-color: var(--accent); }
+.st2-search-icon { color: var(--text-3); flex-shrink: 0; }
+.st2-search {
+  flex: 1; min-width: 0;
+  padding: 10px 0;
+  background: transparent;
+  border: none;
+  color: var(--text-1);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+.st2-search::placeholder { color: var(--text-3); }
+.st2-search-clear {
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; flex-shrink: 0;
+  padding: 0; border: none; border-radius: 50%;
+  background: var(--border-subtle); color: var(--text-2);
+  cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+.st2-search-clear:hover { background: var(--accent-glow); color: var(--accent); }
+
+/* Results: a proper listbox. Keep it short and quiet. */
+.st2-search-results {
+  list-style: none; margin: 12px 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
 .st2-search-result-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
   background: var(--bg-1);
   border: 1px solid var(--border-subtle);
+  border-inline-start: 2px solid transparent;
   border-radius: var(--r-md);
-  padding: 12px 14px;
+  padding: 11px 14px;
   font-size: 14px;
   color: var(--text-1);
   text-align: start;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background 0.12s, border-color 0.12s;
 }
-.st2-search-result-item:hover { background: var(--accent-glow); border-color: var(--accent); }
-.st2-empty { font-size: 14px; color: var(--text-3); padding: 20px 0; text-align: center; }
+/* Active/selected option — not colour alone: accent bar + weight + tint. */
+.st2-search-result-item.is-active {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  border-inline-start-color: var(--accent);
+}
+.st2-search-result-item.is-active .st2-result-label { font-weight: 600; }
+.st2-result-label { flex: 1; min-width: 0; }
+.st2-result-label mark {
+  background: var(--accent-glow);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+  font-weight: 600;
+}
+.st2-result-cat {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.st2-search-more {
+  margin-top: 6px;
+  padding: 8px;
+  background: none; border: none;
+  color: var(--accent);
+  font-size: 13px; font-weight: 600; font-family: inherit;
+  cursor: pointer; text-align: center;
+}
+.st2-search-more:hover { text-decoration: underline; }
+
+/* Empty state — offers a way forward instead of a dead end. */
+.st2-search-empty { padding: 8px 2px; }
+.st2-empty-title { font-size: 14px; color: var(--text-2); margin-bottom: 8px; }
+.st2-empty-tips {
+  margin: 0 0 12px; padding-inline-start: 18px;
+  font-size: 13px; color: var(--text-3); line-height: 1.7;
+}
+.st2-empty-cats-label { font-size: 13px; color: var(--text-3); margin-bottom: 8px; }
+.st2-empty-cats { display: flex; flex-wrap: wrap; gap: 6px; }
+.st2-cat-chip {
+  padding: 6px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 99px;
+  color: var(--text-2);
+  font-size: 13px; font-family: inherit;
+  cursor: pointer; transition: background 0.12s, border-color 0.12s;
+}
+.st2-cat-chip:hover { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .st2-search-box, .st2-search-clear, .st2-search-result-item, .st2-cat-chip { transition: none; }
+}
 
 /* Nav list */
 .st2-nav-list { display: flex; flex-direction: column; gap: 6px; }

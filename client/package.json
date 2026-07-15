@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "node --test \"src/**/*.test.mjs\"",
     "fix:cordova-gradle": "node scripts/fix-cordova-gradle.mjs",
     "cap:sync": "cap sync android && node scripts/fix-cordova-gradle.mjs"
   },

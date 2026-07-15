@@ -15,6 +15,7 @@ import ProgressionPanel from '../components/ProgressionPanel';
 import XPToast from '../components/XPToast';
 import StreakToast from '../components/StreakToast';
 import SleepTracker from '../components/SleepTracker';
+import SettingsSearch from '../components/SettingsSearch';
 import {
   applyWorkoutReminder,
   applyMealReminder,
@@ -1085,9 +1086,17 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
     { id: 'privacy',  icon: 'shield',  label: isHe ? 'פרטיות ונתונים'  : 'Privacy & Data', sub: isHe ? 'ייצוא, איפוס, מחיקה'    : 'Export, reset, delete' },
   ];
 
-  const filteredItems = search.trim()
-    ? allItems.filter(i => i.label.includes(search.trim()))
-    : null;
+  // Results render inside <SettingsSearch/>; here we only need to know whether
+  // to hide the section nav list (2-char threshold matches the component).
+  const searchActive = search.trim().length >= 2;
+
+  // Searchable corpus: the leaf settings (title only) plus each section's
+  // name + description (as body), so searching a category name like "מטרה"
+  // or "notifications" surfaces the right screen even with no exact leaf.
+  const searchItems = [
+    ...allItems,
+    ...sections.map(s => ({ screen: s.id, label: s.label, body: s.sub })),
+  ];
 
   const displayName = userName || (isHe ? 'משתמש' : 'User');
   const initials = displayName.split(' ').map(w => w[0]).filter(Boolean).join('').slice(0, 2).toUpperCase();
@@ -1165,28 +1174,16 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
             </div>
           </div>
 
-          <div className="st2-search-wrap">
-            <input
-              className="st2-search"
-              placeholder={isHe ? 'חפש הגדרות…' : 'Search settings…'}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              dir="auto"
-            />
-          </div>
+          <SettingsSearch
+            items={searchItems}
+            sections={sections}
+            query={search}
+            setQuery={setSearch}
+            onNavigate={(screen) => setScreen(screen)}
+            isHe={isHe}
+          />
 
-          {filteredItems ? (
-            <div className="st2-search-results">
-              {filteredItems.length === 0
-                ? <div className="st2-empty">{isHe ? 'לא נמצאה הגדרה' : 'No results'}</div>
-                : filteredItems.map((item, i) => (
-                  <button key={i} className="st2-search-result-item" onClick={() => { setSearch(''); setScreen(item.screen); }}>
-                    {item.label}
-                  </button>
-                ))
-              }
-            </div>
-          ) : (
+          {!searchActive && (
             <div className="st2-nav-list">
               {sections.map(s => (
                 <NavItem key={s.id} sectionId={s.id} icon={s.icon} label={s.label} sub={s.sub} />

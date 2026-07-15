@@ -398,7 +398,6 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0e1a;color:#e2e8f0;padding:24px;max-width:700px;margin:0 auto;direction:${isHe ? 'rtl' : 'ltr'}}
-@media print{body{background:#fff;color:#111;padding:0}.no-print{display:none!important}.meal-card{background:#f8f9fa;border-color:#dee2e6}.day-total{background:#e8f8f5;border-color:#2ee6c4;color:#0d6e60}.logo{-webkit-text-fill-color:#1a1a2e;background:none;color:#1a1a2e}}
 .header{text-align:center;margin-bottom:28px;padding:22px;background:linear-gradient(135deg,rgba(46,230,196,.12),rgba(167,139,250,.08));border-radius:20px;border:1px solid rgba(46,230,196,.2)}
 .logo{font-size:30px;font-weight:900;background:linear-gradient(135deg,#2ee6c4,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .subtitle{font-size:13px;color:#94a3b8;margin-top:4px}
@@ -411,6 +410,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0e1a;color:#e2e8f0;pa
 .m-cal{color:#fbbf24}.m-p{color:#f87171}.m-c{color:#60a5fa}.m-f{color:#c084fc}
 .day-total{background:rgba(46,230,196,.1);border:1px solid rgba(46,230,196,.35);border-radius:12px;padding:11px 15px;margin-top:4px;margin-bottom:6px;display:flex;gap:20px;font-size:14px;font-weight:700;color:#2ee6c4}
 .print-btn{position:fixed;bottom:20px;${isHe ? 'left' : 'right'}:20px;background:linear-gradient(135deg,#2ee6c4,#16c5a7);color:#04231e;border:none;border-radius:50px;padding:13px 26px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(46,230,196,.45);font-family:inherit}
+/* Print / PDF overrides — placed LAST so they win over the screen rules above
+   (equal specificity → later source order wins). */
+@media print{body{background:#fff;color:#111;padding:0}.no-print{display:none!important}.header{background:#f0fdfa;border-color:#99f6e4}.logo{-webkit-text-fill-color:#0d1224;background:none;color:#0d1224}.subtitle{color:#64748b}.day-title{color:#0d9488}.meal-card{background:#f8f9fa;border-color:#dee2e6}.meal-type{color:#0d9488}.meal-name{color:#1a1a2e}.m-cal{color:#b45309}.m-p{color:#dc2626}.m-c{color:#2563eb}.m-f{color:#9333ea}.day-total{background:#e8f8f5;border-color:#2ee6c4;color:#0d6e60}}
 </style>
 </head>
 <body>
@@ -522,7 +524,7 @@ ${content}
         const base = prev.date === todayKey ? prev.idxs : [];
         return { date: todayKey, idxs: base.includes(idx) ? base : [...base, idx] };
       });
-      setMessage(`${t.added} ${result.meal.description}`);
+      setMessage(`${t.added} ${result.meal.description} (${result.meal.calories} ${t.caloriesWord}, ${result.meal.protein} ${t.proteinGrams})`);
       setTimeout(() => setMessage(''), 3000);
       onUpdate();
     } catch (err) {
@@ -572,7 +574,7 @@ ${content}
         body: JSON.stringify({ description: text }),
       });
       if (showXP && result?.xp) showXP(result.xp);
-      setMessage(`${t.added} ${result.meal.description}`);
+      setMessage(`${t.added} ${result.meal.description} (${result.meal.calories} ${t.caloriesWord}, ${result.meal.protein} ${t.proteinGrams})`);
       setTimeout(() => setMessage(''), 3000);
       onUpdate();
     } catch (err) {
