@@ -686,47 +686,64 @@ ${content}
     return out;
   }, [todayData?.meals, history]);
 
+  const pctOf = (cur, tgt) => (tgt > 0 ? Math.min(100, Math.round((cur / tgt) * 100)) : 0);
+
   return (
     <>
-      {/* Header */}
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 13, color: '#2FE3C2', fontWeight: 700, letterSpacing: '.5px', marginBottom: 2 }}>
-          {isHe ? `תזונה · יום ${dayLabelHe}` : `Nutrition · ${dayLabelEn}`}
-        </div>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, color: 'var(--text-1)', margin: 0 }}>
-          {isHe ? 'מה אכלת היום?' : 'What did you eat today?'}
-        </h1>
-      </div>
-
-      {/* 3-stat strip */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
-        <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 18, padding: '14px 16px' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: '#2FE3C2', lineHeight: 1 }}>
-            {Math.round(calorieProgress).toLocaleString()}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3 }}>
-            {isHe ? `מתוך ${calorieTarget.toLocaleString()} קק״ל` : `of ${calorieTarget.toLocaleString()} kcal`}
-          </div>
-        </div>
-        <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 18, padding: '14px 16px' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: '#F5698C', lineHeight: 1 }}>
-            {Math.round(proteinProgress)}g
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3 }}>
-            {isHe ? `חלבון מתוך ${proteinTarget}g` : `protein of ${proteinTarget}g`}
-          </div>
-        </div>
-        <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 18, padding: '14px 16px' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: 'var(--text-1)', lineHeight: 1 }}>
-            {(todayData?.meals || []).length}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3 }}>
-            {isHe ? 'ארוחות היום' : 'meals today'}
-          </div>
+      {/* Header + log/menu toggle (prototype) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--text-1)' }}>{isHe ? 'תזונה' : 'Nutrition'}</h1>
+        <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 999, padding: 3 }}>
+          <button type="button" onClick={() => setMenuOpen(false)}
+            style={{ fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: '6px 14px', cursor: 'pointer', border: 'none', fontFamily: 'inherit',
+              color: !menuOpen ? '#04241B' : '#93A0B4', background: !menuOpen ? '#2FE3C2' : 'transparent' }}>
+            {isHe ? 'היומן שלי' : 'My log'}
+          </button>
+          <button type="button" onClick={() => { if (!menu) fetchMenu(); else setMenuOpen(true); }}
+            style={{ fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: '6px 14px', cursor: 'pointer', border: 'none', fontFamily: 'inherit',
+              color: menuOpen ? '#04241B' : '#93A0B4', background: menuOpen ? '#2FE3C2' : 'transparent' }}>
+            {isHe ? 'תפריט מומלץ' : 'Menu'}
+          </button>
         </div>
       </div>
 
-      <div className="quick-add">
+      {/* Calorie summary card — one block instead of three stat tiles */}
+      {!menuOpen && (
+        <div style={{ marginTop: 16, background: 'var(--surface)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 20, padding: '18px 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <div>
+              <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-1)' }}>{Math.round(calorieProgress).toLocaleString()}</span>
+              <span style={{ fontSize: 13.5, color: '#7C8798' }}> / {calorieTarget.toLocaleString()} {isHe ? 'קק״ל' : 'kcal'}</span>
+            </div>
+            <span style={{ fontSize: 12.5, color: '#7C8798' }}>
+              {(todayData?.meals || []).length} {isHe ? 'ארוחות' : 'meals'}
+            </span>
+          </div>
+          <div style={{ height: 7, borderRadius: 4, background: 'rgba(255,255,255,.06)', marginTop: 12 }}>
+            <div style={{ width: `${pctOf(calorieProgress, calorieTarget)}%`, height: 7, borderRadius: 4, background: 'linear-gradient(90deg,#1EC0A2,#36E8C6)' }} />
+          </div>
+          <div style={{ display: 'flex', gap: 16, marginTop: 14 }}>
+            {[
+              { label: isHe ? 'חלבון' : 'Protein', cur: proteinProgress, tgt: proteinTarget, color: '#F5698C' },
+              { label: isHe ? 'פחמ׳' : 'Carbs', cur: carbsProgress, tgt: carbsTarget, color: '#4D9FFF' },
+              { label: isHe ? 'שומן' : 'Fat', cur: fatProgress, tgt: fatTarget, color: '#FFB648' },
+            ].map((m) => (
+              <div key={m.label} style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
+                  <span style={{ color: '#93A0B4' }}>{m.label}</span>
+                  <span style={{ color: m.color, fontWeight: 600 }}>{Math.round(m.cur)}g</span>
+                </div>
+                <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,.06)' }}>
+                  <div style={{ width: `${pctOf(m.cur, m.tgt)}%`, height: 4, borderRadius: 2, background: m.color }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Search + quick chips + toasts belong to the log view only. */}
+      <div className="quick-add" style={{ display: menuOpen ? 'none' : undefined }}>
         <form onSubmit={handleAddFood}>
           <div className="quick-add__row">
             <div className="quick-add__search">
@@ -806,121 +823,75 @@ ${content}
         )}
       </div>
 
-      {/* Menu header — daily / weekly toggle + swap + download */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0 14px', flexWrap: 'wrap', gap: 8 }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, margin: 0 }}>
-          {isHe ? 'התפריט המומלץ' : 'Recommended menu'}
-        </h2>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className={`chip${menuOpen && menuMode === 'daily' ? ' chip--active' : ''}`}
-            onClick={() => (menuOpen && menuMode === 'daily') ? setMenuOpen(false) : fetchMenu()}
-            disabled={menuLoading}
-          >
-            {menuLoading ? t.menuLoading : (isHe ? 'יומי' : 'Daily')}
-          </button>
-          <button
-            type="button"
-            className={`chip${menuOpen && menuMode === 'weekly' ? ' chip--active' : ''}`}
-            onClick={() => (menuOpen && menuMode === 'weekly') ? setMenuOpen(false) : fetchWeeklyMenu()}
-            disabled={menuLoading}
-          >
-            {menuLoading ? t.menuLoading : (isHe ? 'שבועי' : 'Weekly')}
-          </button>
-          {menuOpen && menuMode === 'daily' && menu && (
-            <button type="button" className="chip" onClick={() => fetchMenu(menu.id)} disabled={menuLoading}>
-              🔄 {isHe ? 'החלף' : 'Swap'}
-            </button>
-          )}
-          {menuOpen && (menu || weeklyMenu) && (
-            <button type="button" className="chip" onClick={handleDownloadMenu}>
-              {isHe ? 'הורד תפריט ⬇️' : 'Save menu ⬇️'}
-            </button>
-          )}
-        </div>
-      </div>
 
-      {/* Daily menu: interactive, log/swap each meal */}
-      {menuOpen && menuMode === 'daily' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-          {menuMeals.map((meal, idx) => {
-            const status = menuMealStatus(idx);
-            const time = MEAL_TYPE_TIMES[meal.type] || '—';
-            const emoji = MEAL_TYPE_EMOJI[meal.type] || '🍽';
-            const typeLabel = isHe
-              ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' }[meal.type] || meal.type)
-              : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[meal.type] || meal.type);
+      {/* Menu view — prototype: a highlighted "next meal" card, then the
+          rest of the day as compact rows, then the day's total. */}
+      {menuOpen && menuMeals.length > 0 && (() => {
+        const typeLabel = (type) => isHe
+          ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' }[type] || type)
+          : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[type] || type);
+        const nextIdx = nowIdx >= 0 ? nowIdx : 0;
+        const next = menuMeals[nextIdx];
+        const eaten = loggedMenuSet.size;
+        return (
+          <>
+            <div style={{ marginTop: 16, background: 'rgba(47,227,194,.05)', border: '1.5px solid rgba(47,227,194,.35)', borderRadius: 20, padding: '18px 20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: '#04241B', background: '#2FE3C2', borderRadius: 999, padding: '4px 11px' }}>
+                  {isHe ? 'הארוחה הבאה' : 'Up next'}
+                </span>
+                <span style={{ fontSize: 13, color: '#7C8798', fontVariantNumeric: 'tabular-nums' }}>{MEAL_TYPE_TIMES[next.type] || '—'}</span>
+              </div>
+              <div style={{ fontSize: 17, fontWeight: 700, marginTop: 12, color: 'var(--text-1)' }}>{typeLabel(next.type)}</div>
+              <div style={{ fontSize: 13.5, color: '#93A0B4', marginTop: 4, lineHeight: 1.6 }}>{isHe ? next.he : (next.en || next.he)}</div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11.5, color: '#F5698C', background: 'rgba(245,105,140,.08)', borderRadius: 999, padding: '4px 10px' }}>{next.protein}g {isHe ? 'חלבון' : 'protein'}</span>
+                <span style={{ fontSize: 11.5, color: '#4D9FFF', background: 'rgba(77,159,255,.08)', borderRadius: 999, padding: '4px 10px' }}>{next.carbs}g {isHe ? 'פחמ׳' : 'carbs'}</span>
+                <span style={{ fontSize: 11.5, color: '#FFB648', background: 'rgba(255,182,72,.08)', borderRadius: 999, padding: '4px 10px' }}>{next.calories} {isHe ? 'קק״ל' : 'kcal'}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                <button type="button" onClick={() => logMenuMeal(nextIdx)} disabled={loggingIdx === nextIdx}
+                  style={{ flex: 2, background: 'linear-gradient(135deg,#36E8C6,#1EC0A2)', color: '#04241B', fontWeight: 700, border: 'none', borderRadius: 13, padding: 12, fontSize: 14.5, fontFamily: 'inherit', cursor: 'pointer' }}>
+                  {loggingIdx === nextIdx ? t.saving : (isHe ? 'סמן שאכלתי' : 'Mark eaten')}
+                </button>
+                <button type="button" onClick={() => swapMealAtIndex(nextIdx)} disabled={swappingIdx === nextIdx}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', color: '#B9C4D2', borderRadius: 13, padding: 12, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B9C4D2" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 8h11l-3-3M17 16H6l3 3" /></svg>
+                  {swappingIdx === nextIdx ? '…' : (isHe ? 'החלף' : 'Swap')}
+                </button>
+              </div>
+            </div>
 
-            return (
-              <MealRow
-                key={`menu-${idx}`}
-                time={time}
-                emoji={emoji}
-                name={typeLabel}
-                desc={isHe ? meal.he : (meal.en || meal.he)}
-                cal={meal.calories}
-                p={meal.protein}
-                c={meal.carbs}
-                f={meal.fat}
-                status={status}
-                isHe={isHe}
-                t={t}
-                onLog={loggingIdx === idx ? null : () => logMenuMeal(idx)}
-                onSwap={() => swapMealAtIndex(idx)}
-                swapping={swappingIdx === idx}
-              />
-            );
-          })}
-        </div>
-      )}
-
-      {/* Weekly menu: day picker + read-only meals (swap only, no logging
-          since these aren't tied to a specific calendar date) */}
-      {menuOpen && menuMode === 'weekly' && weeklyMenu && (
-        <>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflowX: 'auto', paddingBottom: 2 }}>
-            {weeklyMenu.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                className={`chip${weeklyDayIdx === i ? ' chip--active' : ''}`}
-                onClick={() => setWeeklyDayIdx(i)}
-                style={{ flexShrink: 0 }}
-              >
-                {isHe ? `יום ${i + 1}` : `Day ${i + 1}`}
-              </button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-            {weeklyDayMeals.map((meal, idx) => {
-              const time = MEAL_TYPE_TIMES[meal.type] || '—';
-              const emoji = MEAL_TYPE_EMOJI[meal.type] || '🍽';
-              const typeLabel = isHe
-                ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' }[meal.type] || meal.type)
-                : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[meal.type] || meal.type);
-              return (
-                <MealRow
-                  key={`weekly-${weeklyDayIdx}-${idx}`}
-                  time={time}
-                  emoji={emoji}
-                  name={typeLabel}
-                  desc={isHe ? meal.he : (meal.en || meal.he)}
-                  cal={meal.calories}
-                  p={meal.protein}
-                  c={meal.carbs}
-                  f={meal.fat}
-                  status="upcoming"
-                  isHe={isHe}
-                  t={t}
-                  onSwap={() => swapWeeklyMealAt(weeklyDayIdx, idx)}
-                  swapping={swappingIdx === `${weeklyDayIdx}-${idx}`}
-                />
-              );
-            })}
-          </div>
-        </>
-      )}
+            <div style={{ padding: '20px 0 8px', fontSize: 13.5, color: '#7C8798' }}>
+              {isHe ? `שאר היום · ${eaten} מתוך ${menuMeals.length} נאכלו` : `Rest of day · ${eaten} of ${menuMeals.length} eaten`}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {menuMeals.map((meal, idx) => {
+                const done = loggedMenuSet.has(idx);
+                return (
+                  <button key={`m-${idx}`} type="button" onClick={() => !done && logMenuMeal(idx)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 14, padding: '12px 15px', opacity: done ? 0.75 : 1, cursor: done ? 'default' : 'pointer', fontFamily: 'inherit', textAlign: 'start', width: '100%' }}>
+                    {done
+                      ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2FE3C2" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+                      : <span style={{ width: 15, height: 15, borderRadius: '50%', border: '2px solid rgba(255,255,255,.18)', flexShrink: 0 }} />}
+                    <span style={{ fontSize: 12.5, color: '#7C8798', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{MEAL_TYPE_TIMES[meal.type] || '—'}</span>
+                    <span style={{ flex: 1, fontSize: 14, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {typeLabel(meal.type)} · {isHe ? meal.he : (meal.en || meal.he)}
+                    </span>
+                    <span style={{ fontSize: 12.5, color: '#7C8798', flexShrink: 0 }}>{meal.calories}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 14, padding: '13px 16px' }}>
+              <span style={{ fontSize: 13.5, color: '#93A0B4' }}>{isHe ? 'סה״כ היום בתפריט' : "Menu total today"}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>
+                {menu?.totalCalories?.toLocaleString()} {isHe ? 'קק״ל' : 'kcal'} · {menu?.totalProtein}g {isHe ? 'חלבון' : 'protein'}
+              </span>
+            </div>
+          </>
+        );
+      })()}
 
       {/* Empty state — nothing logged yet and no menu loaded */}
       {loggedMeals.length === 0 && !menuOpen && (
@@ -949,7 +920,7 @@ ${content}
       {/* Already eaten today — condensed single-line rows, at the bottom
           (audit: this used to render above the recommended menu, which
           buried the menu the user actually wants to act on). */}
-      {loggedMeals.length > 0 && (
+      {!menuOpen && loggedMeals.length > 0 && (
         <div style={{ marginTop: 8 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, margin: '0 0 12px' }}>
             {isHe ? 'מה אכלת היום' : 'What you ate today'}
@@ -970,7 +941,7 @@ ${content}
 
       {/* Daily summary — only useful once something has been logged.
           On an empty day, 4 zero-progress bars are noise (audit). */}
-      {calorieProgress > 0 && (
+      {!menuOpen && calorieProgress > 0 && (
       <div className="card" style={{ marginTop: 20 }}>
         <div className="card-header">
           <h3>{t.dailySummary}</h3>
@@ -1000,7 +971,7 @@ ${content}
       )}
 
       {/* Footer hint card */}
-      {targets?.macros?.proteinPerMeal && (
+      {!menuOpen && targets?.macros?.proteinPerMeal && (
         <div className="gradient-hint" style={{ marginTop: 16 }}>
           <span style={{ fontSize: 20 }}>💡</span>
           <div style={{ flex: 1 }}>
