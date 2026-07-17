@@ -93,7 +93,12 @@ function LevelRing({ level, percent }) {
   );
 }
 
-export default function ProgressionPanel({ api }) {
+// `view` splits the panel into the prototype's Journey sub-tabs:
+//   'prog'   → level ring, streak cards, RPG stat bars, recent XP
+//   'badges' → within-reach / unlocked / locked tiers
+export default function ProgressionPanel({ api, view = 'prog' }) {
+  const showProg = view === 'prog';
+  const showBadges = view === 'badges';
   const { t, lang } = useLang();
   const isHe = lang === 'he';
   const [data, setData] = useState(null);
@@ -165,12 +170,10 @@ export default function ProgressionPanel({ api }) {
 
   return (
     <>
-      <div className="page-header">
-        <h1>{t.progressionTitle}</h1>
-        <p>{t.progressionSubtitle}</p>
-      </div>
+      {/* Title lives on the Journey tab itself now (prototype). */}
 
       {/* ─── Hero: Level ring + clear CTA ───────────────────── */}
+      {showProg && (
       <div className="xp-hero">
         <LevelRing level={data.level} percent={data.progressPercent} />
         <div className="xp-hero__info">
@@ -192,8 +195,10 @@ export default function ProgressionPanel({ api }) {
           </div>
         )}
       </div>
+      )}
 
       {/* ─── Streak summary cards ───────────────────────────── */}
+      {showProg && (
       <div className="streak-grid">
         <div className="streak-card">
           <div className="streak-icon">🔥</div>
@@ -211,8 +216,10 @@ export default function ProgressionPanel({ api }) {
           <div className="streak-label">{t.weekStreaks}</div>
         </div>
       </div>
+      )}
 
       {/* ─── RPG Stats ──────────────────────────────────────── */}
+      {showProg && (
       <div className="card">
         <div className="card-header">
           <h3>{t.statsTitle}</h3>
@@ -243,9 +250,10 @@ export default function ProgressionPanel({ api }) {
           })}
         </div>
       </div>
+      )}
 
       {/* ─── Tier 1: Within reach (focused, prominent cards) ── */}
-      {tiers.reach.length > 0 && (
+      {showBadges && tiers.reach.length > 0 && (
         <div className="tier-section">
           <div className="tier-section__header" style={{ cursor: 'default' }}>
             <div className="tier-section__title">
@@ -279,6 +287,7 @@ export default function ProgressionPanel({ api }) {
       )}
 
       {/* ─── Tier 2: Unlocked (collapsible) ─────────────────── */}
+      {showBadges && (
       <div className={`tier-section${unlockedOpen ? '' : ' tier-section--collapsed'}`}>
         <div className="tier-section__header" onClick={() => setUnlockedOpen(!unlockedOpen)}>
           <div className="tier-section__title">
@@ -310,7 +319,10 @@ export default function ProgressionPanel({ api }) {
         )}
       </div>
 
+      )}
+
       {/* ─── Tier 3: Locked (collapsed by default, dimmed) ─── */}
+      {showBadges && (
       <div className={`tier-section${lockedOpen ? '' : ' tier-section--collapsed'}`}>
         <div className="tier-section__header" onClick={() => setLockedOpen(!lockedOpen)}>
           <div className="tier-section__title">
@@ -334,8 +346,10 @@ export default function ProgressionPanel({ api }) {
         )}
       </div>
 
+      )}
+
       {/* ─── Recent XP activity ─────────────────────────────── */}
-      {data.recentXP?.length > 0 && (
+      {showProg && data.recentXP?.length > 0 && (
         <div className="card">
           <div className="card-header">
             <h3>{t.recentActivity}</h3>

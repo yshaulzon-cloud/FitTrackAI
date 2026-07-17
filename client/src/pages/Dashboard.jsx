@@ -70,6 +70,8 @@ export default function Dashboard() {
   const [workoutHistory, setWorkoutHistory] = useState(null);
   const [progressionData, setProgressionData] = useState(null);
   const [dailyStreak, setDailyStreak] = useState(() => readCachedStreak());
+  // Journey sub-tab (prototype): 'prog' | 'badges' | 'goals'
+  const [journeyView, setJourneyView] = useState('prog');
   const [loading, setLoading] = useState(true);
   const [xpToast, setXpToast] = useState(null);
   const [streakToast, setStreakToast] = useState(null);
@@ -268,32 +270,49 @@ export default function Dashboard() {
 
         {activeTab === 'progress' && (
           <>
-            {/* Areto 2.0 header */}
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 13, color: '#4D9FFF', fontWeight: 700, letterSpacing: '.5px', marginBottom: 2 }}>
-                {isHe ? 'המסע שלך' : 'Your journey'}
-              </div>
-              <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, color: 'var(--text-1)', margin: 0 }}>
-                {isHe ? 'התקדמות' : 'Progress'}
-              </h1>
+            <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--text-1)' }}>
+              {isHe ? 'המסע שלך' : 'Your journey'}
+            </h1>
+            {/* Sub-tabs (prototype): progress / badges / goals */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              {[
+                { id: 'prog', label: isHe ? 'התקדמות' : 'Progress' },
+                { id: 'badges', label: isHe ? 'תגים' : 'Badges' },
+                { id: 'goals', label: isHe ? 'יעדים' : 'Goals' },
+              ].map((s) => {
+                const on = journeyView === s.id;
+                return (
+                  <button key={s.id} type="button" onClick={() => setJourneyView(s.id)}
+                    style={{
+                      fontSize: 13, fontWeight: 600, borderRadius: 999, padding: '7px 16px', cursor: 'pointer',
+                      fontFamily: 'inherit', border: '1px solid rgba(255,255,255,.07)',
+                      color: on ? '#04241B' : '#93A0B4', background: on ? '#2FE3C2' : 'var(--surface)',
+                    }}>
+                    {s.label}
+                  </button>
+                );
+              })}
             </div>
-            {/* XP / level panel first — most motivating */}
-            <ProgressionPanel api={api} />
-            {/* Weight trajectory + BMI */}
-            <BMICard
-              bmiAnalysis={profileData?.bmiAnalysis}
-              profile={profileData?.profile}
-              calorieTarget={nutrition?.calorieTarget}
-              api={api}
-              onUpdate={loadData}
-            />
-            <Progress
-              nutrition={nutrition}
-              todayNutrition={todayNutrition}
-              workoutHistory={workoutHistory}
-              profile={profileData?.profile}
-              api={api}
-            />
+
+            {journeyView !== 'goals' && <ProgressionPanel api={api} view={journeyView} />}
+            {journeyView === 'goals' && (
+              <>
+                <BMICard
+                  bmiAnalysis={profileData?.bmiAnalysis}
+                  profile={profileData?.profile}
+                  calorieTarget={nutrition?.calorieTarget}
+                  api={api}
+                  onUpdate={loadData}
+                />
+                <Progress
+                  nutrition={nutrition}
+                  todayNutrition={todayNutrition}
+                  workoutHistory={workoutHistory}
+                  profile={profileData?.profile}
+                  api={api}
+                />
+              </>
+            )}
           </>
         )}
 
