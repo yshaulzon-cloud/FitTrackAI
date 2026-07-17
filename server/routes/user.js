@@ -9,6 +9,7 @@ const Nutrition = require('../models/Nutrition');
 const Workout = require('../models/Workout');
 const Sleep = require('../models/Sleep');
 const Progression = require('../models/Progression');
+const { EQUIPMENT, LEGACY_VALUES, normalizeEquipment } = require('../utils/equipment');
 const {
   calculateTDEE,
   calculateCalorieTarget,
@@ -96,8 +97,8 @@ router.post(
       .isIn(['beginner', 'intermediate', 'advanced'])
       .withMessage('יש לבחור רמת ניסיון'),
     body('city').optional({ checkFalsy: true }).isString().isLength({ min: 1, max: 60 }).withMessage('עיר לא תקינה'),
-    body('equipment').optional().isArray({ max: 3 }),
-    body('equipment.*').optional().isIn(['home', 'gym', 'none']),
+    body('equipment').optional().isArray({ max: EQUIPMENT.length }),
+    body('equipment.*').optional().isIn([...EQUIPMENT, ...LEGACY_VALUES]),
     body('timezone').optional({ checkFalsy: true }).isString().isLength({ max: 64 }),
   ],
   async (req, res) => {
@@ -115,7 +116,9 @@ router.post(
         profileData.city = String(city).trim();
       }
       if (Array.isArray(equipment) && equipment.length) {
-        profileData.equipment = equipment;
+        // Normalize on write so a legacy client can't reintroduce coarse values.
+        const normalized = normalizeEquipment(equipment);
+        if (normalized.length) profileData.equipment = normalized;
       }
       // Store the user's IANA timezone so all streak/day math uses their local
       // midnight, not the server's UTC (see server/utils/dates.js). Validated
