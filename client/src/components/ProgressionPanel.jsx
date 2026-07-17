@@ -73,8 +73,8 @@ function LevelRing({ level, percent }) {
               dashboard uses purple). Unified to the streak amber so XP and
               streaks share one earned-progress color. */}
           <linearGradient id="levelRingGrad" x1="0" x2="1" y1="0" y2="1">
-            <stop offset="0%" stopColor="#f59e0b" />
-            <stop offset="100%" stopColor="#fbbf24" />
+            <stop offset="0%" stopColor="#36E8C6" />
+            <stop offset="100%" stopColor="#2FE3C2" />
           </linearGradient>
         </defs>
         <circle cx="65" cy="65" r={r} stroke="rgba(255,255,255,0.06)" strokeWidth="10" fill="none" />
@@ -120,7 +120,7 @@ export default function ProgressionPanel({ api }) {
     const earnedIds = new Set((data.badges || []).map(b => b.id));
 
     const stats = {
-      workouts: data.totalWorkouts || data.workoutCount || 0,
+      workouts: data.totalWorkouts || 0,
       streak:   data.currentStreak || 0,
       level:    data.level || 1,
       xp:       data.totalXP || 0,
@@ -219,13 +219,13 @@ export default function ProgressionPanel({ api }) {
         </div>
         <div className="rpg-stats">
           {[
-            { key: 'discipline', label: t.statDiscipline, icon: '🎯', color: '#f59e0b' },
-            { key: 'strength',   label: t.statStrength,   icon: '💪', color: '#ef4444' },
-            { key: 'recovery',   label: t.statRecovery,   icon: '⚖️', color: '#22c55e' },
-            // Audit P08: sleep stat was the only purple in the panel.
-            // Recolored to a muted indigo from the existing palette so it
-            // sits in the same family as the other neutrals.
-            { key: 'sleep',      label: t.statSleep,      icon: '🌙', color: '#6366f1' },
+            // Prototype's "אחוזי התקדמות" palette: discipline teal, strength
+            // pink, weight-goal amber, sleep purple — one hue per stat so the
+            // bars read as distinct categories rather than a status gradient.
+            { key: 'discipline', label: t.statDiscipline, icon: '🎯', color: '#2FE3C2' },
+            { key: 'strength',   label: t.statStrength,   icon: '💪', color: '#F5698C' },
+            { key: 'recovery',   label: t.statRecovery,   icon: '⚖️', color: '#FFB648' },
+            { key: 'sleep',      label: t.statSleep,      icon: '🌙', color: '#8F8AF7' },
           ].map(stat => {
             const val = data.stats?.[stat.key] || 0;
             return (

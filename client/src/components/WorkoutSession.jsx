@@ -20,12 +20,12 @@ import { useLang } from '../context/LanguageContext';
 export const ACTIVE_SESSION_KEY = 'areto:activeWorkout';
 
 const MUSCLE_COLORS = {
-  'חזה': '#ff5c7c', 'גב': '#4aa8ff', 'כתפיים': '#ffb020',
-  'זרועות': '#a78bfa', 'רגליים': '#2ee6c4', 'תאומים': '#4aa8ff',
-  'ליבה': '#ffb020', 'אירובי': '#2ee6c4', 'כללי': '#5b6675',
+  'חזה': '#F5698C', 'גב': '#4D9FFF', 'כתפיים': '#FFB648',
+  'זרועות': '#8F8AF7', 'רגליים': '#2FE3C2', 'תאומים': '#4D9FFF',
+  'ליבה': '#FFB648', 'אירובי': '#2FE3C2', 'כללי': '#7C8798',
 };
 
-const CONFETTI_COLORS = ['#ff5c7c', '#4aa8ff', '#ffb020', '#a78bfa', '#e879f9', '#2ee6c4'];
+const CONFETTI_COLORS = ['#F5698C', '#4D9FFF', '#FFB648', '#8F8AF7', '#e879f9', '#2FE3C2'];
 
 function getEnglishName(name) {
   const match = name.match(/\(([^)]+)\)/);
@@ -145,7 +145,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
   const totalSets = exs.reduce((n, e) => n + e.sets.length, 0);
   const doneSets = exs.reduce((n, e) => n + e.sets.filter(s => s.done).length, 0);
   const pct = totalSets ? Math.round((doneSets / totalSets) * 100) : 0;
-  const exColor = MUSCLE_COLORS[cur?.muscleGroup] || '#2ee6c4';
+  const exColor = MUSCLE_COLORS[cur?.muscleGroup] || '#2FE3C2';
 
   // ── Persist session to localStorage on every meaningful change ──
   useEffect(() => {
@@ -425,7 +425,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
                 <div className="ws-stat__label">
                   {isHe ? 'נפח (ק״ג)' : 'Volume (kg)'}
                   {volDelta !== null && (
-                    <span style={{ color: volDelta >= 0 ? '#2ee6c4' : '#ffb020', marginInlineStart: 4 }}>
+                    <span style={{ color: volDelta >= 0 ? '#2FE3C2' : '#FFB648', marginInlineStart: 4 }}>
                       {volDelta >= 0 ? '↑' : '↓'}{Math.abs(volDelta)}%
                     </span>
                   )}
@@ -458,7 +458,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
               const top = done.reduce((m, s) => (s.weight || 0) > (m?.weight || 0) ? s : m, done[0]);
               return (
                 <div key={i} className="ws-summary__ex">
-                  <span className="ws-summary__ex-dot" style={{ background: MUSCLE_COLORS[ex.muscleGroup] || '#2ee6c4' }} />
+                  <span className="ws-summary__ex-dot" style={{ background: MUSCLE_COLORS[ex.muscleGroup] || '#2FE3C2' }} />
                   <span className="ws-summary__ex-name">{isHe ? ex.name : getEnglishName(ex.name)}</span>
                   <span className="ws-summary__ex-detail">
                     {ex.mode === 'time'
@@ -664,7 +664,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
               <circle cx="60" cy="60" r="52" stroke="rgba(255,255,255,0.08)" strokeWidth="8" fill="none" />
               <circle
                 cx="60" cy="60" r="52"
-                stroke="#2ee6c4" strokeWidth="8" fill="none" strokeLinecap="round"
+                stroke="#2FE3C2" strokeWidth="8" fill="none" strokeLinecap="round"
                 strokeDasharray={`${(rest.left / rest.total) * 326.7} 326.7`}
                 transform="rotate(-90 60 60)"
                 style={{ transition: 'stroke-dasharray 1s linear' }}

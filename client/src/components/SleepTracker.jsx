@@ -4,14 +4,14 @@ import { scheduleSleepPrompts, cancelSleepPrompts } from '../lib/notifications';
 
 const qualityOptions = [
   { value: 'bad', icon: '😴', color: '#ff6b6b' },
-  { value: 'ok', icon: '🙂', color: '#fdcb6e' },
-  { value: 'good', icon: '😊', color: '#00b894' },
-  { value: 'great', icon: '🌟', color: '#6c5ce7' },
+  { value: 'ok', icon: '🙂', color: '#FFB648' },
+  { value: 'good', icon: '😊', color: '#1EC0A2' },
+  { value: 'great', icon: '🌟', color: '#8F8AF7' },
 ];
 
 function getScoreColor(hours, min) {
-  if (hours >= min) return '#00b894';
-  if (hours >= min - 1) return '#fdcb6e';
+  if (hours >= min) return '#1EC0A2';
+  if (hours >= min - 1) return '#FFB648';
   return '#ff6b6b';
 }
 
@@ -155,7 +155,7 @@ export default function SleepTracker({ api, showXP }) {
           >
             <div style={{
               height: '14px', borderRadius: '7px',
-              background: 'linear-gradient(to right, #ff6b6b 0%, #fdcb6e 30%, #00b894 55%, #6c5ce7 85%, #a29bfe 100%)',
+              background: 'linear-gradient(to right, #ff6b6b 0%, #FFB648 30%, #1EC0A2 55%, #8F8AF7 85%, #8F8AF7 100%)',
               position: 'relative',
             }}>
               {/* Recommended zone highlight */}

@@ -270,7 +270,7 @@ export default function Dashboard() {
           <>
             {/* Areto 2.0 header */}
             <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 13, color: '#4aa8ff', fontWeight: 700, letterSpacing: '.5px', marginBottom: 2 }}>
+              <div style={{ fontSize: 13, color: '#4D9FFF', fontWeight: 700, letterSpacing: '.5px', marginBottom: 2 }}>
                 {isHe ? 'המסע שלך' : 'Your journey'}
               </div>
               <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, color: 'var(--text-1)', margin: 0 }}>
@@ -318,7 +318,7 @@ export default function Dashboard() {
         {/* Flame streak pill — first child = rightmost in RTL */}
         {dailyStreak > 0 ? (
           <div className="mobile-topbar__streak" aria-label={isHe ? `${dailyStreak} ימים ברצף` : `${dailyStreak}-day streak`}>
-            <img src="/streak-logo.png" alt="" style={{ width: 22, height: 22, objectFit: 'contain', display: 'block' }} />
+            <img src="/streak-logo.png" alt="" style={{ width: 28, height: 28, objectFit: 'contain', display: 'block' }} />
             <span className="mobile-topbar__streak-count">{dailyStreak}</span>
           </div>
         ) : (
@@ -367,7 +367,7 @@ export default function Dashboard() {
 
 // ── Bottom-nav SVG icons ──────────────────────────────────────────────
 function NavTabIcon({ id, active }) {
-  const c = active ? '#2ee6c4' : '#5b6675';
+  const c = active ? '#2FE3C2' : '#7C8798';
   const s = { fill: 'none', stroke: c, strokeWidth: 2.1, strokeLinecap: 'round', strokeLinejoin: 'round' };
   if (id === 'overview') return (
     <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
@@ -430,8 +430,8 @@ function MacroRing({ caloriePct, calorieTarget, calorieProgress, isHe }) {
       />
       <defs>
         <linearGradient id="ringGrad" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stopColor="#2dd4bf" />
-          <stop offset="100%" stopColor="#5eead4" />
+          <stop offset="0%" stopColor="#2FE3C2" />
+          <stop offset="100%" stopColor="#5FEDD3" />
         </linearGradient>
       </defs>
       {showEmpty ? (
@@ -479,7 +479,7 @@ function HeroMacroBar({ label, current, target, color }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-        <span style={{ fontSize: 13, color: '#aeb9c7' }}>{label}</span>
+        <span style={{ fontSize: 13, color: '#B9C4D2' }}>{label}</span>
         <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, color: 'var(--text-3)' }}>
           {Math.round(current)}<span style={{ opacity: 0.6 }}>/{target}g</span>
         </span>
@@ -499,7 +499,7 @@ function QuickActionNew({ emoji, iconBg, title, sub, onClick }) {
       onClick={onClick}
       type="button"
       style={{ width: '100%', border: '1px solid var(--border-subtle)', cursor: 'pointer', background: 'var(--surface)', borderRadius: 18, padding: '15px 16px', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'inherit', transition: 'border-color 0.15s' }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(46,230,196,.3)'}
+      onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(47,227,194,.3)'}
       onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
     >
       <div style={{ width: 44, height: 44, borderRadius: 13, flexShrink: 0, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{emoji}</div>
@@ -507,7 +507,7 @@ function QuickActionNew({ emoji, iconBg, title, sub, onClick }) {
         <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text-1)' }}>{title}</div>
         {sub && <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 1 }}>{sub}</div>}
       </div>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5b6675" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isHe ? 'scaleX(-1)' : 'none', flexShrink: 0 }}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C8798" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isHe ? 'scaleX(-1)' : 'none', flexShrink: 0 }}>
         <path d="m9 18 6-6-6-6"/>
       </svg>
     </button>
@@ -637,7 +637,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
     <>
       {/* Weekly body-data update prompt */}
       {showBodyPrompt && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 16px', marginBottom: 16, background: 'rgba(46,230,196,0.08)', border: '1px solid rgba(46,230,196,0.25)', borderRadius: 'var(--r-md)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 16px', marginBottom: 16, background: 'rgba(47,227,194,0.08)', border: '1px solid rgba(47,227,194,0.25)', borderRadius: 'var(--r-md)' }}>
           <div style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.4 }}>
             📏 {isHe ? 'זה הזמן לעדכן את נתוני הגוף השבועיים שלך.' : 'Time for your weekly body check-in.'}
           </div>
@@ -658,8 +658,8 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
           </div>
           <div style={{ fontSize: 14, color: 'var(--text-3)', marginTop: 4 }}>{formatDate(lang)}</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(167,139,250,.14)', border: '1px solid rgba(167,139,250,.3)', borderRadius: 999, padding: '5px 11px', flexShrink: 0 }}>
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 12, color: '#c4b5fd' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(143,138,247,.14)', border: '1px solid rgba(143,138,247,.3)', borderRadius: 999, padding: '5px 11px', flexShrink: 0 }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 12, color: '#8F8AF7' }}>
             {isHe ? `רמה ${progressionData?.level ?? 1}` : `LVL ${progressionData?.level ?? 1}`}
           </span>
         </div>
@@ -667,7 +667,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
 
       {/* Hero ring card */}
       <div style={{ background: 'var(--surface-elev)', border: '1px solid var(--border-subtle)', borderRadius: 26, padding: '24px 22px', position: 'relative', overflow: 'hidden', boxShadow: '0 20px 40px -24px rgba(0,0,0,.7)', marginBottom: 16 }}>
-        <div style={{ position: 'absolute', top: -60, insetInlineEnd: -40, width: 200, height: 200, background: 'radial-gradient(circle,rgba(46,230,196,.14),transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: -60, insetInlineEnd: -40, width: 200, height: 200, background: 'radial-gradient(circle,rgba(47,227,194,.14),transparent 70%)', pointerEvents: 'none' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 22, position: 'relative' }}>
           {/* Calorie ring */}
           <div style={{ position: 'relative', width: 158, height: 158, flexShrink: 0 }}>
@@ -678,7 +678,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
                 style={{ transition: 'stroke-dashoffset .8s cubic-bezier(.4,0,.2,1)' }} />
               <defs>
                 <linearGradient id="heroRingGrad" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stopColor="#2ee6c4" /><stop offset="1" stopColor="#5cf0d6" />
+                  <stop offset="0" stopColor="#2FE3C2" /><stop offset="1" stopColor="#5FEDD3" />
                 </linearGradient>
               </defs>
             </svg>
@@ -693,15 +693,15 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
           </div>
           {/* Macro bars */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 13 }}>
-            <HeroMacroBar label={isHe ? 'חלבון' : 'Protein'} current={proteinProgress} target={proteinTarget} color="#ff5c7c" />
-            <HeroMacroBar label={isHe ? 'פחמימות' : 'Carbs'} current={carbsProgress} target={carbsTarget} color="#4aa8ff" />
-            <HeroMacroBar label={isHe ? 'שומן' : 'Fat'} current={fatProgress} target={fatTarget} color="#ffb020" />
+            <HeroMacroBar label={isHe ? 'חלבון' : 'Protein'} current={proteinProgress} target={proteinTarget} color="#F5698C" />
+            <HeroMacroBar label={isHe ? 'פחמימות' : 'Carbs'} current={carbsProgress} target={carbsTarget} color="#4D9FFF" />
+            <HeroMacroBar label={isHe ? 'שומן' : 'Fat'} current={fatProgress} target={fatTarget} color="#FFB648" />
           </div>
         </div>
         {/* CTA row */}
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-          <button onClick={() => setActiveTab('nutrition')} style={{ flex: 1, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#2ee6c4,#16c5a7)', color: '#04231e', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, padding: 13, borderRadius: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: '0 8px 22px -8px rgba(46,230,196,.7)' }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#04231e" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          <button onClick={() => setActiveTab('nutrition')} style={{ flex: 1, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#36E8C6,#1EC0A2)', color: '#04241B', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, padding: 13, borderRadius: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: '0 8px 22px -8px rgba(47,227,194,.7)' }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#04241B" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
             {isHe ? 'הוסף ארוחה' : 'Add meal'}
           </button>
           <button onClick={() => setActiveTab('workout')} style={{ border: '1px solid var(--border)', cursor: 'pointer', background: 'var(--surface-elev)', color: 'var(--text-1)', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, padding: '13px 18px', borderRadius: 15 }}>
@@ -711,12 +711,12 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
       </div>
 
       {/* Next Step card */}
-      <div style={{ marginBottom: 16, background: 'linear-gradient(120deg,rgba(167,139,250,.13),rgba(46,230,196,.07))', border: '1px solid rgba(167,139,250,.22)', borderRadius: 22, padding: 18, cursor: 'pointer' }} onClick={nextAction} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && nextAction()}>
+      <div style={{ marginBottom: 16, background: 'linear-gradient(120deg,rgba(143,138,247,.13),rgba(47,227,194,.07))', border: '1px solid rgba(143,138,247,.22)', borderRadius: 22, padding: 18, cursor: 'pointer' }} onClick={nextAction} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && nextAction()}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 11, background: 'rgba(167,139,250,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>
+          <div style={{ width: 34, height: 34, borderRadius: 11, background: 'rgba(143,138,247,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8F8AF7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>
           </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#c4b5fd', letterSpacing: .3 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#8F8AF7', letterSpacing: .3 }}>
             {isHe ? 'הצעד הבא שלך' : 'Your next step'}
           </div>
         </div>
@@ -731,8 +731,8 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
             {isHe ? 'השבוע שלך' : 'Your week'}
           </div>
           {streak > 0 && (
-            <div style={{ fontSize: 13, color: '#ffb43a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <img src="/streak-logo.png" alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />
+            <div style={{ fontSize: 13, color: 'var(--streak-text)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <img src="/streak-logo.png" alt="" style={{ width: 23, height: 23, objectFit: 'contain' }} />
               {isHe ? `רצף של ${streak} ימים` : `${streak}-day streak`}
             </div>
           )}
@@ -741,18 +741,18 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
           {week.map((day, i) => {
             let bg, border, icon;
             if (day.status === 'full') {
-              bg = 'linear-gradient(135deg,rgba(255,150,40,.22),rgba(255,90,30,.12))';
-              border = '1px solid rgba(255,150,40,.3)'; icon = <img src="/streak-logo.png" alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />;
+              bg = 'linear-gradient(135deg,rgba(255,154,77,.22),rgba(255,90,30,.12))';
+              border = '1px solid rgba(255,154,77,.3)'; icon = <img src="/streak-logo.png" alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />;
             } else if (day.status === 'today') {
-              bg = 'rgba(46,230,196,.14)'; border = '1.5px dashed #2ee6c4'; icon = '●';
-            } else if (day.status === 'miss') {
-              bg = 'rgba(255,92,124,.07)'; border = '1px solid rgba(255,92,124,.18)'; icon = '';
+              bg = 'rgba(47,227,194,.05)'; border = '1.5px dashed rgba(47,227,194,.5)'; icon = '●';
             } else {
-              bg = 'var(--surface-elev)'; border = '1px solid var(--border-subtle)'; icon = '';
+              // Missed and future days share one neutral treatment (prototype):
+              // a red "you failed" tint on every skipped day reads as nagging.
+              bg = 'rgba(255,255,255,.03)'; border = '1px solid rgba(255,255,255,.06)'; icon = '';
             }
             return (
               <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
-                <div style={{ fontSize: 12, color: '#6b7686', fontWeight: 600 }}>{day.label}</div>
+                <div style={{ fontSize: 12, color: day.status === 'today' ? '#2FE3C2' : '#7C8798', fontWeight: 600 }}>{day.label}</div>
                 <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: bg, border }}>
                   <span style={{ fontSize: day.status === 'today' ? 11 : 14 }}>{icon}</span>
                 </div>
@@ -766,7 +766,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <QuickActionNew
           emoji="🍽️"
-          iconBg="rgba(46,230,196,.14)"
+          iconBg="rgba(47,227,194,.14)"
           title={isHe ? 'רשום ארוחה' : 'Log meal'}
           sub={calorieProgress > 0
             ? (isHe ? `${Math.round(calorieRemaining)} קלוריות נותרו להיום` : `${Math.round(calorieRemaining)} kcal left today`)
@@ -775,7 +775,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
         />
         <QuickActionNew
           emoji="🏋️"
-          iconBg="rgba(167,139,250,.16)"
+          iconBg="rgba(143,138,247,.16)"
           title={isHe ? 'התחל אימון' : 'Start workout'}
           sub={isHe ? `${profile?.workoutsPerWeek || 4} אימונים בשבוע` : `${profile?.workoutsPerWeek || 4}x per week`}
           onClick={() => setActiveTab('workout')}

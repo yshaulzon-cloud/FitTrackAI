@@ -44,7 +44,7 @@ function MacroRingSmall({ pct = 0 }) {
       <circle cx="24" cy="24" r={r} stroke="rgba(255,255,255,0.06)" strokeWidth="5" fill="none" />
       <circle
         cx="24" cy="24" r={r}
-        stroke="#2dd4bf" strokeWidth="5" fill="none"
+        stroke="#2FE3C2" strokeWidth="5" fill="none"
         strokeDasharray={`${dash} ${c}`}
         strokeLinecap="round"
         transform="rotate(-90 24 24)"
@@ -158,7 +158,7 @@ function LoggedMealRow({ meal, isHe, t, onDelete }) {
       display: 'flex',
       alignItems: 'stretch',
     }}>
-      <div style={{ width: 4, background: '#2ee6c4', flexShrink: 0, borderRadius: '99px 0 0 99px' }} />
+      <div style={{ width: 4, background: '#2FE3C2', flexShrink: 0, borderRadius: '99px 0 0 99px' }} />
       <div style={{ flex: 1, minWidth: 0 }}>
       <button
         type="button"
@@ -213,7 +213,7 @@ function LoggedMealRow({ meal, isHe, t, onDelete }) {
                 borderRadius: 8,
                 border: '1px solid rgba(255,92,124,.25)',
                 background: 'rgba(255,92,124,.10)',
-                color: '#ff5c7c',
+                color: '#F5698C',
                 fontSize: 12,
                 cursor: 'pointer',
               }}
@@ -397,22 +397,22 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
 <title>${pageTitle} — Areto</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0e1a;color:#e2e8f0;padding:24px;max-width:700px;margin:0 auto;direction:${isHe ? 'rtl' : 'ltr'}}
-.header{text-align:center;margin-bottom:28px;padding:22px;background:linear-gradient(135deg,rgba(46,230,196,.12),rgba(167,139,250,.08));border-radius:20px;border:1px solid rgba(46,230,196,.2)}
-.logo{font-size:30px;font-weight:900;background:linear-gradient(135deg,#2ee6c4,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#080C13;color:#e2e8f0;padding:24px;max-width:700px;margin:0 auto;direction:${isHe ? 'rtl' : 'ltr'}}
+.header{text-align:center;margin-bottom:28px;padding:22px;background:linear-gradient(135deg,rgba(47,227,194,.12),rgba(143,138,247,.08));border-radius:20px;border:1px solid rgba(47,227,194,.2)}
+.logo{font-size:30px;font-weight:900;background:linear-gradient(135deg,#2FE3C2,#8F8AF7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .subtitle{font-size:13px;color:#94a3b8;margin-top:4px}
-.day-title{font-size:18px;font-weight:800;color:#2ee6c4;margin:24px 0 12px;display:flex;align-items:center;gap:10px}
-.day-title::before{content:"";display:block;width:4px;height:22px;background:linear-gradient(#2ee6c4,#a78bfa);border-radius:99px;flex-shrink:0}
+.day-title{font-size:18px;font-weight:800;color:#2FE3C2;margin:24px 0 12px;display:flex;align-items:center;gap:10px}
+.day-title::before{content:"";display:block;width:4px;height:22px;background:linear-gradient(#2FE3C2,#8F8AF7);border-radius:99px;flex-shrink:0}
 .meal-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 18px;margin-bottom:9px}
-.meal-type{font-size:11px;font-weight:700;color:#2ee6c4;letter-spacing:.6px;text-transform:uppercase;margin-bottom:5px}
+.meal-type{font-size:11px;font-weight:700;color:#2FE3C2;letter-spacing:.6px;text-transform:uppercase;margin-bottom:5px}
 .meal-name{font-size:15px;font-weight:600;color:#f1f5f9;margin-bottom:9px;line-height:1.4}
 .meal-macros{display:flex;gap:12px;font-size:12px;font-weight:600;flex-wrap:wrap}
-.m-cal{color:#fbbf24}.m-p{color:#f87171}.m-c{color:#60a5fa}.m-f{color:#c084fc}
-.day-total{background:rgba(46,230,196,.1);border:1px solid rgba(46,230,196,.35);border-radius:12px;padding:11px 15px;margin-top:4px;margin-bottom:6px;display:flex;gap:20px;font-size:14px;font-weight:700;color:#2ee6c4}
-.print-btn{position:fixed;bottom:20px;${isHe ? 'left' : 'right'}:20px;background:linear-gradient(135deg,#2ee6c4,#16c5a7);color:#04231e;border:none;border-radius:50px;padding:13px 26px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(46,230,196,.45);font-family:inherit}
+.m-cal{color:#FFB648}.m-p{color:#F5698C}.m-c{color:#4D9FFF}.m-f{color:#c084fc}
+.day-total{background:rgba(47,227,194,.1);border:1px solid rgba(47,227,194,.35);border-radius:12px;padding:11px 15px;margin-top:4px;margin-bottom:6px;display:flex;gap:20px;font-size:14px;font-weight:700;color:#2FE3C2}
+.print-btn{position:fixed;bottom:20px;${isHe ? 'left' : 'right'}:20px;background:linear-gradient(135deg,#2FE3C2,#1EC0A2);color:#04241B;border:none;border-radius:50px;padding:13px 26px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(47,227,194,.45);font-family:inherit}
 /* Print / PDF overrides — placed LAST so they win over the screen rules above
    (equal specificity → later source order wins). */
-@media print{body{background:#fff;color:#111;padding:0}.no-print{display:none!important}.header{background:#f0fdfa;border-color:#99f6e4}.logo{-webkit-text-fill-color:#0d1224;background:none;color:#0d1224}.subtitle{color:#64748b}.day-title{color:#0d9488}.meal-card{background:#f8f9fa;border-color:#dee2e6}.meal-type{color:#0d9488}.meal-name{color:#1a1a2e}.m-cal{color:#b45309}.m-p{color:#dc2626}.m-c{color:#2563eb}.m-f{color:#9333ea}.day-total{background:#e8f8f5;border-color:#2ee6c4;color:#0d6e60}}
+@media print{body{background:#fff;color:#111;padding:0}.no-print{display:none!important}.header{background:#f0fdfa;border-color:#99f6e4}.logo{-webkit-text-fill-color:#0d1224;background:none;color:#0d1224}.subtitle{color:#64748b}.day-title{color:#1EC0A2}.meal-card{background:#f8f9fa;border-color:#dee2e6}.meal-type{color:#1EC0A2}.meal-name{color:#1a1a2e}.m-cal{color:#b45309}.m-p{color:#dc2626}.m-c{color:#2563eb}.m-f{color:#9333ea}.day-total{background:#e8f8f5;border-color:#2FE3C2;color:#0d6e60}}
 </style>
 </head>
 <body>
@@ -690,7 +690,7 @@ ${content}
     <>
       {/* Header */}
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 13, color: '#2ee6c4', fontWeight: 700, letterSpacing: '.5px', marginBottom: 2 }}>
+        <div style={{ fontSize: 13, color: '#2FE3C2', fontWeight: 700, letterSpacing: '.5px', marginBottom: 2 }}>
           {isHe ? `תזונה · יום ${dayLabelHe}` : `Nutrition · ${dayLabelEn}`}
         </div>
         <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, color: 'var(--text-1)', margin: 0 }}>
@@ -701,7 +701,7 @@ ${content}
       {/* 3-stat strip */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
         <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 18, padding: '14px 16px' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: '#2ee6c4', lineHeight: 1 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: '#2FE3C2', lineHeight: 1 }}>
             {Math.round(calorieProgress).toLocaleString()}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3 }}>
@@ -709,7 +709,7 @@ ${content}
           </div>
         </div>
         <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 18, padding: '14px 16px' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: '#ff5c7c', lineHeight: 1 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: '#F5698C', lineHeight: 1 }}>
             {Math.round(proteinProgress)}g
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3 }}>

@@ -2,10 +2,10 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
 
 const classificationColors = {
-  underweight: { bg: 'rgba(116, 185, 255, 0.12)', border: 'rgba(116, 185, 255, 0.3)', color: '#74b9ff', icon: '🔵' },
+  underweight: { bg: 'rgba(116, 185, 255, 0.12)', border: 'rgba(116, 185, 255, 0.3)', color: '#4D9FFF', icon: '🔵' },
   normal:      { bg: 'rgba(34, 197, 94, 0.12)',   border: 'rgba(34, 197, 94, 0.3)',   color: 'var(--success)', icon: '🟢' },
   overweight:  { bg: 'rgba(245, 158, 11, 0.12)',  border: 'rgba(245, 158, 11, 0.3)',  color: 'var(--warning)', icon: '🟡' },
-  obese1:      { bg: 'rgba(251, 146, 60, 0.12)',  border: 'rgba(251, 146, 60, 0.3)',  color: '#fb923c', icon: '🟠' },
+  obese1:      { bg: 'rgba(251, 146, 60, 0.12)',  border: 'rgba(251, 146, 60, 0.3)',  color: '#FF9A4D', icon: '🟠' },
   obese2:      { bg: 'rgba(239, 68, 68, 0.12)',   border: 'rgba(239, 68, 68, 0.3)',   color: 'var(--danger)', icon: '🔴' },
   obese3:      { bg: 'rgba(220, 38, 38, 0.12)',   border: 'rgba(220, 38, 38, 0.3)',   color: '#dc2626', icon: '🔴' },
 };
@@ -76,8 +76,8 @@ function JourneyChart({ startWeight, currentWeight, targetWeight, isHe }) {
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: H, display: 'block' }} aria-hidden="true">
       <defs>
         <linearGradient id="journeyFill" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%"   stopColor="#8b5cf6" />
-          <stop offset="100%" stopColor="#2dd4bf" />
+          <stop offset="0%"   stopColor="#8F8AF7" />
+          <stop offset="100%" stopColor="#2FE3C2" />
         </linearGradient>
       </defs>
 
@@ -92,8 +92,8 @@ function JourneyChart({ startWeight, currentWeight, targetWeight, isHe }) {
       )}
 
       {/* ── Start cap (label + value BELOW the track) ── */}
-      <circle cx={xStart} cy={TRACK_Y} r="9" fill="var(--bg-0)" stroke="#8b5cf6" strokeWidth="2.5" />
-      <text x={xStart} y={TRACK_Y + 28} textAnchor="middle" fontFamily="Heebo" fontSize="11" fontWeight="700" fill="#7e879d" letterSpacing="0.06em">
+      <circle cx={xStart} cy={TRACK_Y} r="9" fill="var(--bg-0)" stroke="#8F8AF7" strokeWidth="2.5" />
+      <text x={xStart} y={TRACK_Y + 28} textAnchor="middle" fontFamily="Heebo" fontSize="11" fontWeight="700" fill="#93A0B4" letterSpacing="0.06em">
         {isHe ? 'התחלה' : 'START'}
       </text>
       <text x={xStart} y={TRACK_Y + 46} textAnchor="middle" fontFamily="Heebo" fontSize="14" fontWeight="800" fill="var(--text-1)">
@@ -124,8 +124,8 @@ function JourneyChart({ startWeight, currentWeight, targetWeight, isHe }) {
       {showCurrentPin && (
         <g transform={`translate(${xCurrent}, ${TRACK_Y})`}>
           <circle r="14" fill="rgba(45, 212, 191, 0.20)" />
-          <circle r="10" fill="var(--bg-0)" stroke="#2dd4bf" strokeWidth="3" />
-          <circle r="3"  fill="#2dd4bf" />
+          <circle r="10" fill="var(--bg-0)" stroke="#2FE3C2" strokeWidth="3" />
+          <circle r="3"  fill="#2FE3C2" />
           <text y={-30} textAnchor="middle" fontFamily="Heebo" fontSize="11" fontWeight="700" fill="var(--accent)" letterSpacing="0.06em">
             {isHe ? 'אתה כאן' : 'YOU ARE HERE'}
           </text>
@@ -136,7 +136,7 @@ function JourneyChart({ startWeight, currentWeight, targetWeight, isHe }) {
       )}
 
       {/* Bottom legend with stats — sits at the very bottom */}
-      <text x={W / 2} y={H - 8} textAnchor="middle" fontFamily="Assistant" fontSize="12" fill="#7e879d">
+      <text x={W / 2} y={H - 8} textAnchor="middle" fontFamily="Assistant" fontSize="12" fill="#93A0B4">
         {isHe
           ? `עברת ${covered.toFixed(1)} ק"ג · נשארו ${remaining.toFixed(1)} ק"ג · ${pct}% הושלם`
           : `${covered.toFixed(1)} kg covered · ${remaining.toFixed(1)} kg to go · ${pct}% complete`}
@@ -180,8 +180,8 @@ function JourneyChartVertical({ startWeight, currentWeight, targetWeight, isHe }
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', maxWidth: 300, height: H, display: 'block', margin: '0 auto' }} aria-hidden="true">
       <defs>
         <linearGradient id="journeyFillV" x1="0" x2="0" y1="1" y2="0">
-          <stop offset="0%"   stopColor="#8b5cf6" />
-          <stop offset="100%" stopColor="#2dd4bf" />
+          <stop offset="0%"   stopColor="#8F8AF7" />
+          <stop offset="100%" stopColor="#2FE3C2" />
         </linearGradient>
       </defs>
 
@@ -209,8 +209,8 @@ function JourneyChartVertical({ startWeight, currentWeight, targetWeight, isHe }
       <circle cx={TRACK_X} cy={yTarget} r="10" fill="var(--bg-0)" stroke="#22c55e" strokeWidth="2.5" />
 
       {/* Start cap — labels BELOW the circle, centred */}
-      <circle cx={TRACK_X} cy={yStart} r="10" fill="var(--bg-0)" stroke="#8b5cf6" strokeWidth="2.5" />
-      <text x={TRACK_X} y={yStart + 32} textAnchor="middle" fontFamily="Heebo" fontSize="12" fontWeight="700" fill="#8b5cf6" letterSpacing="0.04em">
+      <circle cx={TRACK_X} cy={yStart} r="10" fill="var(--bg-0)" stroke="#8F8AF7" strokeWidth="2.5" />
+      <text x={TRACK_X} y={yStart + 32} textAnchor="middle" fontFamily="Heebo" fontSize="12" fontWeight="700" fill="#8F8AF7" letterSpacing="0.04em">
         {isHe ? 'התחלה' : 'START'}
       </text>
       <text x={TRACK_X} y={yStart + 54} textAnchor="middle" fontFamily="Heebo" fontSize="16" fontWeight="800" fill="var(--text-1)">
@@ -226,8 +226,8 @@ function JourneyChartVertical({ startWeight, currentWeight, targetWeight, isHe }
       {showCurrentPin && (
         <g transform={`translate(${TRACK_X}, ${yCurrent})`}>
           <circle r="15" fill="rgba(45, 212, 191, 0.20)" />
-          <circle r="10" fill="var(--bg-0)" stroke="#2dd4bf" strokeWidth="3" />
-          <circle r="3"  fill="#2dd4bf" />
+          <circle r="10" fill="var(--bg-0)" stroke="#2FE3C2" strokeWidth="3" />
+          <circle r="3"  fill="#2FE3C2" />
           <text x={PIN_LABEL_X - TRACK_X} y={-3} textAnchor="middle" fontFamily="Heebo" fontSize="11" fontWeight="700" fill="var(--accent)" letterSpacing="0.04em">
             {isHe ? 'אתה כאן' : 'YOU ARE HERE'}
           </text>
@@ -275,7 +275,7 @@ function BalanceChart({ days, goal, isHe }) {
 
   function colorFor(balance, hasData) {
     if (!hasData) return 'rgba(125,125,125,0.18)';
-    const teal = '#2dd4bf';
+    const teal = '#2FE3C2';
     const orange = '#f59e0b';
     if (goal === 'cut')  return balance < 0 ? teal : orange;
     if (goal === 'bulk') return balance > 0 ? teal : orange;
@@ -291,7 +291,7 @@ function BalanceChart({ days, goal, isHe }) {
                 stroke={tk.v === 0 ? 'rgba(125,125,125,0.45)' : 'rgba(125,125,125,0.10)'}
                 strokeDasharray={tk.v === 0 ? null : '2 4'}
                 strokeWidth={tk.v === 0 ? 1.25 : 1} />
-          <text x={PAD_L - 8} y={tk.y + 4} textAnchor="end" fontFamily="Assistant" fontSize="10" fill="#7e879d">
+          <text x={PAD_L - 8} y={tk.y + 4} textAnchor="end" fontFamily="Assistant" fontSize="10" fill="#93A0B4">
             {tk.label}
           </text>
         </g>
@@ -314,7 +314,7 @@ function BalanceChart({ days, goal, isHe }) {
                 </text>
               )}
               <text x={xFor(i) + barW / 2} y={H - 8} textAnchor="middle" fontFamily="Assistant"
-                    fontSize="10" fill={d.isToday ? 'var(--accent)' : '#7e879d'}>
+                    fontSize="10" fill={d.isToday ? 'var(--accent)' : '#93A0B4'}>
                 {d.label}
               </text>
             </g>
@@ -333,7 +333,7 @@ function BalanceChart({ days, goal, isHe }) {
               </text>
             )}
             <text x={xFor(i) + barW / 2} y={H - 8} textAnchor="middle" fontFamily="Assistant"
-                  fontSize="10" fill={d.isToday ? 'var(--accent)' : '#7e879d'}>
+                  fontSize="10" fill={d.isToday ? 'var(--accent)' : '#93A0B4'}>
               {d.label}
             </text>
           </g>
@@ -684,7 +684,7 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
           </div>
           <div className="forecast-legend">
             <div className="forecast-legend__item">
-              <span className="forecast-legend__swatch" style={{ background: '#2dd4bf' }} />
+              <span className="forecast-legend__swatch" style={{ background: '#2FE3C2' }} />
               {goalDir === 'cut'
                 ? (isHe ? 'גירעון' : 'deficit')
                 : goalDir === 'bulk'
@@ -835,7 +835,7 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
             style={{
               height: 8,
               borderRadius: 4,
-              background: 'linear-gradient(to right, #74b9ff 0%, #22c55e 20%, #22c55e 33%, #f59e0b 50%, #fb923c 67%, #ef4444 83%, #dc2626 100%)',
+              background: 'linear-gradient(to right, #4D9FFF 0%, #22c55e 20%, #22c55e 33%, #f59e0b 50%, #FF9A4D 67%, #ef4444 83%, #dc2626 100%)',
               position: 'relative',
               cursor: 'grab',
               flex: 1,
@@ -970,8 +970,8 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
                 { value: 'cut',      icon: '🔥',  label: t.goalCut,      desc: t.goalCutDesc,      accent: '#f59e0b' },
-                { value: 'bulk',     icon: '💪',  label: t.goalBulk,     desc: t.goalBulkDesc,     accent: '#2dd4bf' },
-                { value: 'maintain', icon: '⚖️', label: t.goalMaintain, desc: t.goalMaintainDesc, accent: '#8b5cf6' },
+                { value: 'bulk',     icon: '💪',  label: t.goalBulk,     desc: t.goalBulkDesc,     accent: '#2FE3C2' },
+                { value: 'maintain', icon: '⚖️', label: t.goalMaintain, desc: t.goalMaintainDesc, accent: '#8F8AF7' },
               ].map((g) => {
                 const sel = newGoalChoice === g.value;
                 return (

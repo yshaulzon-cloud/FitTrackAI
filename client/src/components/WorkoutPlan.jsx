@@ -304,6 +304,8 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
 
   // ── Redesign (pre-workout screen) derived values ─────────────────────
   const accentVar = homeMode ? 'var(--violet)' : 'var(--accent)';
+  // Raw channels of the same accent, for rgba() tints that can't use var().
+  const accentRgb = homeMode ? '143,138,247' : '47,227,194';
   const nowD = new Date();
   const heDows = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'שבת'];
   const dateLabel = isHe
@@ -390,8 +392,8 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             border: '1.5px solid rgba(255,171,64,.45)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span className="wp2-live-dot" style={{ width: 9, height: 9, borderRadius: 99, background: '#ffab40', display: 'inline-block' }} />
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#ffab40', letterSpacing: '.03em' }}>
+              <span className="wp2-live-dot" style={{ width: 9, height: 9, borderRadius: 99, background: '#FF9A4D', display: 'inline-block' }} />
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#FF9A4D', letterSpacing: '.03em' }}>
                 {isHe ? 'אימון פעיל · מושהה' : 'Active workout · paused'}
               </span>
             </div>
@@ -405,7 +407,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               {getDayName(resumeAvailable.dayName, lang)}{resumeTotal ? ` · ${resumeDone}/${resumeTotal} ${isHe ? 'סטים' : 'sets'}` : ''}
             </div>
             <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
-              <div style={{ width: `${resumePct}%`, height: '100%', borderRadius: 99, background: '#ffab40' }} />
+              <div style={{ width: `${resumePct}%`, height: '100%', borderRadius: 99, background: '#FF9A4D' }} />
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -414,7 +416,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               onClick={resumeSession}
               style={{
                 width: '100%', height: 58, border: 'none', borderRadius: 18, cursor: 'pointer',
-                background: 'linear-gradient(135deg,#ffc24d,#ff9f1c)', color: '#2a1a00',
+                background: 'linear-gradient(135deg,#FFB648,#FF9A4D)', color: '#2a1a00',
                 fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 18,
               }}
             >
@@ -439,7 +441,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
       {showDone && (
         <div>
           <div style={{ textAlign: 'center', padding: '20px 0 18px' }}>
-            <div style={{ width: 72, height: 72, margin: '0 auto 14px', borderRadius: 99, background: 'var(--accent-glow, rgba(46,230,196,.12))', border: '2px solid rgba(46,230,196,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: 'var(--accent)', fontWeight: 900 }}>✓</div>
+            <div style={{ width: 72, height: 72, margin: '0 auto 14px', borderRadius: 99, background: 'var(--accent-glow, rgba(47,227,194,.12))', border: '2px solid rgba(47,227,194,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: 'var(--accent)', fontWeight: 900 }}>✓</div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 900, color: 'var(--text-1)', marginBottom: 4 }}>
               {isHe ? 'האימון של היום הושלם' : "Today's workout is done"}
             </div>
@@ -456,7 +458,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-1)', fontFamily: 'var(--font-display)' }}>{(todayWorkout?.totalVolume || 0).toLocaleString()}</div>
               <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 600 }}>{isHe ? 'ק״ג נפח' : 'kg volume'}</div>
             </div>
-            <div style={{ flex: 1, textAlign: 'center', padding: '14px 6px', borderRadius: 14, background: 'var(--accent-glow, rgba(46,230,196,.07))', border: '1px solid rgba(46,230,196,.3)' }}>
+            <div style={{ flex: 1, textAlign: 'center', padding: '14px 6px', borderRadius: 14, background: 'var(--accent-glow, rgba(47,227,194,.07))', border: '1px solid rgba(47,227,194,.3)' }}>
               <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--accent)', fontFamily: 'var(--font-display)' }}>🔥 {dailyStreak}</div>
               <div style={{ fontSize: 11.5, color: 'var(--accent)', fontWeight: 600 }}>{isHe ? 'רצף' : 'streak'}</div>
             </div>
@@ -499,7 +501,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
             {workouts.slice(0, maxPerWeek).map((w, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ width: 26, height: 26, borderRadius: 99, background: 'var(--accent-glow, rgba(46,230,196,.13))', color: 'var(--accent)', fontSize: 13, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>✓</div>
+                <div style={{ width: 26, height: 26, borderRadius: 99, background: 'var(--accent-glow, rgba(47,227,194,.13))', color: 'var(--accent)', fontSize: 13, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>✓</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.location === 'home' ? '🏠 ' : ''}{getDayName(w.dayName, lang) || (isHe ? 'אימון' : 'Workout')}</div>
                   <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{new Date(w.date).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US')}</div>
@@ -508,7 +510,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               </div>
             ))}
           </div>
-          <div style={{ padding: 14, borderRadius: 14, background: 'var(--accent-glow, rgba(46,230,196,.06))', border: '1px solid rgba(46,230,196,.2)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, fontWeight: 500 }}>
+          <div style={{ padding: 14, borderRadius: 14, background: 'var(--accent-glow, rgba(47,227,194,.06))', border: '1px solid rgba(47,227,194,.2)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, fontWeight: 500 }}>
             <span style={{ color: 'var(--accent)', fontWeight: 800 }}>{isHe ? 'המחזור הבא ייפתח בהמשך.' : 'The next cycle unlocks soon.'}</span>{' '}
             {isHe ? 'הגוף בונה שריר במנוחה — נצל את הימים הקרובים להתאוששות, שינה ותזונה טובה.' : 'Muscle is built during rest — use the coming days for recovery, sleep and good nutrition.'}
           </div>
@@ -521,7 +523,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 500 }}>{dateLabel}</span>
             {dailyStreak > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 99, background: 'rgba(255,171,64,.1)', border: '1px solid rgba(255,171,64,.25)', fontSize: 12.5, fontWeight: 700, color: '#ffab40' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 99, background: 'rgba(255,171,64,.1)', border: '1px solid rgba(255,171,64,.25)', fontSize: 12.5, fontWeight: 700, color: '#FF9A4D' }}>
                 🔥 {isHe ? `רצף ${dailyStreak} ימים` : `${dailyStreak}-day streak`}
               </span>
             )}
@@ -542,8 +544,8 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           </div>
 
           {lastWorkout && lastVolume > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 14, background: 'var(--accent-glow, rgba(46,230,196,.07))', border: '1px solid rgba(46,230,196,.2)', marginBottom: 16 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(46,230,196,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: 16, fontWeight: 800, flex: 'none' }}>↗</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 14, background: 'var(--accent-glow, rgba(47,227,194,.07))', border: '1px solid rgba(47,227,194,.2)', marginBottom: 16 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(47,227,194,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: 16, fontWeight: 800, flex: 'none' }}>↗</div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>
                   {isHe ? `בפעם הקודמת: ${lastDurMin} דק׳ · נפח ${lastVolume.toLocaleString()} ק״ג` : `Last time: ${lastDurMin} min · ${lastVolume.toLocaleString()} kg volume`}
@@ -563,8 +565,8 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
       {/* Gym / Home segmented toggle */}
       {screenReady && (
         <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 4, marginBottom: 20 }}>
-          <button type="button" onClick={() => setHomeMode(false)} style={{ flex: 1, textAlign: 'center', padding: '9px 0', borderRadius: 9, border: !homeMode ? '1px solid rgba(46,230,196,.4)' : '1px solid transparent', background: !homeMode ? 'rgba(46,230,196,.13)' : 'transparent', color: !homeMode ? 'var(--accent)' : 'var(--text-3)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: !homeMode ? 700 : 600, cursor: 'pointer' }}>{t.gymWorkout}</button>
-          <button type="button" onClick={() => setHomeMode(true)} style={{ flex: 1, textAlign: 'center', padding: '9px 0', borderRadius: 9, border: homeMode ? '1px solid rgba(139,92,246,.45)' : '1px solid transparent', background: homeMode ? 'rgba(139,92,246,.14)' : 'transparent', color: homeMode ? 'var(--violet)' : 'var(--text-3)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: homeMode ? 700 : 600, cursor: 'pointer' }}>{t.homeWorkout}</button>
+          <button type="button" onClick={() => setHomeMode(false)} style={{ flex: 1, textAlign: 'center', padding: '9px 0', borderRadius: 9, border: !homeMode ? '1px solid rgba(47,227,194,.4)' : '1px solid transparent', background: !homeMode ? 'rgba(47,227,194,.13)' : 'transparent', color: !homeMode ? 'var(--accent)' : 'var(--text-3)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: !homeMode ? 700 : 600, cursor: 'pointer' }}>{t.gymWorkout}</button>
+          <button type="button" onClick={() => setHomeMode(true)} style={{ flex: 1, textAlign: 'center', padding: '9px 0', borderRadius: 9, border: homeMode ? '1px solid rgba(143,138,247,.45)' : '1px solid transparent', background: homeMode ? 'rgba(143,138,247,.14)' : 'transparent', color: homeMode ? 'var(--violet)' : 'var(--text-3)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: homeMode ? 700 : 600, cursor: 'pointer' }}>{t.homeWorkout}</button>
         </div>
       )}
 
@@ -597,13 +599,13 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                 onClick={() => setSelectedDayIdx(i)}
                 style={{
                   flex: 1, cursor: 'pointer',
-                  border: isActive ? '1px solid rgba(167,139,250,.4)' : '1px solid var(--border-subtle)',
-                  background: isActive ? 'rgba(167,139,250,.16)' : 'var(--surface)',
+                  border: isActive ? `1.5px solid rgba(${accentRgb},.4)` : '1px solid var(--border-subtle)',
+                  background: isActive ? `rgba(${accentRgb},.06)` : 'var(--surface)',
                   borderRadius: 15, padding: '12px 8px', textAlign: 'center',
                   fontFamily: 'inherit', transition: 'all .15s',
                 }}
               >
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15, color: isActive ? '#c4b5fd' : 'var(--text-1)' }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15, color: isActive ? accentVar : 'var(--text-1)' }}>
                   {lang === 'he' ? `יום ${i + 1}` : `Day ${i + 1}`}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>{tabLabel}</div>
@@ -621,9 +623,9 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         const visibleExercises = getExercisesForDuration(baseExercises, duration);
         const isHeb = lang === 'he';
         const muscleColors = {
-          'חזה': '#ff5c7c', 'גב': '#4aa8ff', 'כתפיים': '#ffb020',
-          'זרועות': '#a78bfa', 'רגליים': '#2ee6c4', 'תאומים': '#4aa8ff',
-          'ליבה': '#ffb020', 'אירובי': '#2ee6c4', 'כללי': '#5b6675',
+          'חזה': '#F5698C', 'גב': '#4D9FFF', 'כתפיים': '#FFB648',
+          'זרועות': '#8F8AF7', 'רגליים': '#2FE3C2', 'תאומים': '#4D9FFF',
+          'ליבה': '#FFB648', 'אירובי': '#2FE3C2', 'כללי': '#7C8798',
         };
         return (
           <div key={idx}>
@@ -633,7 +635,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {visibleExercises.map((ex, exIdx) => {
-                const exColor = ex.muscleGroup ? (muscleColors[ex.muscleGroup] || '#2ee6c4') : '#2ee6c4';
+                const exColor = ex.muscleGroup ? (muscleColors[ex.muscleGroup] || '#2FE3C2') : '#2FE3C2';
                 const primary = isHeb ? ex.name : getEnglishName(ex.name);
                 const lp = lastPerf(ex);
                 return (
@@ -655,7 +657,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                         {lp.label && <span style={{ display: 'block', fontSize: 10.5, color: 'var(--text-3)' }}>{lp.label}</span>}
                       </span>
                     )}
-                    <span aria-hidden="true" style={{ color: '#ff5c7c', fontSize: 11, flex: 'none' }}>▶</span>
+                    <span aria-hidden="true" style={{ color: '#F5698C', fontSize: 11, flex: 'none' }}>▶</span>
                   </button>
                 );
               })}
@@ -667,7 +669,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                 <button className="btn btn-accent" onClick={() => handleComplete(day)} style={{ flex: 1, padding: '12px', fontWeight: 700, fontSize: 15 }}>
                   {t.confirm}
                 </button>
-                <button onClick={() => setCompletingDay(null)} style={{ padding: '12px 18px', borderRadius: 'var(--r-md)', border: '1px solid rgba(255,92,124,.3)', background: 'rgba(255,92,124,.08)', color: '#ff5c7c', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                <button onClick={() => setCompletingDay(null)} style={{ padding: '12px 18px', borderRadius: 'var(--r-md)', border: '1px solid rgba(255,92,124,.3)', background: 'rgba(255,92,124,.08)', color: '#F5698C', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
                   ✕
                 </button>
               </div>
@@ -791,10 +793,10 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             type="button"
             onClick={startSession}
             className="wp2-cta"
-            style={{ width: '100%', height: 60, border: 'none', cursor: 'pointer', background: homeMode ? 'linear-gradient(135deg,#c4a1ff,#9b6df2)' : 'linear-gradient(135deg,#35f0b2,#1fc98f)', color: homeMode ? '#1b0e33' : '#04231a', fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 18, borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+            style={{ width: '100%', height: 60, border: 'none', cursor: 'pointer', background: homeMode ? 'linear-gradient(135deg,#c4a1ff,#9b6df2)' : 'linear-gradient(135deg,#36E8C6,#1EC0A2)', color: homeMode ? '#1b0e33' : '#04241B', fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 18, borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
           >
             {homeMode ? (isHe ? 'התחל אימון בית' : 'Start home workout') : (isHe ? 'התחל אימון' : 'Start workout')}
-            <svg width="16" height="16" viewBox="0 0 16 16" style={{ transform: 'scaleX(-1)' }}><path d="M4 2l9 6-9 6z" fill={homeMode ? '#1b0e33' : '#04231a'} /></svg>
+            <svg width="16" height="16" viewBox="0 0 16 16" style={{ transform: 'scaleX(-1)' }}><path d="M4 2l9 6-9 6z" fill={homeMode ? '#1b0e33' : '#04241B'} /></svg>
           </button>
           <button
             type="button"
@@ -812,7 +814,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           <button
             type="button"
             onClick={startSession}
-            style={{ width: '100%', height: 54, borderRadius: 18, cursor: 'pointer', border: '1.5px solid rgba(46,230,196,.5)', background: 'var(--accent-glow, rgba(46,230,196,.08))', color: 'var(--accent)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}
+            style={{ width: '100%', height: 54, borderRadius: 18, cursor: 'pointer', border: '1.5px solid rgba(47,227,194,.5)', background: 'var(--accent-glow, rgba(47,227,194,.08))', color: 'var(--accent)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}
           >
             {showWeek
               ? (isHe ? 'בכל זאת רוצה להתאמן? אימון חופשי' : 'Still want to train? Free workout')
@@ -831,8 +833,8 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes wp2CtaPulse {
-          0%, 100% { box-shadow: 0 8px 28px rgba(46,230,196,.35); }
-          50% { box-shadow: 0 8px 40px rgba(46,230,196,.6); }
+          0%, 100% { box-shadow: 0 8px 28px rgba(47,227,194,.35); }
+          50% { box-shadow: 0 8px 40px rgba(47,227,194,.6); }
         }
         @keyframes wp2LiveDot {
           0%, 100% { opacity: 1; }

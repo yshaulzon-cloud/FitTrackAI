@@ -33,21 +33,21 @@ function CalorieLineArea({ days, calorieTarget, isHe }) {
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: H, display: 'block' }} aria-hidden="true">
       <defs>
         <linearGradient id="calFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#fbbf24" stopOpacity="0.30" />
-          <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
+          <stop offset="0%"   stopColor="#FFB648" stopOpacity="0.30" />
+          <stop offset="100%" stopColor="#FFB648" stopOpacity="0" />
         </linearGradient>
       </defs>
       <line x1={PAD_L} y1={targetY} x2={W - PAD_R} y2={targetY}
             stroke="rgba(125,125,125,0.30)" strokeDasharray="4 4" strokeWidth="1" />
-      <text x={W - PAD_R - 4} y={targetY - 4} textAnchor="end" fontFamily="Heebo" fontSize="10" fontWeight="700" fill="#7e879d">
+      <text x={W - PAD_R - 4} y={targetY - 4} textAnchor="end" fontFamily="Heebo" fontSize="10" fontWeight="700" fill="#93A0B4">
         {isHe ? `יעד · ${calorieTarget}` : `target · ${calorieTarget}`}
       </text>
       <path d={areaPath} fill="url(#calFill)" />
-      <path d={linePath} fill="none" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={linePath} fill="none" stroke="#FFB648" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       {values.map((v, i) => (
         <circle key={i} cx={xFor(i)} cy={yFor(v)} r={i === lastIdx ? 5 : 3}
-                fill={i === lastIdx ? 'currentColor' : '#fbbf24'}
-                stroke={i === lastIdx ? '#fbbf24' : 'none'}
+                fill={i === lastIdx ? 'currentColor' : '#FFB648'}
+                stroke={i === lastIdx ? '#FFB648' : 'none'}
                 strokeWidth={i === lastIdx ? 2.5 : 0}
                 style={{ color: 'var(--bg-0)' }} />
       ))}
@@ -56,7 +56,7 @@ function CalorieLineArea({ days, calorieTarget, isHe }) {
         const showLabel = i === 0 || i === lastIdx || i % labelStride === 0;
         if (!showLabel) return null;
         return (
-          <text key={i} x={xFor(i)} y={H - 10} textAnchor="middle" fontFamily="Assistant" fontSize="11" fill="#7e879d">
+          <text key={i} x={xFor(i)} y={H - 10} textAnchor="middle" fontFamily="Assistant" fontSize="11" fill="#93A0B4">
             {d.label}
           </text>
         );
@@ -90,16 +90,16 @@ function SleepWeekChart({ entries, target, isHe }) {
         const w = colW - 8;
         const y = H - 20 - barH;
         const meetsGoal = h >= target;
-        const fill = h === 0 ? 'rgba(125,125,125,0.10)' : (meetsGoal ? '#2dd4bf' : '#f59e0b');
+        const fill = h === 0 ? 'rgba(125,125,125,0.10)' : (meetsGoal ? '#2FE3C2' : '#f59e0b');
         return (
           <g key={i}>
             <rect x={x} y={y} width={w} height={Math.max(2, barH)} rx="3" fill={fill} opacity={e.isToday ? 1 : 0.85} />
             {h > 0 && (
-              <text x={x + w / 2} y={y - 3} textAnchor="middle" fontFamily="Heebo" fontSize="9" fontWeight="700" fill="#7e879d">
+              <text x={x + w / 2} y={y - 3} textAnchor="middle" fontFamily="Heebo" fontSize="9" fontWeight="700" fill="#93A0B4">
                 {h}
               </text>
             )}
-            <text x={x + w / 2} y={H - 6} textAnchor="middle" fontFamily="Assistant" fontSize="10" fill={e.isToday ? 'var(--accent)' : '#7e879d'} fontWeight={e.isToday ? 700 : 500}>
+            <text x={x + w / 2} y={H - 6} textAnchor="middle" fontFamily="Assistant" fontSize="10" fill={e.isToday ? 'var(--accent)' : '#93A0B4'} fontWeight={e.isToday ? 700 : 500}>
               {e.label}
             </text>
           </g>
