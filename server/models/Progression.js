@@ -56,6 +56,17 @@ const progressionSchema = new mongoose.Schema(
       sleepGoalMet: { type: Boolean, default: false },
     },
 
+    // Lifetime workout count — a dedicated counter (like totalSleepLogs)
+    // rather than counting xpHistory entries, since xpHistory is capped to
+    // the last 50 events across ALL types and would silently evict old
+    // workout entries for any active user, breaking workout_* badges.
+    totalWorkouts: { type: Number, default: 0 },
+    // Whether the user has EVER hit their calorie/protein goal — dedicated
+    // flags (not derived from the capped xpHistory) so the "first time"
+    // badges stay earned even after the qualifying event ages out of history.
+    everHitCalorieGoal: { type: Boolean, default: false },
+    everHitProteinGoal: { type: Boolean, default: false },
+
     // Sleep tracking stats
     sleepStreak: { type: Number, default: 0 },
     totalSleepLogs: { type: Number, default: 0 },

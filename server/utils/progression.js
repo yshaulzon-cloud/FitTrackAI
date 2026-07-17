@@ -53,11 +53,14 @@ function levelFromXP(totalXP) {
 
 // ── Badge Definitions ───────────────────────────────────
 const BADGES = [
-  // Workout milestones
-  { id: 'first_workout', condition: (p) => p.xpHistory.filter(e => e.type === 'workout').length >= 1 },
-  { id: 'workout_10', condition: (p) => p.xpHistory.filter(e => e.type === 'workout').length >= 10 },
-  { id: 'workout_50', condition: (p) => p.xpHistory.filter(e => e.type === 'workout').length >= 50 },
-  { id: 'workout_100', condition: (p) => p.xpHistory.filter(e => e.type === 'workout').length >= 100 },
+  // Workout milestones — use the dedicated totalWorkouts counter, not
+  // xpHistory (capped to the last 50 mixed-type events, which silently
+  // evicts old 'workout' entries for any active user and makes these
+  // thresholds effectively unreachable).
+  { id: 'first_workout', condition: (p) => (p.totalWorkouts || 0) >= 1 },
+  { id: 'workout_10', condition: (p) => (p.totalWorkouts || 0) >= 10 },
+  { id: 'workout_50', condition: (p) => (p.totalWorkouts || 0) >= 50 },
+  { id: 'workout_100', condition: (p) => (p.totalWorkouts || 0) >= 100 },
 
   // Streak milestones
   { id: 'streak_3', condition: (p) => p.longestStreak >= 3 },
@@ -81,8 +84,8 @@ const BADGES = [
 
   // ── 14 New Badges ──
   // Workout milestones continued
-  { id: 'workout_25', condition: (p) => p.xpHistory.filter(e => e.type === 'workout').length >= 25 },
-  { id: 'workout_200', condition: (p) => p.xpHistory.filter(e => e.type === 'workout').length >= 200 },
+  { id: 'workout_25', condition: (p) => (p.totalWorkouts || 0) >= 25 },
+  { id: 'workout_200', condition: (p) => (p.totalWorkouts || 0) >= 200 },
 
   // Streak milestones continued
   { id: 'streak_60', condition: (p) => p.longestStreak >= 60 },
@@ -96,8 +99,11 @@ const BADGES = [
   // Nutrition continued
   { id: 'nutrition_streak_8', condition: (p) => p.weekStreaksCompleted >= 8 },
   { id: 'nutrition_streak_12', condition: (p) => p.weekStreaksCompleted >= 12 },
-  { id: 'first_calorie_goal', condition: (p) => p.xpHistory.some(e => e.type === 'calorie_goal') },
-  { id: 'first_protein_goal', condition: (p) => p.xpHistory.some(e => e.type === 'protein_goal') },
+  // Dedicated "ever happened" flags, not xpHistory.some() — the same 50-entry
+  // cap means a goal hit once long ago (and not since) ages out of history
+  // and would make these permanently unearnable despite having happened.
+  { id: 'first_calorie_goal', condition: (p) => !!p.everHitCalorieGoal },
+  { id: 'first_protein_goal', condition: (p) => !!p.everHitProteinGoal },
 
   // XP milestones continued
   { id: 'xp_500', condition: (p) => p.totalXP >= 500 },
@@ -116,29 +122,41 @@ const BADGES = [
 // ── Stat Calculations ───────────────────────────────────
 // Stats are goal-based percentages based on real user targets
 function calculateStats(progression, goalData) {
-  const { workoutsPerWeek, workoutsThisWeek, weightProgress } = goalData || {};
+  // Discipline (משמעת אימונים) and recovery (התאוששות) need live goal data
+  // (weekly workout target, weight delta) that's only available on the read
+  // path (getProgressionStatus). Internal callers inside the XP-award
+  // pipeline (awardXP/revokeXP/saveAndAwardStreak) don't have it — when
+  // goalData is absent we keep the last computed value instead of
+  // resetting to 0/100, since a fresh read always recomputes with real
+  // numbers anyway.
+  let discipline = progression.stats?.discipline ?? 0;
+  let recovery = progression.stats?.recovery ?? 100;
 
-  // Discipline (משמעת אימונים): % of weekly workout target met
-  const target = workoutsPerWeek || 4;
-  const done = workoutsThisWeek || 0;
-  const discipline = Math.min(100, Math.round((done / target) * 100));
+  if (goalData) {
+    const { workoutsPerWeek, workoutsThisWeek, weightProgress } = goalData;
+    // Discipline: % of weekly workout target met
+    const target = workoutsPerWeek || 4;
+    const done = workoutsThisWeek || 0;
+    discipline = Math.min(100, Math.round((done / target) * 100));
 
-  // Strength (חוזק): slow build from total workouts + streak + level
-  const history = progression.xpHistory || [];
-  const allWorkouts = history.filter(e => e.type === 'workout').length;
+    // Recovery: % progress from initial weight delta toward target.
+    recovery = 100;
+    if (weightProgress && weightProgress.weightDelta !== 0) {
+      const initialDelta = progression.initialWeightDelta || Math.abs(weightProgress.weightDelta);
+      const currentDelta = Math.abs(weightProgress.weightDelta);
+      const closed = initialDelta - currentDelta;
+      recovery = initialDelta > 0 ? Math.min(100, Math.max(0, Math.round((closed / initialDelta) * 100))) : 100;
+    }
+  }
+
+  // Strength (חוזק): slow build from total workouts + streak + level.
+  // Uses the dedicated totalWorkouts counter, not xpHistory (capped to the
+  // last 50 mixed-type events — would plateau this stat for active users).
+  const allWorkouts = progression.totalWorkouts || 0;
   const streakBonus = Math.min(15, progression.currentStreak);
   const levelBonus = Math.min(35, Math.round(progression.level * 1.5));
   const workoutBonus = Math.min(50, Math.round(allWorkouts * 0.5));
   const strength = Math.min(100, streakBonus + levelBonus + workoutBonus);
-
-  // Recovery (התאוששות): % progress from initial weight delta toward target.
-  let recovery = 100;
-  if (weightProgress && weightProgress.weightDelta !== 0) {
-    const initialDelta = progression.initialWeightDelta || Math.abs(weightProgress.weightDelta);
-    const currentDelta = Math.abs(weightProgress.weightDelta);
-    const closed = initialDelta - currentDelta;
-    recovery = initialDelta > 0 ? Math.min(100, Math.max(0, Math.round((closed / initialDelta) * 100))) : 100;
-  }
 
   // Sleep (שינה): consistency stat — sleep streak (capped at 7 days = 70%)
   // plus a slow-build bonus from total nights logged (30 logs = 30%).
@@ -251,6 +269,7 @@ async function awardXP(userId, eventType) {
 
   // Add XP
   prog.totalXP += xpAmount;
+  if (eventType === 'workout') prog.totalWorkouts = (prog.totalWorkouts || 0) + 1;
 
   // Add to history (keep last 50)
   prog.xpHistory.push({ type: eventType, amount: xpAmount, date: new Date() });
@@ -299,7 +318,23 @@ async function revokeXP(userId, eventType, tz) {
   const xpAmount = XP_REWARDS[eventType];
   if (!xpAmount) return;
 
+  // calorie_goal/protein_goal are daily-flag-gated awards. Deleting a meal
+  // can drop today's ratio out of band even on a day the goal was NEVER hit
+  // (no XP was ever granted) — revoking unconditionally would then deduct
+  // XP the user never received and could wrongly drop their level. Only
+  // revoke if today's flag says that XP was actually granted.
+  if (eventType === 'calorie_goal' || eventType === 'protein_goal') {
+    const today = startOfUserDay(tz);
+    const flagsAreToday = prog.dailyFlags.date &&
+      startOfUserDay(tz, new Date(prog.dailyFlags.date)).getTime() === today.getTime();
+    const wasGranted = flagsAreToday && (
+      eventType === 'calorie_goal' ? prog.dailyFlags.calorieGoalMet : prog.dailyFlags.proteinGoalMet
+    );
+    if (!wasGranted) return;
+  }
+
   prog.totalXP = Math.max(0, prog.totalXP - xpAmount);
+  if (eventType === 'workout') prog.totalWorkouts = Math.max(0, (prog.totalWorkouts || 0) - 1);
 
   // Remove most recent matching event from history
   const idx = prog.xpHistory.map(e => e.type).lastIndexOf(eventType);
@@ -436,6 +471,7 @@ async function checkNutritionGoals(userId, todayNutrition, targets, tz) {
     const ratio = todayNutrition.totalCalories / targets.calorieTarget;
     if (ratio >= 0.9 && ratio <= 1.1) {
       prog.dailyFlags.calorieGoalMet = true;
+      prog.everHitCalorieGoal = true;
 
       // Calorie-goal streak: consecutive days the target was hit. Separate
       // from currentStreak (general activity) — a user can work out every
@@ -460,6 +496,7 @@ async function checkNutritionGoals(userId, todayNutrition, targets, tz) {
     const ratio = todayNutrition.totalProtein / targets.macros.protein;
     if (ratio >= 0.9) {
       prog.dailyFlags.proteinGoalMet = true;
+      prog.everHitProteinGoal = true;
       const r = await awardXPInternal(prog, 'protein_goal');
       results.push(r);
     }
@@ -623,6 +660,7 @@ async function getProgressionStatus(userId, goalData, tz) {
     stats: nextStats,
     badges: prog.badges,
     recentXP: prog.xpHistory.slice(-10).reverse(),
+    totalWorkouts: prog.totalWorkouts || 0,
     sleepStreak: prog.sleepStreak || 0,
     totalSleepLogs: prog.totalSleepLogs || 0,
     calorieStreak: prog.calorieStreak || 0,
