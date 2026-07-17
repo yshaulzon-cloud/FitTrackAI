@@ -344,6 +344,15 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     }
     cycleDone = c;
   }
+  // Which plan days are already ticked off in the current 7-day cycle —
+  // drives the done/today/upcoming state of the weekly-plan rows.
+  const doneDayNames = new Set(
+    (workoutHistory?.workouts || [])
+      .filter((w) => (Date.now() - new Date(w.date)) < 7 * 864e5)
+      .map((w) => w.dayName)
+      .filter(Boolean)
+  );
+
   // Resume-session progress + elapsed minutes (active state).
   const resumeExs = resumeAvailable?.exercises || [];
   let resumeDone = 0, resumeTotal = 0;
@@ -517,57 +526,85 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         </div>
       )}
 
-      {/* ── READY state — header, title, context, gym/home toggle ───────── */}
+      {/* ── READY state — prototype: title + mode toggle, next-workout card,
+             then the weekly plan list. No exercise list on this tab. ─────── */}
       {screenReady && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 500 }}>{dateLabel}</span>
-            {dailyStreak > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 99, background: 'rgba(255,171,64,.1)', border: '1px solid rgba(255,171,64,.25)', fontSize: 12.5, fontWeight: 700, color: '#FF9A4D' }}>
-                🔥 {isHe ? `רצף ${dailyStreak} ימים` : `${dailyStreak}-day streak`}
-              </span>
-            )}
-          </div>
-
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: accentVar, letterSpacing: '.04em', marginBottom: 6 }}>
-            {isHe ? `האימון של היום · יום ${safeDayIdx + 1} בתוכנית` : `Today's workout · day ${safeDayIdx + 1} of your plan`}
-            {homeMode ? (isHe ? ' · גרסת בית' : ' · home version') : ''}
-          </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 900, lineHeight: 1.15, color: 'var(--text-1)', marginBottom: 12 }}>
-            {dayTitle}
-          </div>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-            <span style={{ padding: '6px 12px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border-subtle)', fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' }}>{isHe ? '~' : '~'}{getDuration(currentDay?.day)} {isHe ? 'דק׳' : 'min'}</span>
-            <span style={{ padding: '6px 12px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border-subtle)', fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' }}>{adjExercises0.length} {isHe ? 'תרגילים' : 'exercises'}</span>
-            {muscleChip && <span style={{ padding: '6px 12px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border-subtle)', fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' }}>{muscleChip}</span>}
-          </div>
-
-          {lastWorkout && lastVolume > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 14, background: 'var(--accent-glow, rgba(47,227,194,.07))', border: '1px solid rgba(47,227,194,.2)', marginBottom: 16 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(47,227,194,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: 16, fontWeight: 800, flex: 'none' }}>↗</div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>
-                  {isHe ? `בפעם הקודמת: ${lastDurMin} דק׳ · נפח ${lastVolume.toLocaleString()} ק״ג` : `Last time: ${lastDurMin} min · ${lastVolume.toLocaleString()} kg volume`}
-                </div>
-                {topPr && (
-                  <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>
-                    {isHe ? `שיא אישי ב${topPr.name} — ${topPr.weight} ק״ג. היום מנסים ${topPr.weight + 2.5}?` : `PR in ${topPr.name} — ${topPr.weight} kg. Try ${topPr.weight + 2.5} today?`}
-                  </div>
-                )}
-              </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--text-1)' }}>{isHe ? 'אימון' : 'Workout'}</h1>
+            <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 999, padding: 3 }}>
+              <button type="button" onClick={() => setHomeMode(false)}
+                style={{ fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: '6px 14px', cursor: 'pointer', border: 'none', fontFamily: 'inherit',
+                  color: !homeMode ? '#04241B' : '#93A0B4', background: !homeMode ? '#2FE3C2' : 'transparent' }}>
+                {t.gymWorkout}
+              </button>
+              <button type="button" onClick={() => setHomeMode(true)}
+                style={{ fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: '6px 14px', cursor: 'pointer', border: 'none', fontFamily: 'inherit',
+                  color: homeMode ? '#1b0e33' : '#93A0B4', background: homeMode ? 'var(--violet)' : 'transparent' }}>
+                {t.homeWorkout}
+              </button>
             </div>
-          )}
+          </div>
+
+          {/* Next workout card */}
+          <div style={{ marginTop: 18, background: 'linear-gradient(160deg,#13202B,#121A28)', border: `1px solid rgba(${accentRgb},.18)`, borderRadius: 22, padding: '22px 20px' }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: accentVar, letterSpacing: '.3px' }}>
+              {isHe ? 'האימון הבא שלך' : 'Your next workout'}
+            </div>
+            <div style={{ fontSize: 21, fontWeight: 700, marginTop: 8, color: 'var(--text-1)' }}>{dayTitle}</div>
+            <div style={{ display: 'flex', gap: 14, marginTop: 10, fontSize: 13, color: '#93A0B4', flexWrap: 'wrap' }}>
+              <span>{adjExercises0.length} {isHe ? 'תרגילים' : 'exercises'}</span>
+              <span>·</span>
+              <span>~{getDuration(currentDay?.day)} {isHe ? 'דק׳' : 'min'}</span>
+              {muscleChip && (<><span>·</span><span>{muscleChip}</span></>)}
+            </div>
+            <button type="button" onClick={startSession}
+              style={{ width: '100%', background: homeMode ? 'linear-gradient(135deg,#c4a1ff,#9b6df2)' : 'linear-gradient(135deg,#36E8C6,#1EC0A2)', color: homeMode ? '#1b0e33' : '#04241B', fontWeight: 700, border: 'none', borderRadius: 14, padding: 15, fontSize: 16, fontFamily: 'inherit', cursor: 'pointer', marginTop: 18 }}>
+              {isHe ? 'התחל אימון' : 'Start workout'}
+            </button>
+          </div>
+
+          {/* Weekly plan */}
+          <div style={{ padding: '24px 0 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-1)' }}>{isHe ? 'התוכנית השבועית' : 'This week'}</span>
+            <span style={{ fontSize: 12.5, color: '#7C8798' }}>
+              {isHe ? `הושלם ${cycleDone} מתוך ${maxPerWeek}` : `${cycleDone} of ${maxPerWeek} done`}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {days.map((d, i) => {
+              const name = getDayName(d.day, lang);
+              const done = doneDayNames.has(d.day);
+              const isToday = !done && i === safeDayIdx;
+              const exCount = (homeMode ? toHomeExercises(d.exercises) : d.exercises)?.length || 0;
+              return (
+                <button key={i} type="button" onClick={() => setSelectedDayIdx(i)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 13, textAlign: 'start', width: '100%', cursor: 'pointer', fontFamily: 'inherit',
+                    background: isToday ? `rgba(${accentRgb},.05)` : 'var(--surface)',
+                    border: isToday ? `1.5px solid rgba(${accentRgb},.4)` : '1px solid rgba(255,255,255,.05)',
+                    borderRadius: 16, padding: '14px 16px', opacity: (!done && !isToday) ? 0.7 : 1,
+                  }}>
+                  <span style={{
+                    width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    background: done || isToday ? `rgba(${accentRgb},.12)` : 'rgba(255,255,255,.04)',
+                    fontSize: 13, fontWeight: 700, color: done || isToday ? accentVar : '#7C8798',
+                  }}>
+                    {done
+                      ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={accentVar} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+                      : (isHe ? `${i + 1}` : `${i + 1}`)}
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 14.5, fontWeight: isToday ? 600 : 500, color: 'var(--text-1)' }}>{name}</span>
+                    <span style={{ display: 'block', fontSize: 12, marginTop: 2, color: isToday ? accentVar : '#7C8798' }}>
+                      {done ? (isHe ? 'הושלם' : 'Done') : isToday ? (isHe ? 'היום' : 'Today') : `${exCount} ${isHe ? 'תרגילים' : 'exercises'} · ~${getDuration(d.day)} ${isHe ? 'דק׳' : 'min'}`}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </>
-      )}
-
-
-      {/* Gym / Home segmented toggle */}
-      {screenReady && (
-        <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 4, marginBottom: 20 }}>
-          <button type="button" onClick={() => setHomeMode(false)} style={{ flex: 1, textAlign: 'center', padding: '9px 0', borderRadius: 9, border: !homeMode ? '1px solid rgba(47,227,194,.4)' : '1px solid transparent', background: !homeMode ? 'rgba(47,227,194,.13)' : 'transparent', color: !homeMode ? 'var(--accent)' : 'var(--text-3)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: !homeMode ? 700 : 600, cursor: 'pointer' }}>{t.gymWorkout}</button>
-          <button type="button" onClick={() => setHomeMode(true)} style={{ flex: 1, textAlign: 'center', padding: '9px 0', borderRadius: 9, border: homeMode ? '1px solid rgba(143,138,247,.45)' : '1px solid transparent', background: homeMode ? 'rgba(143,138,247,.14)' : 'transparent', color: homeMode ? 'var(--violet)' : 'var(--text-3)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: homeMode ? 700 : 600, cursor: 'pointer' }}>{t.homeWorkout}</button>
-        </div>
       )}
 
       {message && (
@@ -585,98 +622,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         </div>
       )}
 
-      {/* Day selector */}
-      {screenReady && days.length > 1 && (
-        <div style={{ display: 'flex', gap: 9, marginBottom: 18 }}>
-          {days.map((d, i) => {
-            const isActive = i === safeDayIdx;
-            const tabLabel = bodyPartLabel(d) || (lang === 'he' ? 'כוח' : 'Strength');
-            return (
-              <button
-                key={i}
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => setSelectedDayIdx(i)}
-                style={{
-                  flex: 1, cursor: 'pointer',
-                  border: isActive ? `1.5px solid rgba(${accentRgb},.4)` : '1px solid var(--border-subtle)',
-                  background: isActive ? `rgba(${accentRgb},.06)` : 'var(--surface)',
-                  borderRadius: 15, padding: '12px 8px', textAlign: 'center',
-                  fontFamily: 'inherit', transition: 'all .15s',
-                }}
-              >
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15, color: isActive ? accentVar : 'var(--text-1)' }}>
-                  {lang === 'he' ? `יום ${i + 1}` : `Day ${i + 1}`}
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>{tabLabel}</div>
-              </button>
-            );
-          })}
-        </div>
-      )}
 
-      {screenReady && visibleDays.map((day) => {
-        const idx = day.__idx;
-        const isCompleting = completingDay === day.day;
-        const duration = getDuration(day.day);
-        const baseExercises = homeMode ? toHomeExercises(day.exercises) : day.exercises;
-        const visibleExercises = getExercisesForDuration(baseExercises, duration);
-        const isHeb = lang === 'he';
-        const muscleColors = {
-          'חזה': '#F5698C', 'גב': '#4D9FFF', 'כתפיים': '#FFB648',
-          'זרועות': '#8F8AF7', 'רגליים': '#2FE3C2', 'תאומים': '#4D9FFF',
-          'ליבה': '#FFB648', 'אירובי': '#2FE3C2', 'כללי': '#7C8798',
-        };
-        return (
-          <div key={idx}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-1)' }}>{isHeb ? 'התרגילים' : 'Exercises'}</span>
-              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{isHeb ? 'המשקל האחרון שלך ליד כל תרגיל' : 'Your last weight beside each'}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {visibleExercises.map((ex, exIdx) => {
-                const exColor = ex.muscleGroup ? (muscleColors[ex.muscleGroup] || '#2FE3C2') : '#2FE3C2';
-                const primary = isHeb ? ex.name : getEnglishName(ex.name);
-                const lp = lastPerf(ex);
-                return (
-                  <button
-                    key={exIdx}
-                    type="button"
-                    onClick={() => setSelectedExercise(ex)}
-                    aria-label={isHe ? `${primary} — סרטון הדרכה` : `${primary} — tutorial`}
-                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border-subtle)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'start', width: '100%' }}
-                  >
-                    <span style={{ width: 4, height: 36, borderRadius: 99, background: exColor, flex: 'none' }} />
-                    <span style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{primary}</span>
-                      <span dir="ltr" style={{ display: 'block', fontSize: 11.5, color: 'var(--text-3)', textAlign: 'start' }}>{getEnglishName(ex.name)} · {ex.sets}×{ex.reps}</span>
-                    </span>
-                    {lp && (
-                      <span style={{ textAlign: 'end', flex: 'none' }}>
-                        <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: accentVar }}>{lp.value}</span>
-                        {lp.label && <span style={{ display: 'block', fontSize: 10.5, color: 'var(--text-3)' }}>{lp.label}</span>}
-                      </span>
-                    )}
-                    <span aria-hidden="true" style={{ color: '#F5698C', fontSize: 11, flex: 'none' }}>▶</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Inline confirm for the quick-log path */}
-            {isCompleting && (
-              <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-                <button className="btn btn-accent" onClick={() => handleComplete(day)} style={{ flex: 1, padding: '12px', fontWeight: 700, fontSize: 15 }}>
-                  {t.confirm}
-                </button>
-                <button onClick={() => setCompletingDay(null)} style={{ padding: '12px 18px', borderRadius: 'var(--r-md)', border: '1px solid rgba(255,92,124,.3)', background: 'rgba(255,92,124,.08)', color: '#F5698C', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
-                  ✕
-                </button>
-              </div>
-            )}
-          </div>
-        );
-      })}
 
       {/* Exercise Detail Modal */}
       {selectedExercise && (
@@ -779,34 +725,6 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         </div>
       )}
 
-      {/* Primary CTA — one action, fixed in the thumb zone above the tab bar. */}
-      {screenReady && visibleDays.length > 0 && !completingDay && (
-        <div style={{
-          position: 'sticky',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 68px)',
-          marginTop: 18,
-          paddingTop: 14,
-          background: 'linear-gradient(180deg, transparent, var(--bg-0) 40%)',
-          zIndex: 5,
-        }}>
-          <button
-            type="button"
-            onClick={startSession}
-            className="wp2-cta"
-            style={{ width: '100%', height: 60, border: 'none', cursor: 'pointer', background: homeMode ? 'linear-gradient(135deg,#c4a1ff,#9b6df2)' : 'linear-gradient(135deg,#36E8C6,#1EC0A2)', color: homeMode ? '#1b0e33' : '#04241B', fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 18, borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
-          >
-            {homeMode ? (isHe ? 'התחל אימון בית' : 'Start home workout') : (isHe ? 'התחל אימון' : 'Start workout')}
-            <svg width="16" height="16" viewBox="0 0 16 16" style={{ transform: 'scaleX(-1)' }}><path d="M4 2l9 6-9 6z" fill={homeMode ? '#1b0e33' : '#04241B'} /></svg>
-          </button>
-          <button
-            type="button"
-            onClick={() => setCompletingDay(visibleDays[0].day)}
-            style={{ width: '100%', marginTop: 10, padding: '11px 0', borderRadius: 13, border: 'none', background: 'transparent', color: 'var(--text-3)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-          >
-            {lang === 'he' ? 'רישום מהיר בלי מעקב סטים' : 'Quick log without set tracking'}
-          </button>
-        </div>
-      )}
 
       {/* Secondary CTAs for the done / week states. */}
       {(showDone || showWeek) && (
