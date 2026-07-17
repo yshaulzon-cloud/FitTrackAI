@@ -11,6 +11,17 @@ const BADGE_ICONS = {
   first_sleep: '🌙', sleep_7: '😴', sleep_14: '💤', sleep_30: '🛏️', sleep_logs_30: '📋', sleep_logs_100: '📊',
 };
 
+// The prototype tints each badge disc and progress bar by what the badge is
+// about, so a wall of them reads as categories rather than one teal blur.
+function badgeTint(id) {
+  if (id.startsWith('streak_')) return 'var(--streak)';
+  if (id.startsWith('sleep') || id === 'first_sleep') return 'var(--violet)';
+  if (id.startsWith('nutrition_') || id === 'first_calorie_goal' || id === 'first_protein_goal') return 'var(--c-carbs)';
+  if (id.startsWith('xp_')) return 'var(--c-fat)';
+  if (id.startsWith('level_')) return 'var(--c-protein)';
+  return 'var(--accent)'; // workouts
+}
+
 const ALL_BADGES = [
   'first_workout', 'workout_10', 'workout_25', 'workout_50', 'workout_100', 'workout_200',
   'streak_3', 'streak_7', 'streak_14', 'streak_30', 'streak_60', 'streak_100',
@@ -144,7 +155,11 @@ export default function ProgressionPanel({ api, view = 'prog' }) {
       if (th) {
         const have = stats[th.stat] || 0;
         const pct = Math.min(1, have / th.need);
-        if (pct >= 0.4) {
+        // Any started badge is a candidate. This used to gate at pct >= 0.4,
+        // which suited the old "almost there" framing but leaves the section
+        // empty for exactly the new users it should be pulling forward — the
+        // redesign asks for the closest N, a ranking, not a threshold.
+        if (have > 0) {
           reachCandidates.push({ id, have, need: th.need, pct, stat: th.stat });
           continue;
         }
@@ -152,7 +167,7 @@ export default function ProgressionPanel({ api, view = 'prog' }) {
       locked.push({ id });
     }
 
-    // Pick top 3 closest "within reach"
+    // The three they're closest to finishing
     reachCandidates.sort((a, b) => b.pct - a.pct);
     const reach = reachCandidates.slice(0, 3);
     // Any non-top reach candidates fall back to locked
@@ -252,100 +267,86 @@ export default function ProgressionPanel({ api, view = 'prog' }) {
       </div>
       )}
 
-      {/* ─── Tier 1: Within reach (focused, prominent cards) ── */}
-      {showBadges && tiers.reach.length > 0 && (
-        <div className="tier-section">
-          <div className="tier-section__header" style={{ cursor: 'default' }}>
-            <div className="tier-section__title">
-              ⚡ {isHe ? 'במרחק נגיעה' : 'Within reach'}
-              <span className="tier-section__count">{tiers.reach.length}</span>
+      {/* ─── Earned ─────────────────────────────────────────── */}
+      {showBadges && (
+        <>
+          <div className="bdg-heading">
+            {isHe ? 'הושגו' : 'Earned'} · {tiers.unlocked.length}
+          </div>
+          {tiers.unlocked.length > 0 ? (
+            <div className="bdg-grid">
+              {tiers.unlocked.map(({ id }) => (
+                <div className="bdg-card" key={id}>
+                  <div className="bdg-card__disc" style={{ background: `color-mix(in srgb, ${badgeTint(id)} 11%, transparent)` }}>
+                    <span style={{ fontSize: 22 }}>{BADGE_ICONS[id]}</span>
+                  </div>
+                  <div className="bdg-card__name">{t[`badge_${id}`] || id}</div>
+                  <div className="bdg-card__desc">{t[`badge_${id}_desc`] || ''}</div>
+                </div>
+              ))}
+              {/* Keep a 2-badge row from stretching to half-width cards */}
+              {tiers.unlocked.length % 3 !== 0 &&
+                Array.from({ length: 3 - (tiers.unlocked.length % 3) }, (_, i) => (
+                  <div className="bdg-card bdg-card--ghost" key={`ghost-${i}`} aria-hidden="true" />
+                ))}
             </div>
-          </div>
-          <div className="within-reach-grid">
-            {tiers.reach.map(({ id, have, need, pct }) => (
-              <div className="within-reach-card" key={id}>
-                <div className="within-reach-card__top">
-                  <div className="within-reach-card__icon">{BADGE_ICONS[id]}</div>
-                  <div>
-                    <div className="within-reach-card__name">{t[`badge_${id}`] || id}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{t[`badge_${id}_desc`] || ''}</div>
+          ) : (
+            <div className="bdg-empty">
+              {isHe ? 'עדיין אין תגים — כל פעילות מקרבת אותך.' : 'No badges yet — every activity gets you closer.'}
+            </div>
+          )}
+
+          {/* ─── Closest to earning ───────────────────────────── */}
+          {tiers.reach.length > 0 && (
+            <>
+              <div className="bdg-heading">{isHe ? 'הקרובים להשגה' : 'Closest to earning'}</div>
+              <div className="bdg-reach">
+                {tiers.reach.map(({ id, have, need, pct }) => (
+                  <div className="bdg-reach__row" key={id}>
+                    <div className="bdg-reach__text">
+                      <div className="bdg-reach__name">{t[`badge_${id}`] || id}</div>
+                      <div className="bdg-reach__desc">{t[`badge_${id}_desc`] || ''}</div>
+                      <div className="bdg-reach__track">
+                        <div className="bdg-reach__fill" style={{ width: `${Math.round(pct * 100)}%`, background: badgeTint(id) }} />
+                      </div>
+                    </div>
+                    <span className="bdg-reach__count">{have}/{need}</span>
                   </div>
-                </div>
-                <div>
-                  <div className="within-reach-card__progress">
-                    <span><strong>{have}</strong> / {need}</span>
-                    <span>{Math.round(pct * 100)}%</span>
-                  </div>
-                  <div className="within-reach-card__bar" style={{ marginTop: 4 }}>
-                    <div className="within-reach-card__bar-fill" style={{ width: `${pct * 100}%` }} />
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </>
+          )}
 
-      {/* ─── Tier 2: Unlocked (collapsible) ─────────────────── */}
-      {showBadges && (
-      <div className={`tier-section${unlockedOpen ? '' : ' tier-section--collapsed'}`}>
-        <div className="tier-section__header" onClick={() => setUnlockedOpen(!unlockedOpen)}>
-          <div className="tier-section__title">
-            ✓ {isHe ? 'פתחת' : 'Unlocked'}
-            <span className="tier-section__count" style={{ background: 'rgba(34, 197, 94, 0.10)', color: 'var(--success)' }}>
-              {tiers.unlocked.length}
-            </span>
-          </div>
-          <span className="tier-section__chevron">▾</span>
-        </div>
-        {unlockedOpen && (
-          <div className="badges-grid">
-            {tiers.unlocked.map(({ id }) => (
-              <div key={id} className="badge-item earned">
-                <div className="badge-icon-wrapper">
-                  <span className="badge-icon">{BADGE_ICONS[id]}</span>
-                  <span className="badge-check">✓</span>
+          {/* ─── The rest ─────────────────────────────────────── */}
+          {tiers.locked.length > 0 && (
+            <button type="button" className="bdg-more" onClick={() => setLockedOpen(!lockedOpen)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+                <rect x="5" y="11" width="14" height="9" rx="2" />
+                <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+              </svg>
+              <span>
+                {isHe
+                  ? `עוד ${tiers.locked.length} תגים · ${lockedOpen ? 'הסתר' : 'הצג הכל'}`
+                  : `${tiers.locked.length} more · ${lockedOpen ? 'hide' : 'show all'}`}
+              </span>
+            </button>
+          )}
+          {showBadges && lockedOpen && (
+            <div className="bdg-grid" style={{ marginTop: 12 }}>
+              {tiers.locked.map(({ id }) => (
+                <div className="bdg-card bdg-card--locked" key={id}>
+                  <div className="bdg-card__disc"><span style={{ fontSize: 22 }}>{BADGE_ICONS[id]}</span></div>
+                  <div className="bdg-card__name">{t[`badge_${id}`] || id}</div>
+                  <div className="bdg-card__desc">{t[`badge_${id}_desc`] || ''}</div>
                 </div>
-                <div className="badge-name">{t[`badge_${id}`] || id}</div>
-                <div className="badge-desc">{t[`badge_${id}_desc`] || ''}</div>
-              </div>
-            ))}
-            {tiers.unlocked.length === 0 && (
-              <div style={{ gridColumn: '1 / -1', fontSize: 13, color: 'var(--text-4)', textAlign: 'center', padding: 12 }}>
-                {isHe ? 'עדיין אין הישגים פתוחים — תתחיל!' : 'No achievements yet — get started!'}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      )}
-
-      {/* ─── Tier 3: Locked (collapsed by default, dimmed) ─── */}
-      {showBadges && (
-      <div className={`tier-section${lockedOpen ? '' : ' tier-section--collapsed'}`}>
-        <div className="tier-section__header" onClick={() => setLockedOpen(!lockedOpen)}>
-          <div className="tier-section__title">
-            🔒 {isHe ? 'נעולים' : 'Locked'}
-            <span className="tier-section__count">{tiers.locked.length}</span>
-          </div>
-          <span className="tier-section__chevron">▾</span>
-        </div>
-        {lockedOpen && (
-          <div className="badges-grid">
-            {tiers.locked.map(({ id }) => (
-              <div key={id} className="badge-item locked">
-                <div className="badge-icon-wrapper">
-                  <span className="badge-icon">{BADGE_ICONS[id]}</span>
-                </div>
-                <div className="badge-name">{t[`badge_${id}`] || id}</div>
-                <div className="badge-desc">{t[`badge_${id}_desc`] || ''}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
+              ))}
+              {tiers.locked.length % 3 !== 0 &&
+                Array.from({ length: 3 - (tiers.locked.length % 3) }, (_, i) => (
+                  <div className="bdg-card bdg-card--ghost" key={`lghost-${i}`} aria-hidden="true" />
+                ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* ─── Recent XP activity ─────────────────────────────── */}

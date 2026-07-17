@@ -1066,6 +1066,59 @@ select:focus-visible {
   box-shadow: var(--shadow-2);
 }
 
+/* ── Journey → badges ───────────────────────────────────────────────
+   Earned badges as a 3-up card grid, then the near-misses as rows with a
+   progress bar, then the rest behind a disclosure. */
+.bdg-heading { padding: 20px 0 8px; font-size: 15px; font-weight: 600; color: var(--text-1); }
+.bdg-heading + .bdg-heading, .bdg-reach + .bdg-heading { padding-top: 24px; }
+.bdg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.bdg-card {
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: 18px;
+  padding: 18px 14px;
+  text-align: center;
+}
+.bdg-card__disc {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto;
+}
+.bdg-card__name { font-size: 13.5px; font-weight: 600; color: var(--text-1); margin-top: 12px; }
+.bdg-card__desc { font-size: 11.5px; color: var(--text-4); margin-top: 3px; line-height: 1.4; }
+/* Not-yet-earned: same card, drained of the accent and dimmed */
+.bdg-card--locked { border-color: var(--border-faint); opacity: .5; }
+.bdg-card--locked .bdg-card__disc { background: var(--fill-faint); }
+/* Fills the tail of a short row so cards keep their width */
+.bdg-card--ghost { background: none; border: none; padding: 0; }
+.bdg-empty {
+  background: var(--surface); border: 1px solid var(--border-faint);
+  border-radius: 16px; padding: 18px;
+  font-size: 13px; color: var(--text-4); text-align: center;
+}
+.bdg-reach { display: flex; flex-direction: column; gap: 10px; }
+.bdg-reach__row {
+  display: flex; align-items: center; gap: 13px;
+  background: var(--surface); border: 1px solid var(--border-faint);
+  border-radius: 16px; padding: 14px 16px;
+}
+.bdg-reach__text { flex: 1; min-width: 0; }
+.bdg-reach__name { font-size: 14.5px; font-weight: 500; color: var(--text-1); }
+.bdg-reach__desc { font-size: 12px; color: var(--text-4); margin-top: 2px; }
+.bdg-reach__track { height: 4px; border-radius: 2px; background: var(--track); margin-top: 8px; }
+.bdg-reach__fill { height: 4px; border-radius: 2px; transition: width .4s ease; }
+.bdg-reach__count { font-size: 12px; color: var(--text-4); flex: none; font-variant-numeric: tabular-nums; }
+.bdg-more {
+  margin-top: 18px; width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  border: 1px dashed var(--border); border-radius: 14px;
+  padding: 13px; background: none;
+  font-size: 13px; font-family: inherit; color: var(--text-4);
+  cursor: pointer;
+}
+.bdg-more:hover { color: var(--text-2); border-color: var(--border-strong); }
+
 /* Inline field error: pink hairline on the field, message directly beneath. */
 .field-input--bad,
 .field-input--bad:focus {
