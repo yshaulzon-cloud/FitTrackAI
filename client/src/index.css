@@ -1067,6 +1067,151 @@ select:focus-visible {
 }
 
 /* ============================================================
+   ONBOARDING — redesign
+   The wizard sits directly on the page background: the old card-inside-a-screen
+   frame added a layer that bought nothing on a phone, where the card was the
+   screen anyway. On desktop the column keeps a phone width so it doesn't
+   stretch into a banner.
+   ============================================================ */
+.ob-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg-1);
+  display: flex;
+  justify-content: center;
+}
+.ob-screen {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px 0;
+  box-sizing: border-box;
+}
+/* .wizard-step carries its own 18px gap from the old layout; the ob-* children
+   already own their spacing, so it would double-count. flex:1 is what lets
+   .ob-cta's margin-top:auto reach the bottom of the screen. */
+.ob-screen .wizard-step {
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+.ob-head { display: flex; align-items: center; justify-content: space-between; }
+.ob-step-label { font-size: 13px; color: var(--text-4); }
+.ob-back {
+  background: none; border: none; padding: 0;
+  color: var(--text-4); cursor: pointer; display: flex;
+}
+.ob-back:hover { color: var(--text-2); }
+.ob-bars { display: flex; gap: 6px; margin-top: 14px; }
+.ob-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--border-subtle); transition: background .3s ease; }
+.ob-bar--on { background: var(--accent); }
+.ob-title { font-size: 27px; font-weight: 700; margin: 30px 0 8px; color: var(--text-1); line-height: 1.3; }
+.ob-sub { font-size: 14.5px; color: var(--text-3); margin: 0; line-height: 1.6; }
+.ob-body { padding-top: 26px; display: flex; flex-direction: column; gap: 12px; }
+.ob-cta { margin-top: auto; padding: 16px 0 30px; }
+.ob-btn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent-bright), var(--accent-soft));
+  color: var(--on-accent);
+  font-weight: 700; border: none; border-radius: 16px;
+  padding: 17px; font-size: 17px; font-family: inherit; cursor: pointer;
+}
+.ob-btn:disabled { opacity: .45; cursor: not-allowed; }
+.ob-skip {
+  display: block; width: 100%;
+  background: none; border: none;
+  text-align: center; font-size: 14px; color: var(--text-4);
+  margin-top: 14px; cursor: pointer; font-family: inherit;
+}
+.ob-skip:hover { color: var(--text-2); }
+
+/* Option row: tinted icon square, label + description, radio at the end */
+.ob-opt {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border-faint);
+  border-radius: 18px;
+  padding: 18px;
+  cursor: pointer; text-align: start; font-family: inherit;
+  transition: border-color .15s, background .15s;
+}
+.ob-opt--on { background: color-mix(in srgb, var(--accent) 6%, transparent); border: 1.5px solid var(--accent); }
+.ob-opt__icon { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex: none; }
+.ob-opt__text { flex: 1; min-width: 0; }
+.ob-opt__label { font-size: 16.5px; font-weight: 600; color: var(--text-1); }
+.ob-opt__desc { font-size: 13.5px; color: var(--text-3); margin-top: 3px; }
+.ob-opt__radio {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid var(--border-strong); flex: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.ob-opt--on .ob-opt__radio { background: var(--accent); border-color: var(--accent); }
+.ob-badge {
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: 999px; padding: 3px 9px;
+}
+
+/* Equipment pills */
+.ob-pills { display: flex; flex-wrap: wrap; gap: 10px; }
+.ob-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border-subtle);
+  border-radius: 999px; padding: 11px 18px;
+  font-size: 14.5px; color: var(--text-2);
+  cursor: pointer; font-family: inherit;
+}
+.ob-pill--on {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1.5px solid var(--accent);
+  color: var(--text-1); font-weight: 500;
+}
+.ob-hint { padding-top: 18px; font-size: 13px; color: var(--text-4); }
+
+/* Frequency tiles */
+.ob-freq { display: flex; gap: 10px; }
+.ob-freq__tile {
+  flex: 1; position: relative;
+  background: var(--surface); border: 1px solid var(--border-faint);
+  border-radius: 16px; padding: 18px 0;
+  text-align: center; font-size: 20px; font-weight: 600;
+  color: var(--text-2); cursor: pointer; font-family: inherit;
+}
+.ob-freq__tile--on {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1.5px solid var(--accent);
+  color: var(--accent); font-weight: 700;
+}
+/* Physical centering: the tile is symmetric, so this holds in both directions */
+.ob-freq__rec {
+  position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; font-weight: 600;
+  color: var(--on-accent); background: var(--accent);
+  border-radius: 999px; padding: 2px 8px; white-space: nowrap;
+}
+
+/* Insight / note card */
+.ob-insight {
+  background: var(--surface); border: 1px solid var(--border-faint);
+  border-radius: 16px; padding: 16px 18px;
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.ob-insight span { font-size: 13.5px; color: var(--text-3); line-height: 1.7; }
+.ob-insight svg { flex: none; margin-top: 2px; }
+
+/* Fields */
+.ob-field__label { font-size: 13.5px; color: var(--text-3); margin-bottom: 8px; }
+.ob-input {
+  width: 100%;
+  background: var(--surface); border: 1px solid var(--border-subtle);
+  border-radius: 14px; padding: 15px 16px;
+  font-size: 17px; font-weight: 600; color: var(--text-1);
+  font-family: inherit; outline: none; box-sizing: border-box;
+}
+.ob-input:focus { border-color: var(--accent); border-width: 1.5px; }
+
+/* ============================================================
    ONBOARDING WIZARD (4-step flow)
    ============================================================ */
 .wizard-progress {

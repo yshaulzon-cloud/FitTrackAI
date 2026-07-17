@@ -26,6 +26,65 @@ const INTRO_FLAG = 'areto:intro-seen';
 const STEPS = ['valueprop', 'goal', 'experience', 'equipment', 'frequency', 'body', 'planreveal', 'signup', 'notif', 'success'];
 const QUESTION_STEPS = ['goal', 'experience', 'equipment', 'frequency', 'body'];
 
+// Mirrors EQUIPMENT in server/utils/equipment.js — keep the two in step.
+const EQUIPMENT_OPTIONS = [
+  { value: 'dumbbells',  he: 'משקולות יד',    en: 'Dumbbells' },
+  { value: 'barbell',    he: 'מוט ומשקולות',  en: 'Barbell & plates' },
+  { value: 'machines',   he: 'מכונות',        en: 'Machines' },
+  { value: 'bands',      he: 'גומיות',        en: 'Resistance bands' },
+  { value: 'trx',        he: 'TRX',           en: 'TRX' },
+  { value: 'pullup_bar', he: 'מתח ומקבילים',  en: 'Pull-up & dip bars' },
+  { value: 'kettlebell', he: 'קטלבל',         en: 'Kettlebell' },
+  { value: 'none',       he: 'בלי ציוד',      en: 'No equipment' },
+];
+
+// What the chosen frequency buys you, in the plan generator's own terms
+// (see generateWorkoutPlan in server/utils/calculations.js).
+function splitAdvice(n, isHe) {
+  if (n <= 2) return isHe
+    ? 'עם 2 אימונים בשבוע נבנה לך אימוני Full Body — כל שריר נעבד פעמיים בשבוע.'
+    : 'At 2 a week you get full-body sessions — every muscle trained twice weekly.';
+  if (n === 3) return isHe
+    ? 'עם 3 אימונים בשבוע נבנה לך פיצול Push / Pull / Legs — קלאסי ויעיל.'
+    : 'At 3 a week you get a push / pull / legs split — classic and efficient.';
+  if (n === 4) return isHe
+    ? 'עם 4 אימונים בשבוע נבנה לך פיצול פלג גוף עליון / תחתון — איזון טוב בין התאוששות להתקדמות.'
+    : 'At 4 a week you get an upper / lower split — a good balance of recovery and progress.';
+  return isHe
+    ? `עם ${n} אימונים בשבוע נבנה לך פיצול Push / Pull / Legs מורחב — יותר נפח לכל קבוצת שריר.`
+    : `At ${n} a week you get an extended push / pull / legs split — more volume per muscle group.`;
+}
+
+function ObArrow({ isHe }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={isHe ? 'M4 12h16M14 6l6 6-6 6' : 'M20 12H4M10 6l-6 6 6 6'} />
+    </svg>
+  );
+}
+
+function ObCheck() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--on-accent)"
+         strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12.5l4.5 4.5L19 7" />
+    </svg>
+  );
+}
+
+function ObIcon({ type, color, size = 22 }) {
+  const p = {
+    width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color,
+    strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round',
+  };
+  if (type === 'flame')    return <svg {...p}><path d="M12 3c1 3.5 5 5.5 5 9.5a5 5 0 0 1-10 0C7 10 8.5 8.5 9.5 7c.5 1.5 1.3 2.4 2.8 3-.8-2.3-.8-4.7-.3-7z" /></svg>;
+  if (type === 'dumbbell') return <svg {...p}><path d="M6.5 8v8M3.5 10v4M17.5 8v8M20.5 10v4M6.5 12h11" /></svg>;
+  if (type === 'target')   return <svg {...p}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3.5" /></svg>;
+  if (type === 'spark')    return <svg {...p}><path d="M12 4l1.7 4.6 4.8 1.7-4.8 1.7L12 16.6l-1.7-4.6-4.8-1.7 4.8-1.7z" /></svg>;
+  return null;
+}
+
 async function safeJson(res) {
   try { return await res.json(); } catch { return null; }
 }
@@ -77,12 +136,20 @@ export default function OnboardingFlow() {
   function next() { setStepIdx((i) => Math.min(i + 1, STEPS.length - 1)); }
   function back() { setStepIdx((i) => Math.max(i - 1, 0)); }
 
-  function selectGoal(g) { setGoal(g); setTimeout(next, 220); }
-  function selectExperience(e) { setExperience(e); setTimeout(next, 220); }
+  // No auto-advance: the redesign gives every question step its own CTA, so a
+  // pick stays reversible and the frequency insight has time to be read.
+  function selectGoal(g) { setGoal(g); }
+  function selectExperience(e) { setExperience(e); }
+  // "No equipment" and an actual kit are contradictory, so they evict each
+  // other here rather than letting normalizeEquipment() silently drop one.
   function toggleEquipment(e) {
-    setEquipment((prev) => (prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e]));
+    setEquipment((prev) => {
+      if (prev.includes(e)) return prev.filter((x) => x !== e);
+      if (e === 'none') return ['none'];
+      return [...prev.filter((x) => x !== 'none'), e];
+    });
   }
-  function selectFrequency(n) { setFrequency(n); setTimeout(next, 220); }
+  function selectFrequency(n) { setFrequency(n); }
 
   // ── Plan Reveal: fetch a real (not faked) day-1 preview ──────────────
   useEffect(() => {
@@ -224,25 +291,25 @@ export default function OnboardingFlow() {
   const expLabel = experience === 'beginner' ? t.expBeginner : experience === 'intermediate' ? t.expIntermediate : experience === 'advanced' ? t.expAdvanced : '';
 
   return (
-    <div className="onboarding-container">
-      <div className="onboarding-card onboarding-wizard" style={{ minHeight: 480, display: 'flex', flexDirection: 'column' }}>
+    <div className="ob-shell">
+      <div className="ob-screen">
 
         {questionIdx >= 0 && (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>{stepLabel}</span>
+          <div>
+            <div className="ob-head">
+              <span className="ob-step-label">{stepLabel}</span>
               {stepIdx > 1 && (
-                <button type="button" onClick={back} style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 20, cursor: 'pointer' }} aria-label={isHe ? 'חזרה' : 'Back'}>
-                  {isHe ? '←' : '→'}
+                <button type="button" className="ob-back" onClick={back} aria-label={isHe ? 'חזרה' : 'Back'}>
+                  <ObArrow isHe={isHe} />
                 </button>
               )}
             </div>
-            <div className="wizard-progress" style={{ gridTemplateColumns: `repeat(${QUESTION_STEPS.length}, 1fr)`, marginBottom: 24 }}>
+            <div className="ob-bars">
               {QUESTION_STEPS.map((s, i) => (
-                <div key={s} className={`wizard-progress__bar${i <= questionIdx ? ' wizard-progress__bar--done' : ''}`} />
+                <div key={s} className={`ob-bar${i <= questionIdx ? ' ob-bar--on' : ''}`} />
               ))}
             </div>
-          </>
+          </div>
         )}
 
         {/* ═══ VALUE PROP CAROUSEL ═══ */}
@@ -263,28 +330,33 @@ export default function OnboardingFlow() {
         {/* ═══ GOAL ═══ */}
         {key === 'goal' && (
           <div className="wizard-step">
-            <h1 className="wizard-step__title">{isHe ? 'מה המטרה שלך?' : "What's your goal?"}</h1>
-            <p className="wizard-step__sub">{isHe ? 'נבנה תוכנית סביב המטרה הזו. תמיד אפשר לשנות בהמשך.' : "We'll build a plan around this goal. You can change it anytime."}</p>
-            <div className="goal-options goal-options--stack">
+            <h1 className="ob-title">{isHe ? 'מה המטרה שלך?' : "What's your goal?"}</h1>
+            <p className="ob-sub">{isHe ? 'התוכנית תיבנה סביבה. אפשר לשנות בכל רגע.' : "Your plan is built around it. You can change it anytime."}</p>
+            <div className="ob-body">
               {[
-                { value: 'cut', icon: '🔥', label: t.goalCut, desc: t.goalCutDesc, recommended: true },
-                { value: 'bulk', icon: '💪', label: t.goalBulk, desc: t.goalBulkDesc },
-                { value: 'maintain', icon: '⚖️', label: t.goalMaintain, desc: t.goalMaintainDesc },
+                { value: 'cut', icon: 'flame', tint: 'var(--streak)', label: t.goalCut, desc: t.goalCutDesc, recommended: true },
+                { value: 'bulk', icon: 'dumbbell', tint: 'var(--accent)', label: t.goalBulk, desc: t.goalBulkDesc },
+                { value: 'maintain', icon: 'target', tint: 'var(--violet)', label: t.goalMaintain, desc: t.goalMaintainDesc },
               ].map((g) => (
-                <button key={g.value} type="button" className={`goal-option${goal === g.value ? ' selected' : ''}`} onClick={() => selectGoal(g.value)}>
-                  {goal === g.value && <div className="goal-option__check">✓</div>}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div className="goal-icon">{g.icon}</div>
-                    {g.recommended && goal !== g.value && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#f5a623', background: 'rgba(245,166,35,0.15)', padding: '4px 10px', borderRadius: 999 }}>
-                        {isHe ? 'מומלץ' : 'Recommended'}
-                      </span>
-                    )}
-                  </div>
-                  <div className="goal-label">{g.label}</div>
-                  <div className="goal-desc">{g.desc}</div>
+                <button key={g.value} type="button" className={`ob-opt${goal === g.value ? ' ob-opt--on' : ''}`} onClick={() => selectGoal(g.value)}>
+                  <span className="ob-opt__icon" style={{ background: `color-mix(in srgb, ${g.tint} 11%, transparent)` }}>
+                    <ObIcon type={g.icon} color={g.tint} />
+                  </span>
+                  <span className="ob-opt__text">
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="ob-opt__label">{g.label}</span>
+                      {g.recommended && <span className="ob-badge">{isHe ? 'מומלץ' : 'Recommended'}</span>}
+                    </span>
+                    <span className="ob-opt__desc">{g.desc}</span>
+                  </span>
+                  <span className="ob-opt__radio">{goal === g.value && <ObCheck />}</span>
                 </button>
               ))}
+            </div>
+            <div className="ob-cta">
+              <button type="button" className="ob-btn" onClick={next} disabled={!goal}>
+                {isHe ? 'המשך' : 'Continue'}
+              </button>
             </div>
           </div>
         )}
@@ -292,20 +364,27 @@ export default function OnboardingFlow() {
         {/* ═══ EXPERIENCE ═══ */}
         {key === 'experience' && (
           <div className="wizard-step">
-            <h1 className="wizard-step__title">{isHe ? 'מה רמת הניסיון שלך?' : "What's your experience level?"}</h1>
-            <p className="wizard-step__sub">{isHe ? 'כדי לקבוע עומס ומורכבות תרגילים נכונים.' : 'So we can set the right load and exercise complexity.'}</p>
-            <div className="goal-options goal-options--stack">
+            <h1 className="ob-title">{isHe ? 'כמה ניסיון יש לך?' : 'How much experience do you have?'}</h1>
+            <p className="ob-sub">{isHe ? 'זה קובע את רמת הקושי של האימונים.' : 'This sets how hard your workouts are.'}</p>
+            <div className="ob-body">
               {[
                 { value: 'beginner', label: t.expBeginner, desc: t.expBeginnerDesc },
                 { value: 'intermediate', label: t.expIntermediate, desc: t.expIntermediateDesc },
                 { value: 'advanced', label: t.expAdvanced, desc: t.expAdvancedDesc },
               ].map((ex) => (
-                <button key={ex.value} type="button" className={`goal-option${experience === ex.value ? ' selected' : ''}`} onClick={() => selectExperience(ex.value)} style={{ padding: '18px 20px', minHeight: 64 }}>
-                  {experience === ex.value && <div className="goal-option__check">✓</div>}
-                  <div className="goal-label" style={{ fontSize: 16 }}>{ex.label}</div>
-                  <div className="goal-desc">{ex.desc}</div>
+                <button key={ex.value} type="button" className={`ob-opt${experience === ex.value ? ' ob-opt--on' : ''}`} onClick={() => selectExperience(ex.value)}>
+                  <span className="ob-opt__text">
+                    <span className="ob-opt__label">{ex.label}</span>
+                    <span className="ob-opt__desc">{ex.desc}</span>
+                  </span>
+                  <span className="ob-opt__radio">{experience === ex.value && <ObCheck />}</span>
                 </button>
               ))}
+            </div>
+            <div className="ob-cta">
+              <button type="button" className="ob-btn" onClick={next} disabled={!experience}>
+                {isHe ? 'המשך' : 'Continue'}
+              </button>
             </div>
           </div>
         )}
@@ -313,47 +392,76 @@ export default function OnboardingFlow() {
         {/* ═══ EQUIPMENT ═══ */}
         {key === 'equipment' && (
           <div className="wizard-step">
-            <h1 className="wizard-step__title">{isHe ? 'אילו אמצעים זמינים לך?' : 'What equipment do you have access to?'}</h1>
-            <p className="wizard-step__sub">{isHe ? 'אפשר לבחור יותר מאפשרות אחת.' : "You can pick more than one."}</p>
-            <div className="goal-options goal-options--stack">
-              {[
-                { value: 'home', icon: '🏠', label: isHe ? 'אימוני בית' : 'Home workouts' },
-                { value: 'gym', icon: '🏋️', label: isHe ? 'חדר כושר מלא' : 'Full gym' },
-                { value: 'none', icon: '🧘', label: isHe ? 'בלי ציוד בכלל' : 'No equipment at all' },
-              ].map((eq) => (
-                <button
-                  key={eq.value}
-                  type="button"
-                  className={`goal-option${equipment.includes(eq.value) ? ' selected' : ''}`}
-                  onClick={() => toggleEquipment(eq.value)}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: '16px 18px' }}
-                >
-                  <span style={{ fontSize: 26 }}>{eq.icon}</span>
-                  <span className="goal-label">{eq.label}</span>
-                  {equipment.includes(eq.value) && <span style={{ marginInlineStart: 'auto', color: 'var(--accent)', fontWeight: 800 }}>✓</span>}
-                </button>
-              ))}
+            <h1 className="ob-title">{isHe ? 'איזה ציוד זמין לך?' : 'What equipment do you have?'}</h1>
+            <p className="ob-sub">{isHe ? 'אפשר לבחור כמה. התרגילים יותאמו למה שיש.' : 'Pick as many as apply. Exercises adapt to what you have.'}</p>
+            <div className="ob-body">
+              <div className="ob-pills">
+                {EQUIPMENT_OPTIONS.map((eq) => {
+                  const on = equipment.includes(eq.value);
+                  return (
+                    <button
+                      key={eq.value}
+                      type="button"
+                      className={`ob-pill${on ? ' ob-pill--on' : ''}`}
+                      onClick={() => toggleEquipment(eq.value)}
+                      aria-pressed={on}
+                    >
+                      {isHe ? eq.he : eq.en}
+                      {on && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
+                             strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12.5l4.5 4.5L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="ob-hint">
+                {equipment.length > 0 && (isHe ? `נבחרו ${equipment.length} · ` : `${equipment.length} selected · `)}
+                {isHe ? 'חדר כושר ביתי? סמן רק מה שיש לך' : 'Home gym? Tick only what you own'}
+              </div>
             </div>
-            <button type="button" className="btn btn-primary cta-sticky" onClick={next} style={{ marginTop: 20 }}>
-              <span>{isHe ? 'המשך' : 'Continue'} {isHe ? '←' : '→'}</span>
-            </button>
+            <div className="ob-cta">
+              <button type="button" className="ob-btn" onClick={next} disabled={equipment.length === 0}>
+                {isHe ? 'המשך' : 'Continue'}
+              </button>
+            </div>
           </div>
         )}
 
         {/* ═══ FREQUENCY ═══ */}
         {key === 'frequency' && (
           <div className="wizard-step">
-            <h1 className="wizard-step__title">{isHe ? 'כמה פעמים בשבוע?' : 'How many times a week?'}</h1>
-            <p className="wizard-step__sub">{isHe ? 'כמות ריאלית תשמור על מוטיבציה לאורך זמן.' : 'A realistic amount keeps motivation up over time.'}</p>
-            <div className="chip-row" role="radiogroup" aria-label={t.workoutsPerWeek}>
-              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-                <button key={n} type="button" className={`chip-row__chip${frequency === n ? ' chip-row__chip--active' : ''}`} onClick={() => selectFrequency(n)} style={{ minWidth: 60, minHeight: 60, fontSize: 18 }}>
-                  {n}
-                </button>
-              ))}
+            <h1 className="ob-title">{isHe ? 'כמה אימונים בשבוע?' : 'How many workouts a week?'}</h1>
+            <p className="ob-sub">{isHe ? 'עדיף מספר שתעמוד בו באמת.' : 'Pick a number you can actually keep.'}</p>
+            <div className="ob-body">
+              <div className="ob-freq" role="radiogroup" aria-label={t.workoutsPerWeek}>
+                {[2, 3, 4, 5, 6].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    role="radio"
+                    aria-checked={frequency === n}
+                    className={`ob-freq__tile${frequency === n ? ' ob-freq__tile--on' : ''}`}
+                    onClick={() => selectFrequency(n)}
+                  >
+                    {n}
+                    {n === 4 && <span className="ob-freq__rec">{isHe ? 'מומלץ' : 'Best'}</span>}
+                  </button>
+                ))}
+              </div>
+              <div className="ob-insight">
+                <ObIcon type="spark" color="var(--violet)" size={18} />
+                <span>{splitAdvice(frequency, isHe)}</span>
+              </div>
             </div>
-            <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 16, textAlign: 'center' }}>
-              {isHe ? 'מומלץ עבורך: 4 אימונים בשבוע' : 'Recommended for you: 4 workouts a week'}
+            {/* Frequency defaults to 4, so without this the only way forward is
+                tapping the tile that's already selected. */}
+            <div className="ob-cta">
+              <button type="button" className="ob-btn" onClick={next}>
+                {isHe ? 'המשך' : 'Continue'}
+              </button>
             </div>
           </div>
         )}
@@ -361,35 +469,50 @@ export default function OnboardingFlow() {
         {/* ═══ BODY (optional, always has sensible defaults) ═══ */}
         {key === 'body' && (
           <div className="wizard-step">
-            <h1 className="wizard-step__title">{isHe ? 'בוא נדייק את התוכנית' : "Let's fine-tune the plan"}</h1>
-            <p className="wizard-step__sub">{isHe ? 'אופציונלי — אפשר לדלג ולהוסיף מאוחר יותר.' : "Optional — you can skip and add this later."}</p>
-            <div className="form-group">
-              <label>{t.genderLabel}</label>
-              <div className="toggle-row" role="radiogroup" aria-label={t.genderLabel}>
-                <button type="button" role="radio" aria-checked={gender === 'male'} className={`toggle-row__btn${gender === 'male' ? ' toggle-row__btn--active' : ''}`} onClick={() => setGender('male')}>{t.male}</button>
-                <button type="button" role="radio" aria-checked={gender === 'female'} className={`toggle-row__btn${gender === 'female' ? ' toggle-row__btn--active' : ''}`} onClick={() => setGender('female')}>{t.female}</button>
+            <h1 className="ob-title">{isHe ? 'בוא נדייק את התוכנית' : "Let's fine-tune the plan"}</h1>
+            <p className="ob-sub">{isHe ? 'אופציונלי — אפשר לדלג ולהוסיף מאוחר יותר.' : "Optional — you can skip and add this later."}</p>
+            <div className="ob-body" style={{ gap: 18 }}>
+              <div>
+                <div className="ob-field__label">{t.genderLabel}</div>
+                <div className="ob-freq" role="radiogroup" aria-label={t.genderLabel}>
+                  {[{ v: 'male', l: t.male }, { v: 'female', l: t.female }].map((g) => (
+                    <button
+                      key={g.v}
+                      type="button"
+                      role="radio"
+                      aria-checked={gender === g.v}
+                      className={`ob-freq__tile${gender === g.v ? ' ob-freq__tile--on' : ''}`}
+                      style={{ fontSize: 15.5, padding: '14px 0' }}
+                      onClick={() => setGender(g.v)}
+                    >
+                      {g.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div className="ob-field__label">{t.heightLabel}</div>
+                  <input className="ob-input" type="number" inputMode="decimal" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} min="100" max="250" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div className="ob-field__label">{t.weightLabel}</div>
+                  <input className="ob-input" type="number" inputMode="decimal" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} min="30" max="300" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div className="ob-field__label">{t.age}</div>
+                  <input className="ob-input" type="number" inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value)} min="13" max="120" />
+                </div>
               </div>
             </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>{t.heightLabel}</label>
-                <input className="field-input" type="number" inputMode="decimal" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} min="100" max="250" />
-              </div>
-              <div className="form-group">
-                <label>{t.weightLabel}</label>
-                <input className="field-input" type="number" inputMode="decimal" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} min="30" max="300" />
-              </div>
+            <div className="ob-cta">
+              <button type="button" className="ob-btn" onClick={next}>
+                {isHe ? 'בנה את התוכנית שלי' : 'Build my plan'}
+              </button>
+              <button type="button" className="ob-skip" onClick={next}>
+                {isHe ? 'דלג בינתיים' : 'Skip for now'}
+              </button>
             </div>
-            <div className="form-group">
-              <label>{t.age}</label>
-              <input className="field-input" type="number" inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value)} min="13" max="120" />
-            </div>
-            <button type="button" className="btn btn-primary cta-sticky" onClick={next} style={{ marginTop: 8 }}>
-              <span>{isHe ? 'המשך' : 'Continue'} {isHe ? '←' : '→'}</span>
-            </button>
-            <button type="button" onClick={next} style={{ border: 'none', background: 'none', color: 'var(--text-3)', fontSize: 13, fontWeight: 600, padding: 12, cursor: 'pointer', alignSelf: 'center' }}>
-              {isHe ? 'דלג בינתיים' : 'Skip for now'}
-            </button>
           </div>
         )}
 
