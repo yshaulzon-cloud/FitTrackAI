@@ -3828,9 +3828,12 @@ h1, h2, h3, h4, h5, h6 { line-height: 1.2; }
 }
 
 /* ── LegalModal padding on very small screens ─────────────── */
+/* Scoped to the legal modal's own class. This used to also match
+   `[role="dialog"] > div`, which silently force-padded EVERY direct child of
+   any dialog — inflating things like the sleep sheet's 4px drag handle to
+   32px (padding + border-box beats the inline height). */
 @media (max-width: 480px) {
-  .legal-modal-content,
-  [role="dialog"] > div {
+  .legal-modal-content {
     padding: 16px;
   }
 }

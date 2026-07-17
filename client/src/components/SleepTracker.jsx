@@ -1,35 +1,52 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
 import { scheduleSleepPrompts, cancelSleepPrompts } from '../lib/notifications';
 
-const qualityOptions = [
-  { value: 'bad', icon: '😴', color: '#ff6b6b' },
-  { value: 'ok', icon: '🙂', color: '#FFB648' },
-  { value: 'good', icon: '😊', color: '#1EC0A2' },
-  { value: 'great', icon: '🌟', color: '#8F8AF7' },
+// Prototype sleep sheet: a fixed set of hour chips rather than a drag gauge.
+// '9+' logs 9 — the server only needs the qualifying threshold, and a single
+// tap beats dragging a slider to a half-hour on a phone.
+const HOUR_OPTIONS = [
+  { label: '6', value: 6 },
+  { label: '6.5', value: 6.5 },
+  { label: '7', value: 7 },
+  { label: '7.5', value: 7.5 },
+  { label: '8', value: 8 },
+  { label: '9+', value: 9 },
 ];
 
-function getScoreColor(hours, min) {
-  if (hours >= min) return '#1EC0A2';
-  if (hours >= min - 1) return '#FFB648';
-  return '#ff6b6b';
+// Ordered best → worst, matching the prototype's row.
+const QUALITY_OPTIONS = ['great', 'good', 'ok', 'bad'];
+
+function MoonIcon({ size = 17, color = '#8F8AF7' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 14A8.5 8.5 0 1 1 10 4a7 7 0 0 0 10 10z" />
+    </svg>
+  );
 }
 
 export default function SleepTracker({ api, showXP }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const isHe = lang === 'he';
   const [todaySleep, setTodaySleep] = useState(null);
   const [recommendation, setRecommendation] = useState(null);
-  const [hours, setHours] = useState(7);
-  const [quality, setQuality] = useState('ok');
+  const [hours, setHours] = useState(7.5);
+  const [quality, setQuality] = useState('good');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const barRef = useRef(null);
-  const dragging = useRef(false);
+  const [open, setOpen] = useState(false);
 
+  useEffect(() => { loadData(); }, []);
+
+  // Lock body scroll while the sheet is up.
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = prev; document.removeEventListener('keydown', onKey); };
+  }, [open]);
 
   async function loadData() {
     try {
@@ -41,7 +58,6 @@ export default function SleepTracker({ api, showXP }) {
         setQuality(res.sleep.quality);
         cancelSleepPrompts().catch(() => {});
       } else {
-        // Not logged yet today — arm today's remaining reminder slot(s).
         scheduleSleepPrompts().catch(() => {});
       }
     } catch (err) {
@@ -51,56 +67,17 @@ export default function SleepTracker({ api, showXP }) {
     }
   }
 
-  // Drag logic
-  const pctToHours = useCallback((pct) => {
-    const raw = (pct / 100) * 12;
-    return Math.round(raw * 2) / 2; // snap to 0.5
-  }, []);
-
-  const handlePointerMove = useCallback((e) => {
-    if (!dragging.current || !barRef.current) return;
-    const rect = barRef.current.getBoundingClientRect();
-    const x = e.touches ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-    const pct = Math.min(100, Math.max(0, (x / rect.width) * 100));
-    setHours(pctToHours(pct));
-  }, [pctToHours]);
-
-  const handlePointerUp = useCallback(() => {
-    dragging.current = false;
-    document.removeEventListener('mousemove', handlePointerMove);
-    document.removeEventListener('mouseup', handlePointerUp);
-    document.removeEventListener('touchmove', handlePointerMove);
-    document.removeEventListener('touchend', handlePointerUp);
-  }, [handlePointerMove]);
-
-  const handlePointerDown = useCallback((e) => {
-    e.preventDefault();
-    dragging.current = true;
-    handlePointerMove(e);
-    document.addEventListener('mousemove', handlePointerMove);
-    document.addEventListener('mouseup', handlePointerUp);
-    document.addEventListener('touchmove', handlePointerMove, { passive: false });
-    document.addEventListener('touchend', handlePointerUp);
-  }, [handlePointerMove, handlePointerUp]);
-
   async function handleSave() {
     setSaving(true);
     try {
-      const res = await api('/sleep/log', {
-        method: 'POST',
-        body: JSON.stringify({ hours, quality }),
-      });
+      const res = await api('/sleep/log', { method: 'POST', body: JSON.stringify({ hours, quality }) });
       setTodaySleep(res.sleep);
       setRecommendation(res.recommendation);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-      // Logged — kill today's pending reminders immediately.
       cancelSleepPrompts().catch(() => {});
       if (res.xpResults?.length > 0) {
-        for (const xp of res.xpResults) {
-          if (xp.xpGained && showXP) showXP(xp);
-        }
+        for (const xp of res.xpResults) if (xp.xpGained && showXP) showXP(xp);
       }
+      setOpen(false);
     } catch (err) {
       console.error('Sleep save error:', err);
     } finally {
@@ -110,143 +87,128 @@ export default function SleepTracker({ api, showXP }) {
 
   if (loading) return null;
 
-  const rec = recommendation || { min: 7, max: 9, recommended: 9, workoutBonus: 0 };
-  const scoreColor = getScoreColor(hours, rec.min);
-  const gaugePercent = Math.min(100, Math.max(0, (hours / 12) * 100));
+  const rec = recommendation || { min: 7, max: 9 };
+  const qLabel = (q) => t[`sleepQuality_${q}`] || q;
+
+  const chip = (selected) => ({
+    flex: 1,
+    borderRadius: 13,
+    padding: '13px 0',
+    textAlign: 'center',
+    fontSize: 15,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    background: selected ? 'rgba(47,227,194,.1)' : 'var(--bg-input)',
+    border: selected ? '1.5px solid #2FE3C2' : '1px solid rgba(255,255,255,.07)',
+    color: selected ? '#2FE3C2' : '#B9C4D2',
+    fontWeight: selected ? 700 : 400,
+  });
 
   return (
-    <div className="card">
-      <div className="card-header">
-        <h3>🌙 {t.sleepLogToday}</h3>
+    <>
+      {/* Compact row */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        style={{
+          width: '100%', marginTop: 14, background: 'var(--surface)',
+          border: '1px solid rgba(255,255,255,.06)', borderRadius: 18,
+          padding: '15px 18px', display: 'flex', alignItems: 'center', gap: 13,
+          cursor: 'pointer', fontFamily: 'inherit', textAlign: isHe ? 'right' : 'left',
+        }}
+      >
+        <span style={{ width: 34, height: 34, borderRadius: 11, background: 'rgba(143,138,247,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <MoonIcon />
+        </span>
+        <span style={{ flex: 1 }}>
+          <span style={{ fontSize: 14.5, fontWeight: 500, color: 'var(--text-1)' }}>{isHe ? 'שינה ' : 'Sleep '}</span>
+          {todaySleep ? (
+            <span style={{ fontSize: 14.5, color: '#93A0B4' }}>
+              · {todaySleep.hours} {isHe ? 'שעות' : 'h'} · {qLabel(todaySleep.quality)}
+            </span>
+          ) : (
+            <span style={{ fontSize: 14.5, color: '#93A0B4' }}>· {isHe ? 'טרם נרשמה' : 'not logged yet'}</span>
+          )}
+        </span>
         {todaySleep && (
-          <span className="badge" style={{ background: 'rgba(0,184,148,0.15)', color: 'var(--success)' }}>
-            ✓ {todaySleep.hours} {t.sleepHours}
-          </span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2FE3C2" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
         )}
-      </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5E6B7E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d={isHe ? 'M14 6l-6 6 6 6' : 'M10 6l6 6-6 6'} />
+        </svg>
+      </button>
 
-      {/* Hours display */}
-      <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
-        <div style={{ fontSize: '40px', fontWeight: 800, color: scoreColor, lineHeight: 1, transition: 'color 0.2s' }}>
-          {hours}
-        </div>
-        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{t.sleepHours}</div>
-      </div>
-
-      {/* Gauge bar with +/- and drag */}
-      <div style={{ margin: '12px auto 0', maxWidth: '360px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', direction: 'ltr' }}>
-          <button
-            type="button"
-            onClick={() => setHours(Math.max(0, Math.round((hours - 0.5) * 10) / 10))}
-            style={{
-              width: '30px', height: '30px', borderRadius: '50%',
-              border: `2px solid ${scoreColor}`, background: 'transparent',
-              color: scoreColor, fontSize: '18px', fontWeight: 700,
-              cursor: 'pointer', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', padding: 0, flexShrink: 0, lineHeight: 1,
-            }}
-          >−</button>
+      {/* Bottom sheet */}
+      {open && (
+        <>
           <div
-            ref={barRef}
-            onMouseDown={handlePointerDown}
-            onTouchStart={handlePointerDown}
-            style={{ flex: 1, position: 'relative', cursor: 'pointer', touchAction: 'none', userSelect: 'none', padding: '10px 0' }}
-          >
-            <div style={{
-              height: '14px', borderRadius: '7px',
-              background: 'linear-gradient(to right, #ff6b6b 0%, #FFB648 30%, #1EC0A2 55%, #8F8AF7 85%, #8F8AF7 100%)',
-              position: 'relative',
-            }}>
-              {/* Recommended zone highlight */}
-              <div style={{
-                position: 'absolute', top: '-3px',
-                left: `${(rec.min / 12) * 100}%`,
-                width: `${((rec.max - rec.min) / 12) * 100}%`,
-                height: '20px', borderRadius: '4px',
-                border: '2px solid rgba(255,255,255,0.5)',
-                pointerEvents: 'none',
-              }} />
-              {/* Draggable pointer */}
-              <div
-                onMouseDown={handlePointerDown}
-                onTouchStart={handlePointerDown}
-                style={{
-                  position: 'absolute', top: '50%',
-                  left: `${gaugePercent}%`,
-                  transform: 'translate(-50%, -50%)',
-                  width: '26px', height: '26px', borderRadius: '50%',
-                  background: 'white', border: `3px solid ${scoreColor}`,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
-                  cursor: 'grab',
-                  transition: dragging.current ? 'none' : 'left 0.15s ease',
-                  zIndex: 2,
-                }}
-              />
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setHours(Math.min(12, Math.round((hours + 0.5) * 10) / 10))}
+            onClick={() => setOpen(false)}
+            /* Above .mobile-nav (z-index 100) — otherwise the nav covers the
+               sheet's save button on mobile. */
+            style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,12,.68)', backdropFilter: 'blur(2px)', zIndex: 200 }}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={isHe ? 'רישום שינה' : 'Log sleep'}
+            dir={isHe ? 'rtl' : 'ltr'}
             style={{
-              width: '30px', height: '30px', borderRadius: '50%',
-              border: `2px solid ${scoreColor}`, background: 'transparent',
-              color: scoreColor, fontSize: '18px', fontWeight: 700,
-              cursor: 'pointer', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', padding: 0, flexShrink: 0, lineHeight: 1,
+              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
+              background: 'var(--surface-elev)', borderRadius: '28px 28px 0 0',
+              borderTop: '1px solid rgba(255,255,255,.08)', padding: '12px 24px 30px',
+              maxWidth: 520, margin: '0 auto',
             }}
-          >+</button>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', padding: '4px 36px 0', direction: 'ltr' }}>
-          <span>0</span><span>3</span><span>6</span><span>9</span><span>12</span>
-        </div>
-      </div>
+          >
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,.15)', margin: '0 auto 20px' }} />
 
-      {/* Recommendation */}
-      <div style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '10px' }}>
-        {t.sleepRecommended}: <strong style={{ color: scoreColor }}>{rec.min}–{rec.max} {t.sleepHours}</strong>
-        {rec.workoutBonus > 0 && (
-          <span style={{ color: 'var(--primary-light)', marginInlineStart: '6px' }}>💪 +{rec.workoutBonus}</span>
-        )}
-      </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(143,138,247,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <MoonIcon size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)' }}>
+                  {isHe ? 'כמה ישנת הלילה?' : 'How long did you sleep?'}
+                </div>
+                <div style={{ fontSize: 12.5, color: '#7C8798', marginTop: 2 }}>
+                  {isHe ? `מומלץ: ${rec.min}–${rec.max} שעות` : `Recommended: ${rec.min}–${rec.max} hours`}
+                </div>
+              </div>
+            </div>
 
-      {/* Quality selector */}
-      <div style={{ marginTop: '14px' }}>
-        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', textAlign: 'center' }}>
-          {t.sleepQuality}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-          {qualityOptions.map((q) => (
+            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+              {HOUR_OPTIONS.map((h) => (
+                <button key={h.label} type="button" onClick={() => setHours(h.value)} style={chip(hours === h.value)}>
+                  {h.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ fontSize: 13.5, color: '#93A0B4', margin: '20px 0 10px' }}>
+              {isHe ? 'איך הייתה השינה?' : 'How was it?'}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {QUALITY_OPTIONS.map((q) => (
+                <button key={q} type="button" onClick={() => setQuality(q)} style={{ ...chip(quality === q), fontSize: 13.5, padding: '12px 0', fontWeight: quality === q ? 600 : 400 }}>
+                  {qLabel(q)}
+                </button>
+              ))}
+            </div>
+
             <button
-              key={q.value}
               type="button"
-              onClick={() => setQuality(q.value)}
+              onClick={handleSave}
+              disabled={saving}
               style={{
-                padding: '6px 12px', borderRadius: '10px', cursor: 'pointer',
-                border: quality === q.value ? `2px solid ${q.color}` : '1px solid var(--border)',
-                background: quality === q.value ? `${q.color}15` : 'transparent',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
-                transition: 'all 0.15s',
+                width: '100%', background: 'linear-gradient(135deg,#36E8C6,#1EC0A2)', color: '#04241B',
+                fontWeight: 700, border: 'none', borderRadius: 16, padding: 16, fontSize: 16,
+                fontFamily: 'inherit', cursor: saving ? 'wait' : 'pointer', marginTop: 22, opacity: saving ? 0.7 : 1,
               }}
             >
-              <span style={{ fontSize: '20px' }}>{q.icon}</span>
-              <span style={{ fontSize: '10px', color: quality === q.value ? q.color : 'var(--text-muted)', fontWeight: 600 }}>
-                {t[`sleepQuality_${q.value}`]}
-              </span>
+              {saving ? t.saving : (isHe ? 'עדכן שינה' : 'Save sleep')}
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Save button */}
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="btn btn-primary"
-        style={{ marginTop: '14px', width: '100%' }}
-      >
-        {saving ? t.saving : saved ? `✓ ${t.sleepSaved}` : todaySleep ? t.sleepUpdate : t.sleepLog}
-      </button>
-    </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }

@@ -385,6 +385,7 @@ export default function LegalModal({ doc, onClose }) {
       }}
     >
       <div
+        className="legal-modal-content"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'var(--surface)',
