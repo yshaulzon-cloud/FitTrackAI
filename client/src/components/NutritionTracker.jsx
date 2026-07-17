@@ -403,7 +403,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080C13;color:#e2e8f0;pa
 .subtitle{font-size:13px;color:#94a3b8;margin-top:4px}
 .day-title{font-size:18px;font-weight:800;color:#2FE3C2;margin:24px 0 12px;display:flex;align-items:center;gap:10px}
 .day-title::before{content:"";display:block;width:4px;height:22px;background:linear-gradient(#2FE3C2,#8F8AF7);border-radius:99px;flex-shrink:0}
-.meal-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 18px;margin-bottom:9px}
+.meal-card{background:var(--fill-faint);border:1px solid var(--border-subtle);border-radius:14px;padding:14px 18px;margin-bottom:9px}
 .meal-type{font-size:11px;font-weight:700;color:#2FE3C2;letter-spacing:.6px;text-transform:uppercase;margin-bottom:5px}
 .meal-name{font-size:15px;font-weight:600;color:#f1f5f9;margin-bottom:9px;line-height:1.4}
 .meal-macros{display:flex;gap:12px;font-size:12px;font-weight:600;flex-wrap:wrap}
@@ -693,7 +693,7 @@ ${content}
       {/* Header + log/menu toggle (prototype) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--text-1)' }}>{isHe ? 'תזונה' : 'Nutrition'}</h1>
-        <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 999, padding: 3 }}>
+        <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 999, padding: 3 }}>
           <button type="button" onClick={() => setMenuOpen(false)}
             style={{ fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: '6px 14px', cursor: 'pointer', border: 'none', fontFamily: 'inherit',
               color: !menuOpen ? '#04241B' : '#93A0B4', background: !menuOpen ? '#2FE3C2' : 'transparent' }}>
@@ -709,7 +709,7 @@ ${content}
 
       {/* Calorie summary card — one block instead of three stat tiles */}
       {!menuOpen && (
-        <div style={{ marginTop: 16, background: 'var(--surface)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 20, padding: '18px 20px' }}>
+        <div style={{ marginTop: 16, background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 20, padding: '18px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <div>
               <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-1)' }}>{Math.round(calorieProgress).toLocaleString()}</span>
@@ -719,7 +719,7 @@ ${content}
               {(todayData?.meals || []).length} {isHe ? 'ארוחות' : 'meals'}
             </span>
           </div>
-          <div style={{ height: 7, borderRadius: 4, background: 'rgba(255,255,255,.06)', marginTop: 12 }}>
+          <div style={{ height: 7, borderRadius: 4, background: 'var(--border-faint)', marginTop: 12 }}>
             <div style={{ width: `${pctOf(calorieProgress, calorieTarget)}%`, height: 7, borderRadius: 4, background: 'linear-gradient(90deg,#1EC0A2,#36E8C6)' }} />
           </div>
           <div style={{ display: 'flex', gap: 16, marginTop: 14 }}>
@@ -733,7 +733,7 @@ ${content}
                   <span style={{ color: '#93A0B4' }}>{m.label}</span>
                   <span style={{ color: m.color, fontWeight: 600 }}>{Math.round(m.cur)}g</span>
                 </div>
-                <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,.06)' }}>
+                <div style={{ height: 4, borderRadius: 2, background: 'var(--border-faint)' }}>
                   <div style={{ width: `${pctOf(m.cur, m.tgt)}%`, height: 4, borderRadius: 2, background: m.color }} />
                 </div>
               </div>
@@ -855,7 +855,7 @@ ${content}
                   {loggingIdx === nextIdx ? t.saving : (isHe ? 'סמן שאכלתי' : 'Mark eaten')}
                 </button>
                 <button type="button" onClick={() => swapMealAtIndex(nextIdx)} disabled={swappingIdx === nextIdx}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', color: '#B9C4D2', borderRadius: 13, padding: 12, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }}>
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'var(--fill-faint)', border: '1px solid var(--border)', color: '#B9C4D2', borderRadius: 13, padding: 12, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B9C4D2" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 8h11l-3-3M17 16H6l3 3" /></svg>
                   {swappingIdx === nextIdx ? '…' : (isHe ? 'החלף' : 'Swap')}
                 </button>
@@ -870,7 +870,7 @@ ${content}
                 const done = loggedMenuSet.has(idx);
                 return (
                   <button key={`m-${idx}`} type="button" onClick={() => !done && logMenuMeal(idx)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 14, padding: '12px 15px', opacity: done ? 0.75 : 1, cursor: done ? 'default' : 'pointer', fontFamily: 'inherit', textAlign: 'start', width: '100%' }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 14, padding: '12px 15px', opacity: done ? 0.75 : 1, cursor: done ? 'default' : 'pointer', fontFamily: 'inherit', textAlign: 'start', width: '100%' }}>
                     {done
                       ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2FE3C2" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M5 12.5l4.5 4.5L19 7" /></svg>
                       : <span style={{ width: 15, height: 15, borderRadius: '50%', border: '2px solid rgba(255,255,255,.18)', flexShrink: 0 }} />}
@@ -883,7 +883,7 @@ ${content}
                 );
               })}
             </div>
-            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 14, padding: '13px 16px' }}>
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 14, padding: '13px 16px' }}>
               <span style={{ fontSize: 13.5, color: '#93A0B4' }}>{isHe ? 'סה״כ היום בתפריט' : "Menu total today"}</span>
               <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>
                 {menu?.totalCalories?.toLocaleString()} {isHe ? 'קק״ל' : 'kcal'} · {menu?.totalProtein}g {isHe ? 'חלבון' : 'protein'}

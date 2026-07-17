@@ -99,7 +99,7 @@ export default function SleepTracker({ api, showXP }) {
     cursor: 'pointer',
     fontFamily: 'inherit',
     background: selected ? 'rgba(47,227,194,.1)' : 'var(--bg-input)',
-    border: selected ? '1.5px solid #2FE3C2' : '1px solid rgba(255,255,255,.07)',
+    border: selected ? '1.5px solid #2FE3C2' : '1px solid var(--border-subtle)',
     color: selected ? '#2FE3C2' : '#B9C4D2',
     fontWeight: selected ? 700 : 400,
   });
@@ -112,7 +112,7 @@ export default function SleepTracker({ api, showXP }) {
         onClick={() => setOpen(true)}
         style={{
           width: '100%', marginTop: 14, background: 'var(--surface)',
-          border: '1px solid rgba(255,255,255,.06)', borderRadius: 18,
+          border: '1px solid var(--border-faint)', borderRadius: 18,
           padding: '15px 18px', display: 'flex', alignItems: 'center', gap: 13,
           cursor: 'pointer', fontFamily: 'inherit', textAlign: isHe ? 'right' : 'left',
         }}
@@ -155,7 +155,7 @@ export default function SleepTracker({ api, showXP }) {
             style={{
               position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
               background: 'var(--surface-elev)', borderRadius: '28px 28px 0 0',
-              borderTop: '1px solid rgba(255,255,255,.08)', padding: '12px 24px 30px',
+              borderTop: '1px solid var(--border-subtle)', padding: '12px 24px 30px',
               maxWidth: 520, margin: '0 auto',
             }}
           >

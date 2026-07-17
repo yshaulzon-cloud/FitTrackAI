@@ -291,7 +291,7 @@ export default function Dashboard() {
                   <button key={s.id} type="button" onClick={() => setJourneyView(s.id)}
                     style={{
                       fontSize: 13, fontWeight: 600, borderRadius: 999, padding: '7px 16px', cursor: 'pointer',
-                      fontFamily: 'inherit', border: '1px solid rgba(255,255,255,.07)',
+                      fontFamily: 'inherit', border: '1px solid var(--border-subtle)',
                       color: on ? '#04241B' : '#93A0B4', background: on ? '#2FE3C2' : 'var(--surface)',
                     }}>
                     {s.label}
@@ -515,7 +515,7 @@ function HeroMacroBar({ label, current, target, color }) {
         <span style={{ color: '#93A0B4' }}>{label}</span>
         <span style={{ color: '#B9C4D2', fontWeight: 500 }}>{Math.round(current)}/{target}g</span>
       </div>
-      <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,.06)' }}>
+      <div style={{ height: 5, borderRadius: 3, background: 'var(--border-faint)' }}>
         <div style={{ width: `${pct}%`, height: 5, borderRadius: 3, background: color, transition: 'width .6s ease' }} />
       </div>
     </div>
@@ -646,7 +646,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
     <>
       {/* Weekly body-data prompt — slim inline row (prototype) */}
       {showBodyPrompt && (
-        <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', border: '1px solid rgba(255,255,255,.05)', borderRadius: 14, padding: '11px 14px' }}>
+        <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 14, padding: '11px 14px' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8F8AF7" strokeWidth="1.8" strokeLinecap="round" style={{ flexShrink: 0 }}>
             <rect x="3" y="9" width="18" height="6" rx="1.5" /><path d="M7 9v3M11 9v3M15 9v3" />
           </svg>
@@ -678,12 +678,12 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
       </div>
 
       {/* Calorie ring card */}
-      <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 22, padding: '22px 20px', marginBottom: 14 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 22, padding: '22px 20px', marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           {/* Calorie ring — shows consumed of target (prototype) */}
           <div style={{ position: 'relative', width: 124, height: 124, flexShrink: 0 }}>
             <svg width="124" height="124" viewBox="0 0 128 128" style={{ transform: 'rotate(-90deg)' }}>
-              <circle cx="64" cy="64" r="55" fill="none" stroke="rgba(255,255,255,.06)" strokeWidth="11" />
+              <circle cx="64" cy="64" r="55" fill="none" stroke="var(--border-faint)" strokeWidth="11" />
               <circle cx="64" cy="64" r="55" fill="none" stroke="#2FE3C2" strokeWidth="11" strokeLinecap="round"
                 strokeDasharray={C.toFixed(1)} strokeDashoffset={ringOffset}
                 style={{ transition: 'stroke-dashoffset .6s ease' }} />
@@ -710,7 +710,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#04241B" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
             {isHe ? 'הוסף ארוחה' : 'Add meal'}
           </button>
-          <button onClick={() => setActiveTab('workout')} style={{ flex: 1, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', color: 'var(--text-1)', borderRadius: 14, padding: 14, fontSize: 15, fontFamily: 'inherit', cursor: 'pointer' }}>
+          <button onClick={() => setActiveTab('workout')} style={{ flex: 1, background: 'var(--fill-faint)', border: '1px solid var(--border)', color: 'var(--text-1)', borderRadius: 14, padding: 14, fontSize: 15, fontFamily: 'inherit', cursor: 'pointer' }}>
             {isHe ? 'אימון' : 'Train'}
           </button>
         </div>
@@ -729,7 +729,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
       </div>
 
       {/* Week strip */}
-      <div style={{ marginBottom: 14, background: 'var(--surface)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 18, padding: '16px 18px' }}>
+      <div style={{ marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 18, padding: '16px 18px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-1)' }}>
             {isHe ? 'השבוע שלך' : 'Your week'}
@@ -751,8 +751,8 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
               <div key={i} style={{ flex: 1, textAlign: 'center' }}>
                 <div style={{
                   height: 38, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: done ? 'rgba(47,227,194,.14)' : isToday ? 'rgba(47,227,194,.05)' : 'rgba(255,255,255,.03)',
-                  border: done ? '1px solid rgba(47,227,194,.3)' : isToday ? '1.5px dashed rgba(47,227,194,.5)' : '1px solid rgba(255,255,255,.06)',
+                  background: done ? 'rgba(47,227,194,.14)' : isToday ? 'rgba(47,227,194,.05)' : 'var(--fill-ghost)',
+                  border: done ? '1px solid rgba(47,227,194,.3)' : isToday ? '1.5px dashed rgba(47,227,194,.5)' : '1px solid var(--border-faint)',
                 }}>
                   {done && (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2FE3C2" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>

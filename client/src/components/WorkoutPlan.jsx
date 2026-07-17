@@ -417,7 +417,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             <div style={{ fontSize: 14, color: 'var(--text-2)', fontWeight: 600, marginBottom: 12 }}>
               {getDayName(resumeAvailable.dayName, lang)}{resumeTotal ? ` · ${resumeDone}/${resumeTotal} ${isHe ? 'סטים' : 'sets'}` : ''}
             </div>
-            <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
+            <div style={{ height: 6, borderRadius: 99, background: 'var(--border-subtle)', overflow: 'hidden' }}>
               <div style={{ width: `${resumePct}%`, height: '100%', borderRadius: 99, background: '#FF9A4D' }} />
             </div>
           </div>
@@ -534,7 +534,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--text-1)' }}>{isHe ? 'אימון' : 'Workout'}</h1>
-            <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 999, padding: 3 }}>
+            <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 999, padding: 3 }}>
               <button type="button" onClick={() => setHomeMode(false)}
                 style={{ fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: '6px 14px', cursor: 'pointer', border: 'none', fontFamily: 'inherit',
                   color: !homeMode ? '#04241B' : '#93A0B4', background: !homeMode ? '#2FE3C2' : 'transparent' }}>
@@ -584,12 +584,12 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                   style={{
                     display: 'flex', alignItems: 'center', gap: 13, textAlign: 'start', width: '100%', cursor: 'pointer', fontFamily: 'inherit',
                     background: isToday ? `rgba(${accentRgb},.05)` : 'var(--surface)',
-                    border: isToday ? `1.5px solid rgba(${accentRgb},.4)` : '1px solid rgba(255,255,255,.05)',
+                    border: isToday ? `1.5px solid rgba(${accentRgb},.4)` : '1px solid var(--border-faint)',
                     borderRadius: 16, padding: '14px 16px', opacity: (!done && !isToday) ? 0.7 : 1,
                   }}>
                   <span style={{
                     width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    background: done || isToday ? `rgba(${accentRgb},.12)` : 'rgba(255,255,255,.04)',
+                    background: done || isToday ? `rgba(${accentRgb},.12)` : 'var(--fill-faint)',
                     fontSize: 13, fontWeight: 700, color: done || isToday ? accentVar : '#7C8798',
                   }}>
                     {done

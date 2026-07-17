@@ -20,10 +20,19 @@
   --surface: #121A28;
   --surface-elev: #131B29;
 
-  /* Borders */
+  /* Borders. These must be tokens, not literal white-alpha: a hairline that
+     reads on #080C13 is invisible on a white card, so light mode has to flip
+     them to black-alpha rather than just dim them. */
   --border-subtle: rgba(255, 255, 255, 0.06);
   --border: rgba(255, 255, 255, 0.10);
   --border-strong: rgba(255, 255, 255, 0.16);
+  --border-faint: rgba(255, 255, 255, 0.05);
+  --border-hairline: rgba(255, 255, 255, 0.04);
+
+  /* Neutral fills: ghost-button backgrounds and progress tracks */
+  --fill-faint: rgba(255, 255, 255, 0.04);
+  --fill-ghost: rgba(255, 255, 255, 0.03);
+  --track: rgba(255, 255, 255, 0.06);
 
   /* Text */
   --text-1: #EEF3F8;
@@ -123,9 +132,15 @@
   --surface: #ffffff;
   --surface-elev: #f8fafc;
 
-  --border-subtle: rgba(15, 23, 42, 0.06);
-  --border: rgba(15, 23, 42, 0.10);
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border: rgba(15, 23, 42, 0.12);
   --border-strong: rgba(15, 23, 42, 0.16);
+  --border-faint: rgba(15, 23, 42, 0.07);
+  --border-hairline: rgba(15, 23, 42, 0.06);
+
+  --fill-faint: rgba(15, 23, 42, 0.04);
+  --fill-ghost: rgba(15, 23, 42, 0.03);
+  --track: rgba(15, 23, 42, 0.08);
 
   --text-1: #0f172a;
   --text-2: #334155;
