@@ -55,12 +55,58 @@ function splitAdvice(n, isHe) {
     : `At ${n} a week you get an extended push / pull / legs split — more volume per muscle group.`;
 }
 
+// Which split generateWorkoutPlan actually builds at this frequency — kept in
+// step with splitAdvice() above.
+function splitName(n, isHe) {
+  if (n <= 2) return isHe ? 'Full Body' : 'Full body';
+  if (n === 3) return isHe ? 'Push / Pull / Legs' : 'Push / pull / legs';
+  if (n === 4) return isHe ? 'פיצול עליון / תחתון' : 'Upper / lower split';
+  return isHe ? 'Push / Pull / Legs מורחב' : 'Extended push / pull / legs';
+}
+
+// Plan days come back Hebrew-labelled from the generator; English builds get the
+// same treatment WorkoutPlan.getDayName applies.
+function getDayLabel(day, isHe) {
+  if (isHe || !day) return day;
+  return day
+    .replace(/יום א'/g, 'Day 1').replace(/יום ב'/g, 'Day 2').replace(/יום ג'/g, 'Day 3')
+    .replace(/יום ד'/g, 'Day 4').replace(/יום ה'/g, 'Day 5').replace(/יום ו'/g, 'Day 6')
+    .replace('פלג גוף עליון', 'Upper Body').replace('פלג גוף תחתון', 'Lower Body')
+    .replace('כוח', 'Strength').replace('היפרטרופיה', 'Hypertrophy')
+    .replace('אירובי קל', 'Light Cardio').replace('ליבה', 'Core');
+}
+
 function ObArrow({ isHe }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={isHe ? 'M4 12h16M14 6l6 6-6 6' : 'M20 12H4M10 6l-6 6 6 6'} />
     </svg>
+  );
+}
+
+function GoogleMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#4285F4" d="M23 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.2a5.3 5.3 0 0 1-2.3 3.5v2.9h3.7c2.2-2 3.4-5 3.4-8.5z" />
+      <path fill="#34A853" d="M12 24c3.1 0 5.7-1 7.6-2.8l-3.7-2.9c-1 .7-2.4 1.1-3.9 1.1-3 0-5.5-2-6.4-4.7H1.8v3A12 12 0 0 0 12 24z" />
+      <path fill="#FBBC05" d="M5.6 14.7a7.2 7.2 0 0 1 0-4.6v-3H1.8a12 12 0 0 0 0 10.7l3.8-3.1z" />
+      <path fill="#EA4335" d="M12 4.8c1.7 0 3.2.6 4.4 1.7L19.7 3A12 12 0 0 0 1.8 7.1l3.8 3c.9-2.7 3.4-4.7 6.4-4.7z" />
+    </svg>
+  );
+}
+
+// Same shape as Login's FieldError — sits with the form, not above it.
+function FieldNote({ msg }) {
+  return (
+    <div className="field-error" role="alert">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8v5M12 16.5v.5" />
+      </svg>
+      <span>{msg}</span>
+    </div>
   );
 }
 
@@ -82,6 +128,9 @@ function ObIcon({ type, color, size = 22 }) {
   if (type === 'dumbbell') return <svg {...p}><path d="M6.5 8v8M3.5 10v4M17.5 8v8M20.5 10v4M6.5 12h11" /></svg>;
   if (type === 'target')   return <svg {...p}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3.5" /></svg>;
   if (type === 'spark')    return <svg {...p}><path d="M12 4l1.7 4.6 4.8 1.7-4.8 1.7L12 16.6l-1.7-4.6-4.8-1.7 4.8-1.7z" /></svg>;
+  // Value-prop slides use a lighter stroke at 52px so they don't read as heavy
+  if (type === 'chart')    return <svg {...p} strokeWidth="1.6"><path d="M4 19h16M6 15l4-4.5 3 3L18 8" /></svg>;
+  if (type === 'pulse')    return <svg {...p} strokeWidth="2.2"><path d="M3 13h4l2.5-6 3.5 10 2.5-6H21" /></svg>;
   return null;
 }
 
@@ -116,6 +165,7 @@ export default function OnboardingFlow() {
   const [planPreview, setPlanPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -161,7 +211,7 @@ export default function OnboardingFlow() {
       body: JSON.stringify({ goal: goal || 'maintain', workoutsPerWeek: frequency, experience: experience || 'beginner' }),
     })
       .then((r) => r.json())
-      .then((d) => setPlanPreview(d.day1 || null))
+      .then((d) => setPlanPreview(d ? { day1: d.day1 || null, days: d.days || [] } : null))
       .catch(() => {})
       .finally(() => setPreviewLoading(false));
   }, [key]); // eslint-disable-line
@@ -173,6 +223,10 @@ export default function OnboardingFlow() {
   // happened yet at the point register()'s promise resolves. ──────────────
   async function submitOnboarding(explicitToken) {
     const payload = {
+      // Google supplies a name at sign-in; the email path only gets one because
+      // the signup step now asks. Without it the account stays name-less and
+      // the app greets you as "משתמש" with a "?" avatar forever.
+      ...(fullName.trim() ? { name: fullName.trim() } : {}),
       age: Number(age) || 25,
       height: Number(heightCm) || 175,
       weight: Number(weightKg) || 75,
@@ -287,6 +341,8 @@ export default function OnboardingFlow() {
     navigate('/dashboard', { state: { tab: 'workout' } });
   }
 
+  // Google users never fill fullName, so fall back to what auth gave us.
+  const firstName = (fullName || user?.name || '').trim().split(' ')[0] || '';
   const goalLabel = goal === 'cut' ? t.goalCut : goal === 'bulk' ? t.goalBulk : goal === 'maintain' ? t.goalMaintain : '';
   const expLabel = experience === 'beginner' ? t.expBeginner : experience === 'intermediate' ? t.expIntermediate : experience === 'advanced' ? t.expAdvanced : '';
 
@@ -518,40 +574,65 @@ export default function OnboardingFlow() {
 
         {/* ═══ PLAN REVEAL ═══ */}
         {key === 'planreveal' && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', flex: 1, justifyContent: 'center', animation: 'wizardFade 0.3s ease-out' }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--text-1)', marginBottom: 6 }}>
-              {isHe ? 'התוכנית שלך מוכנה' : 'Your plan is ready'}
+          <div className="wizard-step">
+            <div className="pr-hero">
+              <div className="pr-hero__disc">
+                <ObIcon type="spark" color="var(--accent)" size={32} />
+              </div>
+              <h1 className="pr-hero__title">{isHe ? 'התוכנית שלך מוכנה' : 'Your plan is ready'}</h1>
+              <p className="pr-hero__sub">{isHe ? 'נבנתה אישית על סמך התשובות שלך' : 'Built personally from your answers'}</p>
+              <div className="pr-hero__pills">
+                <span className="pr-pill">{goalLabel}</span>
+                <span className="pr-pill">{frequency} {isHe ? 'אימונים בשבוע' : 'workouts / week'}</span>
+              </div>
             </div>
-            <div style={{ fontSize: 14, color: 'var(--text-3)', marginBottom: 20, maxWidth: 300 }}>
-              {isHe ? 'בנינו לך תוכנית אישית על סמך התשובות שלך' : "We built a personal plan from your answers"}
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
-              <span style={{ background: 'var(--accent-glow)', border: '1px solid rgba(45,212,191,0.35)', color: 'var(--accent)', fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 999 }}>{goalLabel}</span>
-              <span style={{ background: 'var(--accent-glow)', border: '1px solid rgba(45,212,191,0.35)', color: 'var(--accent)', fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 999 }}>
-                {frequency} {isHe ? 'אימונים בשבוע' : 'workouts / week'}
-              </span>
-            </div>
-            <div style={{ position: 'relative', width: '100%', maxWidth: 340, borderRadius: 20, overflow: 'hidden', background: 'var(--surface)', border: '1px solid var(--border-subtle)', padding: 18, marginBottom: 24 }}>
-              <div style={{ filter: 'blur(4px)', opacity: 0.6, textAlign: 'start' }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>
-                  {previewLoading ? '···' : (planPreview?.day || (isHe ? 'שבוע 1 · יום 1' : 'Week 1 · Day 1'))}
+
+            <div className="pr-card">
+              <div className="pr-card__head">
+                <span className="pr-card__title">{isHe ? 'שבוע לדוגמה' : 'A sample week'}</span>
+                <span className="pr-card__split">{splitName(frequency, isHe)}</span>
+              </div>
+              {previewLoading && <div className="pr-card__loading">{isHe ? 'בונה…' : 'Building…'}</div>}
+              {!previewLoading && (planPreview?.days || []).slice(0, 2).map((d, i) => (
+                <div className="pr-day" key={i}>
+                  <div>
+                    <div className="pr-day__name">{getDayLabel(d.day, isHe)}</div>
+                    <div className="pr-day__meta">{d.exerciseCount} {isHe ? 'תרגילים' : 'exercises'}</div>
+                  </div>
+                  <ObIcon type="dumbbell" color="var(--text-4)" size={18} />
                 </div>
-                {(planPreview?.exercises || (isHe
-                  ? [{ name: 'סקוואט', sets: 4, reps: '10' }, { name: 'לחיצת חזה', sets: 3, reps: '12' }, { name: 'פלאנק', sets: 3, reps: "45 שנ'" }]
-                  : [{ name: 'Squat', sets: 4, reps: '10' }, { name: 'Bench Press', sets: 3, reps: '12' }, { name: 'Plank', sets: 3, reps: '45s' }]
-                )).slice(0, 3).map((ex, i) => (
-                  <div key={i} style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4 }}>{ex.name} — {ex.sets}×{ex.reps}</div>
-                ))}
-              </div>
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.25)' }}>
-                <span style={{ fontSize: 26 }}>🔒</span>
-              </div>
+              ))}
+              {/* The rest is deliberately withheld until there's an account to
+                  save it to — blurred rather than absent so it reads as "more",
+                  not "that's all there is". */}
+              {!previewLoading && (planPreview?.days || []).length > 2 && (
+                <div className="pr-locked">
+                  <div className="pr-locked__blur" aria-hidden="true">
+                    {planPreview.days.slice(2, 4).map((d, i) => (
+                      <div key={i} style={{ marginTop: i ? 14 : 0 }}>
+                        <div className="pr-day__name">{getDayLabel(d.day, isHe)}</div>
+                        <div className="pr-day__meta">{d.exerciseCount} {isHe ? 'תרגילים' : 'exercises'}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="pr-locked__veil">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)"
+                         strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="5" y="11" width="14" height="9" rx="2" />
+                      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                    </svg>
+                    <span>{isHe ? 'התוכנית המלאה נשמרת אחרי הרשמה קצרה' : 'The full plan is saved after a short signup'}</span>
+                  </div>
+                </div>
+              )}
             </div>
-            <button type="button" className="btn btn-primary cta-sticky" onClick={next} style={{ width: '100%', maxWidth: 340 }}>
-              <span>{isHe ? 'שמור את ההתקדמות שלי' : 'Save my progress'} {isHe ? '←' : '→'}</span>
-            </button>
-            <div style={{ fontSize: 11, color: 'var(--text-4)', marginTop: 10 }}>{isHe ? '15 שניות, בלי כרטיס אשראי' : '15 seconds, no credit card'}</div>
+
+            <div className="ob-cta">
+              <button type="button" className="ob-btn" onClick={next}>
+                {isHe ? 'שמור את ההתקדמות שלי' : 'Save my progress'}
+              </button>
+              <div className="pr-fine">{isHe ? '15 שניות · בלי כרטיס אשראי' : '15 seconds · no credit card'}</div>
+            </div>
           </div>
         )}
 
@@ -562,68 +643,76 @@ export default function OnboardingFlow() {
               {isHe ? 'שומר את ההתקדמות שלך…' : 'Saving your progress…'}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'inline-flex', alignSelf: 'flex-start', background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: 12, fontWeight: 700, padding: '8px 14px', borderRadius: 999, marginBottom: 18 }}>
-                {isHe ? '● התוכנית שלך שמורה זמנית' : '● Your plan is saved temporarily'}
-              </div>
-              <h1 className="wizard-step__title" style={{ fontSize: 24 }}>{isHe ? 'שמור את ההתקדמות שלך' : 'Save your progress'}</h1>
-              <p className="wizard-step__sub" style={{ marginBottom: 18 }}>{isHe ? 'יצירת חשבון לוקחת פחות מ-15 שניות' : 'Creating an account takes less than 15 seconds'}</p>
+            <div className="wizard-step">
+              <h1 className="ob-title" style={{ marginTop: 12 }}>{isHe ? 'כמעט שם' : 'Almost there'}</h1>
+              <p className="ob-sub">{isHe ? 'צור חשבון כדי שהתוכנית וההתקדמות יישמרו.' : 'Create an account so your plan and progress are saved.'}</p>
 
-              {authError && <div className="error-message">{authError}</div>}
-
-              <label className="checkbox-row" style={{ marginBottom: 14 }}>
-                <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} />
-                <span className="checkbox-row__text">
-                  {isHe ? (
-                    <>קראתי ואני מאשר את <a onClick={openTerms} role="button" tabIndex={0}>תנאי השימוש</a> ו<a onClick={openPrivacy} role="button" tabIndex={0}>מדיניות הפרטיות</a></>
-                  ) : (
-                    <>I agree to the <a onClick={openTerms} role="button" tabIndex={0}>Terms</a> and <a onClick={openPrivacy} role="button" tabIndex={0}>Privacy Policy</a></>
-                  )}
-                </span>
-              </label>
-
-              <button
-                type="button"
-                onClick={handleGoogleSignup}
-                disabled={googleLoading || authLoading}
-                className="btn-google"
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: '#fff', color: '#1f2937', fontWeight: 600, fontSize: 15, cursor: googleLoading ? 'wait' : 'pointer', marginBottom: 16, opacity: googleLoading || authLoading ? 0.7 : 1 }}
-              >
-                <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-                  <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/>
-                  <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-                  <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.6 39.6 16.2 44 24 44z"/>
-                  <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.6l6.2 5.2C41.2 35.6 44 30.3 44 24c0-1.3-.1-2.3-.4-3.5z"/>
-                </svg>
-                <span>{googleLoading ? (isHe ? 'מתחבר…' : 'Signing in…') : (isHe ? 'המשך עם Google' : 'Continue with Google')}</span>
-              </button>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0 16px', color: 'var(--text-3)', fontSize: 12 }}>
-                <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                <span>{isHe ? 'או' : 'or'}</span>
-                <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-              </div>
-
-              <form onSubmit={handleEmailSignup}>
-                <label className="field-label" htmlFor="flow-email">{t.email}</label>
-                <input id="flow-email" className="field-input" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} dir="ltr" autoComplete="email" inputMode="email" style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left' }} />
-
-                <div className="field-row" style={{ marginTop: 12 }}>
-                  <label className="field-label" htmlFor="flow-password" style={{ marginBottom: 0 }}>{t.password}</label>
-                  <a role="button" onClick={() => setShowPassword(!showPassword)} tabIndex={0} aria-pressed={showPassword} style={{ cursor: 'pointer' }}>
-                    {showPassword ? (isHe ? 'הסתר' : 'hide') : (isHe ? 'הצג' : 'show')}
-                  </a>
-                </div>
-                <input id="flow-password" className="field-input" type={showPassword ? 'text' : 'password'} placeholder={isHe ? 'לפחות 8 תווים + ספרה' : 'At least 8 chars + 1 number'} value={password} onChange={(e) => setPassword(e.target.value)} dir="ltr" autoComplete="new-password" style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left' }} />
-
-                <button type="submit" className="btn btn-primary cta-sticky" disabled={authLoading || !acceptedTerms} style={{ marginTop: 16 }}>
-                  <span>{authLoading ? (isHe ? 'יוצר חשבון…' : 'Creating…') : (isHe ? 'המשך עם אימייל' : 'Continue with email')} {isHe ? '←' : '→'}</span>
+              <div className="ob-body" style={{ gap: 16 }}>
+                <button type="button" onClick={handleGoogleSignup} disabled={googleLoading || authLoading} className="ob-google">
+                  <GoogleMark />
+                  <span>{googleLoading ? (isHe ? 'מתחבר…' : 'Signing in…') : (isHe ? 'המשך עם Google' : 'Continue with Google')}</span>
                 </button>
-              </form>
 
-              <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 18, textAlign: 'center' }}>
-                {isHe ? 'כבר יש לך חשבון? ' : 'Already have an account? '}
-                <a href="/login" style={{ color: 'var(--accent)', fontWeight: 700 }}>{isHe ? 'התחבר' : 'Log in'}</a>
+                <div className="ob-divider"><span />{isHe ? 'או' : 'or'}<span /></div>
+
+                <form onSubmit={handleEmailSignup} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div>
+                    <div className="ob-field__label">{isHe ? 'שם' : 'Name'}</div>
+                    <input
+                      className="ob-input" style={{ fontSize: 15.5, fontWeight: 400 }}
+                      type="text" autoComplete="name"
+                      placeholder={isHe ? 'איך לקרוא לך?' : 'What should we call you?'}
+                      value={fullName} onChange={(e) => setFullName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <div className="ob-field__label">{t.email}</div>
+                    <input
+                      id="flow-email" className="ob-input" style={{ fontSize: 15.5, fontWeight: 400, direction: 'ltr', textAlign: isHe ? 'right' : 'left' }}
+                      type="email" placeholder="you@example.com" value={email}
+                      onChange={(e) => setEmail(e.target.value)} dir="ltr" autoComplete="email" inputMode="email"
+                    />
+                  </div>
+                  <div>
+                    <div className="ob-field__label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>{t.password}</span>
+                      <a role="button" tabIndex={0} onClick={() => setShowPassword(!showPassword)} aria-pressed={showPassword} style={{ cursor: 'pointer', color: 'var(--text-4)' }}>
+                        {showPassword ? (isHe ? 'הסתר' : 'hide') : (isHe ? 'הצג' : 'show')}
+                      </a>
+                    </div>
+                    <input
+                      id="flow-password" className="ob-input" style={{ fontSize: 15.5, fontWeight: 400, direction: 'ltr', textAlign: isHe ? 'right' : 'left' }}
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder={isHe ? 'לפחות 8 תווים + ספרה' : 'At least 8 chars + 1 number'}
+                      value={password} onChange={(e) => setPassword(e.target.value)} dir="ltr" autoComplete="new-password"
+                    />
+                  </div>
+                  {authError && <FieldNote msg={authError} />}
+                  {/* The mockup implies consent by signing up. Keep the explicit
+                      tick — it's the record that consent was actually given, and
+                      LegalContext tracks acceptance. It sits above the button so
+                      the reason the button is disabled is already on screen. */}
+                  <label className="checkbox-row">
+                    <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} />
+                    <span className="checkbox-row__text">
+                      {isHe ? (
+                        <>קראתי ואני מאשר את <a onClick={openTerms} role="button" tabIndex={0}>תנאי השימוש</a> ו<a onClick={openPrivacy} role="button" tabIndex={0}>מדיניות הפרטיות</a></>
+                      ) : (
+                        <>I agree to the <a onClick={openTerms} role="button" tabIndex={0}>Terms</a> and <a onClick={openPrivacy} role="button" tabIndex={0}>Privacy Policy</a></>
+                      )}
+                    </span>
+                  </label>
+                  <button type="submit" className="ob-btn" disabled={authLoading || !acceptedTerms}>
+                    {authLoading ? (isHe ? 'יוצר חשבון…' : 'Creating…') : (isHe ? 'צור חשבון' : 'Create account')}
+                  </button>
+                </form>
+              </div>
+
+              <div className="ob-cta" style={{ paddingTop: 14 }}>
+                <div className="pr-fine">
+                  {isHe ? 'כבר יש לך חשבון? ' : 'Already have an account? '}
+                  <a href="/login" style={{ color: 'var(--accent)', fontWeight: 600 }}>{isHe ? 'התחבר' : 'Log in'}</a>
+                </div>
               </div>
             </div>
           )
@@ -631,47 +720,67 @@ export default function OnboardingFlow() {
 
         {/* ═══ NOTIFICATIONS SOFT-ASK ═══ */}
         {key === 'notif' && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', flex: 1, justifyContent: 'center', animation: 'popIn 0.3s ease-out' }}>
-            <div style={{ width: 84, height: 84, borderRadius: 24, background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 38, marginBottom: 20 }}>🔔</div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: 'var(--text-1)', marginBottom: 8 }}>
-              {isHe ? 'אל תפספס אף אימון' : "Don't miss a workout"}
+          <div className="wizard-step">
+            <div className="ob-center">
+              <div className="ob-center__disc">
+                <ObIcon type="bell" color="var(--accent)" size={38} />
+              </div>
+              <h1 className="ob-center__title">{isHe ? 'תזכורת קטנה, הרגל גדול' : 'A small reminder, a big habit'}</h1>
+              <p className="ob-center__sub">
+                {isHe
+                  ? 'תזכורת אחת ביום לאימון או לרישום ארוחה. בלי ספאם — מבטיחים.'
+                  : 'One reminder a day to train or log a meal. No spam — promise.'}
+              </p>
+              <div className="ob-perks">
+                {[
+                  isHe ? 'תזכורת לאימון ביום שבחרת' : 'A workout reminder on the days you picked',
+                  isHe ? 'עדכון כשמגיע הישג חדש' : 'A nudge when a new achievement lands',
+                ].map((line) => (
+                  <div className="ob-perk" key={line}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
+                         strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12.5l4.5 4.5L19 7" />
+                    </svg>
+                    <span>{line}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div style={{ fontSize: 14, color: 'var(--text-3)', marginBottom: 30, maxWidth: 280, lineHeight: 1.6 }}>
-              {isHe ? 'נזכיר לך בעדינות מתי להתאמן ונחגוג איתך רצפים והישגים.' : "We'll gently remind you when to train and celebrate streaks and achievements with you."}
+            <div className="ob-cta">
+              <button type="button" className="ob-btn" onClick={allowNotif}>
+                {isHe ? 'אפשר התראות' : 'Enable notifications'}
+              </button>
+              <button type="button" className="ob-skip" onClick={denyNotif}>
+                {isHe ? 'אולי אחר כך' : 'Maybe later'}
+              </button>
             </div>
-            <button type="button" className="btn btn-primary cta-sticky" onClick={allowNotif} style={{ width: '100%', maxWidth: 340, marginBottom: 12 }}>
-              <span>{isHe ? 'הפעל התראות' : 'Enable notifications'} {isHe ? '←' : '→'}</span>
-            </button>
-            <button type="button" onClick={denyNotif} style={{ border: 'none', background: 'none', color: 'var(--text-3)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-              {isHe ? 'אולי מאוחר יותר' : 'Maybe later'}
-            </button>
           </div>
         )}
 
         {/* ═══ SUCCESS ═══ */}
         {key === 'success' && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', flex: 1, justifyContent: 'center', animation: 'popIn 0.35s ease-out' }}>
-            <div style={{ width: 88, height: 88, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, color: 'var(--bg-0)', marginBottom: 20, boxShadow: '0 12px 30px rgba(45,212,191,0.35)' }}>✓</div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--text-1)', marginBottom: 8 }}>
-              {isHe ? 'מוכן! הכל בנוי בשבילך' : "Ready! It's all built for you"}
-            </div>
-            <div style={{ fontSize: 14, color: 'var(--text-3)', marginBottom: 24, maxWidth: 280 }}>
-              {isHe ? 'האימון הראשון שלך מחכה' : 'Your first workout is waiting'}
-            </div>
-            {finalPlan?.days?.[0] && (
-              <div style={{ width: '100%', maxWidth: 340, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 18, padding: 16, display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24, textAlign: 'start' }}>
-                <div style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🏋️</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)' }}>{finalPlan.days[0].day}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                    {finalPlan.days[0].exercises?.length || 0} {isHe ? 'תרגילים' : 'exercises'} · {expLabel}
-                  </div>
-                </div>
+          <div className="wizard-step">
+            <div className="ob-center">
+              <div className="ob-center__disc ob-center__disc--solid">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
+                     strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12.5l4.5 4.5L19 7" />
+                </svg>
               </div>
-            )}
-            <button type="button" className="btn btn-primary cta-sticky" onClick={goToWorkout} style={{ width: '100%', maxWidth: 340 }}>
-              <span>{isHe ? 'התחל אימון' : 'Start workout'} {isHe ? '←' : '→'}</span>
-            </button>
+              <h1 className="ob-center__title" style={{ fontSize: 28 }}>
+                {isHe
+                  ? `הכל מוכן${firstName ? `, ${firstName}` : ''}! 🎉`
+                  : `All set${firstName ? `, ${firstName}` : ''}! 🎉`}
+              </h1>
+              <p className="ob-center__sub" style={{ fontSize: 15 }}>
+                {isHe ? 'התוכנית שלך נשמרה. האימון הראשון מחכה לך.' : 'Your plan is saved. Your first workout is waiting.'}
+              </p>
+            </div>
+            <div className="ob-cta">
+              <button type="button" className="ob-btn" onClick={goToWorkout}>
+                {isHe ? 'קח אותי לאפליקציה' : 'Take me to the app'}
+              </button>
+            </div>
           </div>
         )}
 
@@ -683,38 +792,45 @@ export default function OnboardingFlow() {
 function ValueProp({ isHe, slide, setSlide, onSkip, onNext }) {
   const slides = isHe
     ? [
-        { icon: '🎯', title: 'תוכנית שנבנית בשבילך', desc: 'שתי שאלות קצרות, ונבנה עבורך תוכנית אימונים ותזונה מותאמת אישית — לא תבנית גנרית.' },
-        { icon: '📊', title: 'התקדמות שרואים', desc: 'גרפים יומיים ושבועיים, מעקב משקל, שינה ורצף הרגלים — הכל במקום אחד.' },
-        { icon: '🔥', title: 'בונים הרגל, לא רק אימון', desc: 'תזכורות חכמות ורצף ימים שומרים אותך במסלול, גם בשבועות עמוסים.' },
+        { icon: 'target', title: 'תוכנית שנבנית בשבילך', desc: 'כמה שאלות קצרות — ותקבל תוכנית אימונים ותזונה אישית. לא תבנית גנרית.' },
+        { icon: 'chart',  title: 'התקדמות שרואים', desc: 'גרפים יומיים ושבועיים, מעקב משקל, שינה ורצף הרגלים — הכל במקום אחד.' },
+        { icon: 'flame',  title: 'בונים הרגל, לא רק אימון', desc: 'תזכורות חכמות ורצף ימים שומרים אותך במסלול, גם בשבועות עמוסים.' },
       ]
     : [
-        { icon: '🎯', title: 'A plan built for you', desc: "A couple of quick questions, and we'll build a personalized workout and nutrition plan — not a generic template." },
-        { icon: '📊', title: 'Progress you can see', desc: 'Daily and weekly charts, weight tracking, sleep, and habit streaks — all in one place.' },
-        { icon: '🔥', title: 'Building a habit, not just a workout', desc: 'Smart reminders and day streaks keep you on track, even in busy weeks.' },
+        { icon: 'target', title: 'A plan built for you', desc: "A few quick questions — and you get a personal training and nutrition plan. Not a generic template." },
+        { icon: 'chart',  title: 'Progress you can see', desc: 'Daily and weekly charts, weight tracking, sleep, and habit streaks — all in one place.' },
+        { icon: 'flame',  title: 'Building a habit, not just a workout', desc: 'Smart reminders and day streaks keep you on track, even in busy weeks.' },
       ];
   const s = slides[slide];
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, animation: 'wizardFade 0.3s ease-out' }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <button type="button" onClick={onSkip} style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-          {isHe ? 'דלג' : 'Skip'}
+    <div className="vp">
+      <div className="vp__skip-row">
+        <button type="button" className="vp__skip" onClick={onSkip}>{isHe ? 'דלג' : 'Skip'}</button>
+      </div>
+      <div className="vp__body">
+        <div className="vp__icon" key={slide}>
+          <ObIcon type={s.icon} color="var(--accent)" size={52} />
+        </div>
+        <h1 className="vp__title">{s.title}</h1>
+        <p className="vp__desc">{s.desc}</p>
+      </div>
+      <div className="vp__foot">
+        <div className="vp__dots">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setSlide(i)}
+              aria-label={`${isHe ? 'שקף' : 'Slide'} ${i + 1}`}
+              aria-current={i === slide ? 'true' : undefined}
+              className={`vp__dot${i === slide ? ' vp__dot--on' : ''}`}
+            />
+          ))}
+        </div>
+        <button type="button" className="ob-btn" onClick={onNext}>
+          {slide < 2 ? (isHe ? 'המשך' : 'Continue') : (isHe ? 'בוא נתחיל' : "Let's start")}
         </button>
       </div>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 20 }}>
-        <div key={slide} style={{ width: 140, height: 140, borderRadius: 32, background: 'var(--accent-glow)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56, animation: 'floatUp 0.4s ease-out' }}>
-          {s.icon}
-        </div>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: 'var(--text-1)' }}>{s.title}</div>
-        <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.6, maxWidth: 280 }}>{s.desc}</div>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 7, margin: '18px 0' }}>
-        {slides.map((_, i) => (
-          <button key={i} type="button" onClick={() => setSlide(i)} aria-label={`${isHe ? 'שקף' : 'Slide'} ${i + 1}`} style={{ width: 22, height: 6, borderRadius: 4, border: 'none', cursor: 'pointer', background: i === slide ? 'var(--accent)' : 'var(--bg-input)' }} />
-        ))}
-      </div>
-      <button type="button" className="btn btn-primary cta-sticky" onClick={onNext}>
-        <span>{slide < 2 ? (isHe ? 'המשך' : 'Continue') : (isHe ? 'בוא נתחיל' : "Let's start")} {isHe ? '←' : '→'}</span>
-      </button>
     </div>
   );
 }

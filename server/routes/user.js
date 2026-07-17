@@ -183,7 +183,15 @@ router.post(
       const { goal, workoutsPerWeek, experience } = req.body;
       const workoutPlan = generateWorkoutPlan({ goal, workoutsPerWeek, experience });
       const day1 = workoutPlan?.days?.[0] || null;
-      res.json({ day1 });
+      // Names + counts only, never the exercises: the reveal screen shows the
+      // first couple of days as a genuine taste and blurs the rest behind the
+      // signup, so shipping the full plan here would hand over the thing the
+      // blur is there to hold back.
+      const days = (workoutPlan?.days || []).map((d) => ({
+        day: d.day,
+        exerciseCount: Array.isArray(d.exercises) ? d.exercises.length : 0,
+      }));
+      res.json({ day1, days });
     } catch (error) {
       console.error('Preview plan error:', error);
       res.status(500).json({ message: 'שגיאה ביצירת תצוגה מקדימה' });
