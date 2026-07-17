@@ -6,6 +6,21 @@ import { useLegal } from '../context/LegalContext';
 
 const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
 
+// Sits under the field it belongs to, rather than in a banner at the top of
+// the form where it's detached from what needs fixing.
+function FieldError({ msg }) {
+  return (
+    <div className="field-error" role="alert">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8v5M12 16.5v.5" />
+      </svg>
+      <span>{msg}</span>
+    </div>
+  );
+}
+
 function ArrowIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -45,6 +60,10 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // { field: 'email' | 'password' | 'credentials', msg } — rendered under the
+  // field it belongs to. `error` stays for failures with no field to blame
+  // (Google sign-in, network).
+  const [fieldError, setFieldError] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -96,11 +115,20 @@ export default function Login() {
 
   const isHe = lang === 'he';
 
+  // A credentials failure can't say which of the two is wrong, so it marks both.
+  const badEmail = fieldError?.field === 'email' || fieldError?.field === 'credentials';
+  const badPassword = fieldError?.field === 'password' || fieldError?.field === 'credentials';
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
-    if (!email.trim() || !password.trim()) {
-      setError(t.fillAllFields);
+    setFieldError(null);
+    if (!email.trim()) {
+      setFieldError({ field: 'email', msg: isHe ? 'צריך להזין אימייל.' : 'Enter your email.' });
+      return;
+    }
+    if (!password.trim()) {
+      setFieldError({ field: 'password', msg: isHe ? 'צריך להזין סיסמה.' : 'Enter your password.' });
       return;
     }
     setLoading(true);
@@ -109,7 +137,12 @@ export default function Login() {
       if (data.user.onboardingComplete) navigate('/dashboard');
       else navigate('/onboarding');
     } catch (err) {
-      setError(err.message);
+      // /auth/login answers "אימייל או סיסמה שגויים" for both a wrong address
+      // and a wrong password, on purpose — telling them apart would let anyone
+      // probe which emails have accounts. So the error marks both fields and
+      // keeps the server's wording rather than the mockup's "wrong password",
+      // which would imply the address checked out.
+      setFieldError({ field: 'credentials', msg: err.message });
     } finally {
       setLoading(false);
     }
@@ -286,11 +319,11 @@ export default function Login() {
             {isHe ? 'ברוך שובך' : 'Welcome back'}
           </div>
 
-          <h2>{isHe ? 'היכנס לחשבון' : 'Sign in to your account'}</h2>
+          <h2>{isHe ? 'טוב לראות אותך שוב' : 'Good to see you again'}</h2>
           <p className="helper">
             {t.noAccount}{' '}
             <Link to="/register" style={{ color: 'var(--accent)', fontWeight: 600 }}>
-              {t.registerHere} {isHe ? '←' : '→'}
+              {t.registerHere}
             </Link>
           </p>
 
@@ -353,16 +386,18 @@ export default function Login() {
             <input
               id="login-email"
               type="email"
-              className="field-input"
+              className={`field-input${badEmail ? ' field-input--bad' : ''}`}
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setFieldError(null); }}
               dir="ltr"
               autoComplete="email"
               inputMode="email"
               autoFocus
+              aria-invalid={badEmail || undefined}
               style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left' }}
             />
+            {fieldError?.field === 'email' && <FieldError msg={fieldError.msg} />}
 
             <div className="field-row">
               <label className="field-label" style={{ marginBottom: 0 }}>{t.password}</label>
@@ -377,18 +412,19 @@ export default function Login() {
                 }}
                 style={{ cursor: 'pointer' }}
               >
-                {isHe ? 'שכחת?' : 'Forgot?'}
+                {isHe ? 'שכחת סיסמה?' : 'Forgot password?'}
               </a>
             </div>
             <div style={{ position: 'relative', marginTop: 8 }}>
               <input
                 type={showPassword ? 'text' : 'password'}
-                className="field-input"
+                className={`field-input${badPassword ? ' field-input--bad' : ''}`}
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setFieldError(null); }}
                 dir="ltr"
                 autoComplete="current-password"
+                aria-invalid={badPassword || undefined}
                 style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left', paddingInlineEnd: 52 }}
               />
               <span
@@ -411,9 +447,12 @@ export default function Login() {
               </span>
             </div>
 
+            {(fieldError?.field === 'password' || fieldError?.field === 'credentials') && (
+              <FieldError msg={fieldError.msg} />
+            )}
+
             <button type="submit" className="btn-primary-cta" disabled={loading}>
               <span>{loading ? t.loggingIn : (isHe ? 'היכנס' : 'Sign in')}</span>
-              <ArrowIcon />
             </button>
           </form>
 

@@ -1066,6 +1066,25 @@ select:focus-visible {
   box-shadow: var(--shadow-2);
 }
 
+/* Inline field error: pink hairline on the field, message directly beneath. */
+.field-input--bad,
+.field-input--bad:focus {
+  border-color: var(--c-protein);
+  border-width: 1.5px;
+  box-shadow: none;
+}
+.field-error {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--c-protein);
+}
+.field-error svg { flex: none; }
+/* Keep the message from crowding whatever follows it (usually the submit). */
+.field-error + button { margin-top: 16px; }
+
 /* ============================================================
    ONBOARDING — redesign
    The wizard sits directly on the page background: the old card-inside-a-screen
