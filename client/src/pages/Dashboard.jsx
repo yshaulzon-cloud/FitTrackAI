@@ -98,6 +98,10 @@ export default function Dashboard() {
     { id: 'progress',  label: isHe ? 'מסע'   : 'Journey' },
   ];
 
+  // Settings sits outside the four main tabs: it hides the chrome and owns the
+  // whole screen (the admin tab keeps the old in-tab layout).
+  const settingsOpen = activeTab === 'settings';
+
   const goalLabels = {
     bulk: t.goalBulk,
     cut: t.goalCut,
@@ -241,6 +245,8 @@ export default function Dashboard() {
             showXP={showXP}
             progressionData={progressionData}
             dailyStreak={dailyStreak}
+            userName={profileData?.name}
+            onGoHome={() => setActiveTab('overview')}
           />
         )}
 
@@ -328,11 +334,16 @@ export default function Dashboard() {
             api={api}
             onUpdate={loadData}
             logout={logout}
+            level={progressionData?.level}
+            onExit={() => setActiveTab('overview')}
           />
         )}
       </main>
 
-      {/* Mobile top bar: flame pill (right in RTL) · brand · avatar (left in RTL) */}
+      {/* Mobile top bar: flame pill (right in RTL) · brand · avatar (left in RTL).
+          Settings is a full screen with its own back-arrow header, so the
+          topbar and the bottom nav both step aside for it. */}
+      {!settingsOpen && (
       <header className="mobile-topbar" aria-label={isHe ? 'שורת עליון' : 'Top bar'}>
         {/* Flame streak pill — first child = rightmost in RTL */}
         {dailyStreak > 0 ? (
@@ -359,7 +370,9 @@ export default function Dashboard() {
           </span>
         </button>
       </header>
+      )}
 
+      {!settingsOpen && (
       <nav className="mobile-nav" aria-label={isHe ? 'ניווט ראשי' : 'Primary navigation'}>
         {mobileTabs.map((tab) => {
           const isActive = tab.id === 'progress'
@@ -380,6 +393,7 @@ export default function Dashboard() {
           );
         })}
       </nav>
+      )}
     </div>
   );
 }
@@ -759,19 +773,21 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
 
 // ── Settings v2 icons ──────────────────────────────────────────────────────
 function StIc({ type, color = '#fff', size = 18 }) {
-  const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
-  if (type === 'user')    return <svg {...p}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>;
-  if (type === 'target')  return <svg {...p}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill={color} stroke="none"/></svg>;
-  if (type === 'bell')    return <svg {...p}><path d="M6 9a6 6 0 0 1 12 0v4l2 4H4l2-4z"/><path d="M9.5 20a2.5 2.5 0 0 0 5 0"/></svg>;
-  if (type === 'display') return <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><path d="M15 3a9 9 0 1 0 6 15 7 7 0 0 1-6-15z"/></svg>;
-  if (type === 'sliders') return <svg {...p}><line x1="5" y1="7" x2="19" y2="7"/><circle cx="9" cy="7" r="2" fill={color}/><line x1="5" y1="12" x2="19" y2="12"/><circle cx="15" cy="12" r="2" fill={color}/><line x1="5" y1="17" x2="19" y2="17"/><circle cx="11" cy="17" r="2" fill={color}/></svg>;
-  if (type === 'lock')    return <svg {...p}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>;
-  if (type === 'shield')  return <svg {...p}><path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z"/></svg>;
+  const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  if (type === 'user')    return <svg {...p}><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3 3.8-4.5 7-4.5s5.8 1.5 7 4.5"/></svg>;
+  if (type === 'target')  return <svg {...p}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg>;
+  if (type === 'mail')    return <svg {...p}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>;
+  if (type === 'bell')    return <svg {...p}><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7M10.5 20a2 2 0 0 0 3 0"/></svg>;
+  if (type === 'display') return <svg {...p}><path d="M20 14A8.5 8.5 0 1 1 10 4a7 7 0 0 0 10 10z"/></svg>;
+  if (type === 'sliders') return <svg {...p}><path d="M5 8h8M17 8h2M5 16h2M11 16h8"/><circle cx="15" cy="8" r="2.2"/><circle cx="9" cy="16" r="2.2"/></svg>;
+  if (type === 'lock')    return <svg {...p}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>;
+  if (type === 'shield')  return <svg {...p}><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>;
+  if (type === 'logout')  return <svg {...p}><path d="M15 12H4M8 8l-4 4 4 4M15 4h5v16h-5"/></svg>;
   if (type === 'chat')    return <svg {...p}><path d="M4 5h16v11H8l-4 3z"/></svg>;
   return null;
 }
 
-function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
+function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, level, onExit }) {
   const { t, lang, setLanguage } = useLang();
   const { theme, setTheme } = useTheme();
   const { openPrivacy, openTerms } = useLegal();
@@ -1035,15 +1051,33 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
     { screen: 'privacy',  label: isHe ? 'מחיקת חשבון'   : 'Delete account' },
   ];
 
+  const goalLabels = {
+    cut:      isHe ? 'חיטוב'  : 'Cut',
+    bulk:     isHe ? 'מסה'    : 'Bulk',
+    maintain: isHe ? 'שמירה'  : 'Maintain',
+  };
+  const enabledNotifs = [notifWorkout, notifMeal, notifStreak, notifWeekly].filter(Boolean).length;
+
   const sections = [
-    { id: 'body',     icon: 'user',    label: isHe ? 'נתוני גוף'      : 'Body Data',      sub: isHe ? 'משקל, גובה, מגדר'       : 'Weight, height, gender' },
-    { id: 'goal',     icon: 'target',  label: isHe ? 'מטרת אימון'     : 'Training Goal',  sub: isHe ? 'חיתוך, בנייה, שמירה'     : 'Cut, bulk, maintain' },
-    { id: 'notif',    icon: 'bell',    label: isHe ? 'התראות'          : 'Notifications',  sub: isHe ? 'תזכורות יומיות'          : 'Daily reminders' },
-    { id: 'display',  icon: 'display', label: isHe ? 'תצוגה'          : 'Display',        sub: isHe ? 'שפה וערכת צבעים'         : 'Language and theme' },
+    { id: 'body',     icon: 'user',    label: isHe ? 'נתוני גוף'      : 'Body Data',      sub: isHe ? 'משקל, גובה, מגדר'       : 'Weight, height, gender',
+      value: weight && height ? (isHe ? `${weight} ק״ג · ${height}` : `${weight} kg · ${height}`) : null },
+    { id: 'goal',     icon: 'target',  label: isHe ? 'מטרת אימון'     : 'Training Goal',  sub: isHe ? 'חיתוך, בנייה, שמירה'     : 'Cut, bulk, maintain',
+      value: goalLabels[goal] || null },
+    { id: 'account',  icon: 'mail',    label: isHe ? 'חשבון'           : 'Account',        sub: isHe ? 'שם וגיל'                 : 'Name and age' },
+    { id: 'notif',    icon: 'bell',    label: isHe ? 'התראות'          : 'Notifications',  sub: isHe ? 'תזכורות יומיות'          : 'Daily reminders',
+      value: enabledNotifs ? (isHe ? `${enabledNotifs} פעילות` : `${enabledNotifs} on`) : (isHe ? 'כבוי' : 'Off') },
+    { id: 'display',  icon: 'display', label: isHe ? 'תצוגה'          : 'Display',        sub: isHe ? 'שפה וערכת צבעים'         : 'Language and theme',
+      value: theme === 'dark' ? (isHe ? 'כהה' : 'Dark') : (isHe ? 'בהיר' : 'Light') },
     { id: 'access',   icon: 'sliders', label: isHe ? 'נגישות'          : 'Accessibility',  sub: isHe ? 'גודל טקסט, ניגודיות'    : 'Text size, contrast' },
-    { id: 'account',  icon: 'user',    label: isHe ? 'חשבון'           : 'Account',        sub: isHe ? 'שם וגיל'                 : 'Name and age' },
     { id: 'security', icon: 'lock',    label: isHe ? 'אבטחה'           : 'Security',       sub: isHe ? 'סיסמה ואימות'            : 'Password and auth' },
     { id: 'privacy',  icon: 'shield',  label: isHe ? 'פרטיות ונתונים'  : 'Privacy & Data', sub: isHe ? 'ייצוא, איפוס, מחיקה'    : 'Export, reset, delete' },
+  ];
+
+  // The prototype groups the eight sections under three headers.
+  const navGroups = [
+    { label: isHe ? 'פרופיל'          : 'Profile',            ids: ['body', 'goal', 'account'] },
+    { label: isHe ? 'העדפות'          : 'Preferences',        ids: ['notif', 'display', 'access'] },
+    { label: isHe ? 'פרטיות ואבטחה'   : 'Privacy & Security', ids: ['security', 'privacy'] },
   ];
 
   // Results render inside <SettingsSearch/>; here we only need to know whether
@@ -1077,15 +1111,20 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
     fontWeight: active ? 600 : 500, fontSize: 13, transition: 'all 0.15s',
   });
 
-  function NavItem({ sectionId, icon, label, sub }) {
+  function NavItem({ sectionId, icon, label, value }) {
     return (
       <button type="button" className="st2-nav-item" onClick={() => setScreen(sectionId)}>
-        <span className="st2-nav-icon"><StIc type={icon} color="var(--accent)" size={20} /></span>
+        <span className="st2-nav-icon"><StIc type={icon} color="var(--accent)" size={19} /></span>
         <span className="st2-nav-text">
           <span className="st2-nav-label">{label}</span>
-          <span className="st2-nav-sub">{sub}</span>
         </span>
-        <span className="st2-nav-chevron" aria-hidden="true">{isHe ? '‹' : '›'}</span>
+        {value && <span className="st2-nav-value">{value}</span>}
+        <span className="st2-nav-chevron" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d={isHe ? 'M14 6l-6 6 6 6' : 'M10 6l6 6-6 6'} />
+          </svg>
+        </span>
       </button>
     );
   }
@@ -1112,15 +1151,19 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
   return (
     <div className="st2-root" dir={isHe ? 'rtl' : 'ltr'}>
 
-      {/* ── Top bar ─────────────────────────────────────────── */}
+      {/* ── Header: back arrow + title, inline (prototype) ──── */}
       <div className="st2-topbar">
-        {screen !== 'home' ? (
-          <button className="st2-back" onClick={() => setScreen('home')} aria-label={isHe ? 'חזרה' : 'Back'}>
-            <span aria-hidden="true">{isHe ? '→' : '←'}</span>
-          </button>
-        ) : <span />}
-        <h2 className="st2-topbar-title">{screenTitles[screen] ?? screenTitles.home}</h2>
-        <span />
+        <button
+          className="st2-back"
+          onClick={() => (screen === 'home' ? onExit && onExit() : setScreen('home'))}
+          aria-label={isHe ? 'חזרה' : 'Back'}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d={isHe ? 'M4 12h16M14 6l6 6-6 6' : 'M20 12H4M10 6l-6 6 6 6'} />
+          </svg>
+        </button>
+        <h1 className="st2-topbar-title">{screenTitles[screen] ?? screenTitles.home}</h1>
       </div>
 
       {/* ── Home ─────────────────────────────────────────────── */}
@@ -1128,10 +1171,13 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
         <div className="st2-screen">
           <div className="st2-profile-card">
             <div className="st2-avatar">{initials}</div>
-            <div>
+            <div className="st2-profile-text">
               <div className="st2-profile-name">{displayName}</div>
               <div className="st2-profile-email">{user?.email || ''}</div>
             </div>
+            {level != null && (
+              <span className="st2-profile-level">{isHe ? `רמה ${level}` : `Level ${level}`}</span>
+            )}
           </div>
 
           <SettingsSearch
@@ -1144,14 +1190,27 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
           />
 
           {!searchActive && (
-            <div className="st2-nav-list">
-              {sections.map(s => (
-                <NavItem key={s.id} sectionId={s.id} icon={s.icon} label={s.label} sub={s.sub} />
+            <>
+              {navGroups.map(g => (
+                <div className="st2-nav-list" key={g.label}>
+                  <div className="st2-nav-group-label">{g.label}</div>
+                  <div className="st2-nav-group">
+                    {g.ids.map(id => {
+                      const s = sections.find(x => x.id === id);
+                      return <NavItem key={id} sectionId={id} icon={s.icon} label={s.label} value={s.value} />;
+                    })}
+                  </div>
+                </div>
               ))}
-            </div>
+
+              <button type="button" className="st2-logout-row" onClick={() => setSheet('logout')}>
+                <StIc type="logout" color="var(--c-protein)" size={18} />
+                <span>{isHe ? 'התנתק' : 'Log out'}</span>
+              </button>
+            </>
           )}
 
-          <div className="st2-version">Areto v1.0.8</div>
+          <div className="st2-version">Areto v1.2.0</div>
         </div>
       )}
 
@@ -1391,13 +1450,6 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
           <div className="st2-danger-section">
             <div className="st2-danger-title">{isHe ? 'פעולות מסוכנות' : 'Danger Zone'}</div>
 
-            <div className="st2-danger-row">
-              <div>
-                <div className="st2-danger-label">{t.logout}</div>
-                <div className="st2-danger-sub">{isHe ? 'תצטרך להיכנס שוב.' : 'You\'ll need to log in again.'}</div>
-              </div>
-              <button className="st2-danger-btn" onClick={() => { setConfirmText(''); setSheet('logout'); }}>⏻ {t.logout}</button>
-            </div>
 
             <div className="st2-danger-row">
               <div>
@@ -1437,10 +1489,12 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
         <>
           <div className="st2-overlay" onClick={() => setSheet(null)} />
           <div className="st2-sheet">
+            <div className="st2-sheet-handle" aria-hidden="true" />
             {sheet === 'logout' && (
               <>
-                <div className="st2-sheet-title">{isHe ? 'יציאה מהחשבון?' : 'Log out?'}</div>
-                <div className="st2-sheet-sub">{isHe ? 'תצטרך להיכנס שוב כדי לראות את הנתונים שלך.' : "You'll need to log in again to see your data."}</div>
+                <div className="st2-sheet-icon"><StIc type="logout" color="var(--c-protein)" size={24} /></div>
+                <div className="st2-sheet-title">{isHe ? 'להתנתק מהחשבון?' : 'Log out?'}</div>
+                <div className="st2-sheet-sub">{isHe ? 'הנתונים שלך שמורים. אפשר להתחבר שוב בכל רגע.' : 'Your data is saved. You can log back in any time.'}</div>
                 <button className="st2-sheet-confirm-btn" onClick={() => logout && logout()}>{t.logout}</button>
                 <button className="st2-sheet-cancel-btn" onClick={() => setSheet(null)}>{isHe ? 'ביטול' : 'Cancel'}</button>
               </>

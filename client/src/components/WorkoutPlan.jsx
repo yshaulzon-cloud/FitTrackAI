@@ -121,7 +121,7 @@ function toHomeExercises(exercises) {
   });
 }
 
-export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHistory, showXP, progressionData, dailyStreak = 0 }) {
+export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHistory, showXP, progressionData, dailyStreak = 0, userName, onGoHome }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
   const [dayDurations, setDayDurations] = useState({});
@@ -375,12 +375,14 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         dayName={session.dayName}
         location={session.location}
         api={api}
+        userName={userName}
         restore={session.restore}
-        onFinish={(result) => {
+        onFinish={(result, opts) => {
           setSession(null);
           setResumeAvailable(null);
           if (showXP && result?.xp) showXP(result.xp);
           onComplete();
+          if (opts?.goHome) onGoHome && onGoHome();
         }}
         onDiscard={() => {
           setSession(null);
