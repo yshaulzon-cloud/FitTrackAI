@@ -4539,6 +4539,38 @@ svg { overflow: hidden; }
 }
 .ws-done__xp span { font-size: 13.5px; color: var(--text-2); }
 .ws-done__xp svg { flex: none; }
+.ws-done__prs {
+  margin-top: 12px;
+  background: color-mix(in srgb, var(--c-fat) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c-fat) 20%, transparent);
+  border-radius: 16px;
+  padding: 14px 16px;
+  text-align: start;
+}
+.ws-done__prs-title { font-size: 13.5px; font-weight: 700; color: var(--text-1); margin-bottom: 8px; }
+.ws-done__pr {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: 13.5px; color: var(--text-2);
+  padding: 3px 0;
+}
+.ws-done__pr strong { color: var(--c-fat); font-variant-numeric: tabular-nums; }
+.ws-done__summary {
+  margin-top: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-faint);
+  border-radius: 16px;
+  padding: 6px 16px;
+  text-align: start;
+}
+.ws-done__ex {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 0;
+  font-size: 13.5px;
+}
+.ws-done__ex + .ws-done__ex { border-top: 1px solid var(--border-hairline); }
+.ws-done__ex-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.ws-done__ex-name { flex: 1; min-width: 0; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-done__ex-detail { color: var(--text-4); font-variant-numeric: tabular-nums; flex: none; }
 .ws-done__cta { margin-top: auto; padding-top: 16px; }
 .ws-done__again {
   display: block; width: 100%;

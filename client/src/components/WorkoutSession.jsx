@@ -384,6 +384,8 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
     const nextAt = summary.xp?.xpForNextLevel;
     const totalXP = summary.xp?.totalXP;
     const toNextLevel = nextAt != null && totalXP != null ? Math.max(0, nextAt - totalXP) : null;
+    const prs = summary.prs || [];
+    const doneExercises = exs.filter(e => e.sets.some(s => s.done));
     return (
       <div className="ws-overlay ws-done">
         <div className="ws-done__top">
@@ -436,6 +438,38 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
               +{xpAnimated} XP
               {toNextLevel != null && ` · ${isHe ? `עוד ${toNextLevel} XP לרמה ${(summary.xp?.level ?? 1) + 1}` : `${toNextLevel} XP to level ${(summary.xp?.level ?? 1) + 1}`}`}
             </span>
+          </div>
+        )}
+
+        {prs.length > 0 && (
+          <div className="ws-done__prs">
+            <div className="ws-done__prs-title">🏆 {isHe ? 'שיאים חדשים' : 'New records'}</div>
+            {prs.map((pr, i) => (
+              <div className="ws-done__pr" key={i}>
+                <span>{isHe ? pr.name : getEnglishName(pr.name)}</span>
+                <strong>{pr.weight} {isHe ? 'ק״ג' : 'kg'}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {doneExercises.length > 0 && (
+          <div className="ws-done__summary">
+            {doneExercises.map((ex, i) => {
+              const done = ex.sets.filter(s => s.done);
+              const top = done.reduce((m, s) => (s.weight || 0) > (m?.weight || 0) ? s : m, done[0]);
+              return (
+                <div className="ws-done__ex" key={i}>
+                  <span className="ws-done__ex-dot" style={{ background: MUSCLE_COLORS[ex.muscleGroup] || 'var(--accent)' }} />
+                  <span className="ws-done__ex-name">{isHe ? ex.name : getEnglishName(ex.name)}</span>
+                  <span className="ws-done__ex-detail" dir="ltr">
+                    {ex.mode === 'time'
+                      ? fmtClock(done.reduce((n, s) => n + (s.durationSec || 0), 0))
+                      : `${done.length}×${top?.reps || '—'}${top?.weight ? ` @ ${top.weight}` : ''}`}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
 
