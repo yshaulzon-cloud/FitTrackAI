@@ -127,14 +127,37 @@ function SplashScreen({ onDone }) {
   );
 }
 
+// Shown while auth resolves — the app's real splash moment, so it wears the
+// brand rather than a bare spinner.
+function Splash() {
+  const { lang } = useLang();
+  return (
+    <div className="sp">
+      <div className="sp__mark">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="var(--on-accent)"
+             strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 13h4l2.5-6 3.5 10 2.5-6H21" />
+        </svg>
+      </div>
+      <div className="sp__name">Areto</div>
+      <div className="sp__tag">
+        {lang === 'he' ? 'תזונה · אימונים · תוצאות' : 'Nutrition · Training · Results'}
+      </div>
+      <div className="sp__dots" aria-hidden="true">
+        <span className="sp__dot sp__dot--on" />
+        <span className="sp__dot" />
+        <span className="sp__dot" />
+      </div>
+    </div>
+  );
+}
+
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="loading">
-        <div className="spinner" />
-      </div>
+      <Splash />
     );
   }
 
@@ -148,9 +171,7 @@ function AuthRoute({ children }) {
 
   if (loading) {
     return (
-      <div className="loading">
-        <div className="spinner" />
-      </div>
+      <Splash />
     );
   }
 
@@ -170,9 +191,7 @@ function OnboardingRoute({ children }) {
 
   if (loading) {
     return (
-      <div className="loading">
-        <div className="spinner" />
-      </div>
+      <Splash />
     );
   }
 

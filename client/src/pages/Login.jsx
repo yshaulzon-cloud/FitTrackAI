@@ -6,6 +6,32 @@ import { useLegal } from '../context/LegalContext';
 
 const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
 
+function GoogleMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style={{ flex: 'none' }}>
+      <path fill="#4285F4" d="M23 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.2a5.3 5.3 0 0 1-2.3 3.5v2.9h3.7c2.2-2 3.4-5 3.4-8.5z" />
+      <path fill="#34A853" d="M12 24c3.1 0 5.7-1 7.6-2.8l-3.7-2.9c-1 .7-2.4 1.1-3.9 1.1-3 0-5.5-2-6.4-4.7H1.8v3A12 12 0 0 0 12 24z" />
+      <path fill="#FBBC05" d="M5.6 14.7a7.2 7.2 0 0 1 0-4.6v-3H1.8a12 12 0 0 0 0 10.7l3.8-3.1z" />
+      <path fill="#EA4335" d="M12 4.8c1.7 0 3.2.6 4.4 1.7L19.7 3A12 12 0 0 0 1.8 7.1l3.8 3c.9-2.7 3.4-4.7 6.4-4.7z" />
+    </svg>
+  );
+}
+
+// Sits under the field it belongs to, rather than in a banner at the top of
+// the form where it's detached from what needs fixing.
+function FieldError({ msg }) {
+  return (
+    <div className="field-error" role="alert">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8v5M12 16.5v.5" />
+      </svg>
+      <span>{msg}</span>
+    </div>
+  );
+}
+
 function ArrowIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -45,6 +71,10 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // { field: 'email' | 'password' | 'credentials', msg } — rendered under the
+  // field it belongs to. `error` stays for failures with no field to blame
+  // (Google sign-in, network).
+  const [fieldError, setFieldError] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -96,11 +126,20 @@ export default function Login() {
 
   const isHe = lang === 'he';
 
+  // A credentials failure can't say which of the two is wrong, so it marks both.
+  const badEmail = fieldError?.field === 'email' || fieldError?.field === 'credentials';
+  const badPassword = fieldError?.field === 'password' || fieldError?.field === 'credentials';
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
-    if (!email.trim() || !password.trim()) {
-      setError(t.fillAllFields);
+    setFieldError(null);
+    if (!email.trim()) {
+      setFieldError({ field: 'email', msg: isHe ? 'צריך להזין אימייל.' : 'Enter your email.' });
+      return;
+    }
+    if (!password.trim()) {
+      setFieldError({ field: 'password', msg: isHe ? 'צריך להזין סיסמה.' : 'Enter your password.' });
       return;
     }
     setLoading(true);
@@ -109,7 +148,12 @@ export default function Login() {
       if (data.user.onboardingComplete) navigate('/dashboard');
       else navigate('/onboarding');
     } catch (err) {
-      setError(err.message);
+      // /auth/login answers "אימייל או סיסמה שגויים" for both a wrong address
+      // and a wrong password, on purpose — telling them apart would let anyone
+      // probe which emails have accounts. So the error marks both fields and
+      // keeps the server's wording rather than the mockup's "wrong password",
+      // which would imply the address checked out.
+      setFieldError({ field: 'credentials', msg: err.message });
     } finally {
       setLoading(false);
     }
@@ -286,11 +330,11 @@ export default function Login() {
             {isHe ? 'ברוך שובך' : 'Welcome back'}
           </div>
 
-          <h2>{isHe ? 'היכנס לחשבון' : 'Sign in to your account'}</h2>
+          <h2>{isHe ? 'טוב לראות אותך שוב' : 'Good to see you again'}</h2>
           <p className="helper">
             {t.noAccount}{' '}
             <Link to="/register" style={{ color: 'var(--accent)', fontWeight: 600 }}>
-              {t.registerHere} {isHe ? '←' : '→'}
+              {t.registerHere}
             </Link>
           </p>
 
@@ -353,16 +397,18 @@ export default function Login() {
             <input
               id="login-email"
               type="email"
-              className="field-input"
+              className={`field-input${badEmail ? ' field-input--bad' : ''}`}
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setFieldError(null); }}
               dir="ltr"
               autoComplete="email"
               inputMode="email"
               autoFocus
+              aria-invalid={badEmail || undefined}
               style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left' }}
             />
+            {fieldError?.field === 'email' && <FieldError msg={fieldError.msg} />}
 
             <div className="field-row">
               <label className="field-label" style={{ marginBottom: 0 }}>{t.password}</label>
@@ -377,18 +423,19 @@ export default function Login() {
                 }}
                 style={{ cursor: 'pointer' }}
               >
-                {isHe ? 'שכחת?' : 'Forgot?'}
+                {isHe ? 'שכחת סיסמה?' : 'Forgot password?'}
               </a>
             </div>
             <div style={{ position: 'relative', marginTop: 8 }}>
               <input
                 type={showPassword ? 'text' : 'password'}
-                className="field-input"
+                className={`field-input${badPassword ? ' field-input--bad' : ''}`}
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setFieldError(null); }}
                 dir="ltr"
                 autoComplete="current-password"
+                aria-invalid={badPassword || undefined}
                 style={{ direction: 'ltr', textAlign: isHe ? 'right' : 'left', paddingInlineEnd: 52 }}
               />
               <span
@@ -411,9 +458,12 @@ export default function Login() {
               </span>
             </div>
 
+            {(fieldError?.field === 'password' || fieldError?.field === 'credentials') && (
+              <FieldError msg={fieldError.msg} />
+            )}
+
             <button type="submit" className="btn-primary-cta" disabled={loading}>
               <span>{loading ? t.loggingIn : (isHe ? 'היכנס' : 'Sign in')}</span>
-              <ArrowIcon />
             </button>
           </form>
 
@@ -523,35 +573,16 @@ export default function Login() {
                     ? 'כדי לאפס סיסמה בבטחה נאמת שזה אתה דרך Google (עם אותו אימייל שנרשמת איתו) — ואז תבחר סיסמה חדשה.'
                     : 'To reset your password securely we’ll verify it’s you via Google (the same email you signed up with) — then you’ll choose a new password.'}
                 </p>
-                <button
-                  type="button"
-                  className="btn-google"
-                  onClick={handleGoogleRecovery}
-                  disabled={googleLoading}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 10,
-                    padding: '12px 16px',
-                    borderRadius: 12,
-                    border: '1px solid var(--border, rgba(255,255,255,0.12))',
-                    background: '#fff',
-                    color: '#1f2937',
-                    fontWeight: 600,
-                    fontSize: 15,
-                    cursor: googleLoading ? 'wait' : 'pointer',
-                    marginTop: 4,
-                    opacity: googleLoading ? 0.7 : 1,
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-                    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/>
-                    <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-                    <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.6 39.6 16.2 44 24 44z"/>
-                    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.6l6.2 5.2C41.2 35.6 44 30.3 44 24c0-1.3-.1-2.3-.4-3.5z"/>
-                  </svg>
+                <div className="reset-note">
+                  <GoogleMark />
+                  <span>
+                    {isHe
+                      ? 'שחזור החשבון עובר דרך Google — אין צורך לחכות למייל.'
+                      : 'Account recovery goes through Google — no waiting for an email.'}
+                  </span>
+                </div>
+                <button type="button" className="ob-google" onClick={handleGoogleRecovery} disabled={googleLoading} style={{ marginTop: 16 }}>
+                  <GoogleMark />
                   <span>{googleLoading ? (isHe ? 'מאמת…' : 'Verifying…') : (isHe ? 'אמת עם Google' : 'Verify with Google')}</span>
                 </button>
                 <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 14, lineHeight: 1.5, textAlign: 'center' }}>

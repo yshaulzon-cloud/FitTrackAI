@@ -35,7 +35,18 @@ const userSchema = new mongoose.Schema(
       },
       bodyFatPercentage: { type: Number, min: 3, max: 60 },
       city: { type: String, trim: true, maxlength: 60 },
-      equipment: [{ type: String, enum: ['home', 'gym', 'none'] }],
+      // The first seven are what onboarding collects today. 'home' and 'gym'
+      // are the pre-2026 coarse values, kept in the enum so existing profiles
+      // still validate on save — Mongoose would otherwise reject an untouched
+      // legacy doc the moment the user edits their weight. normalizeEquipment()
+      // in server/utils/equipment.js maps them forward on read.
+      equipment: [{
+        type: String,
+        enum: [
+          'dumbbells', 'barbell', 'machines', 'bands', 'trx', 'pullup_bar', 'kettlebell', 'none',
+          'home', 'gym',
+        ],
+      }],
       // IANA timezone (e.g. "Asia/Jerusalem"). Drives the user's local-day
       // boundary for all streak/day calculations; falls back to Israel when
       // absent (see server/utils/dates.js).

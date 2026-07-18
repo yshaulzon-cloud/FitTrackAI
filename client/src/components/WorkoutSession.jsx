@@ -109,7 +109,7 @@ export function clearActiveSession() {
   try { localStorage.removeItem(ACTIVE_SESSION_KEY); } catch { /* ignore */ }
 }
 
-export default function WorkoutSession({ planExercises, dayName, location, api, onFinish, onDiscard, restore }) {
+export default function WorkoutSession({ planExercises, dayName, location, api, onFinish, onDiscard, restore, userName }) {
   const { lang } = useLang();
   const isHe = lang === 'he';
 
@@ -378,89 +378,91 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
   // ─────────────────────────── Finish screen ───────────────────────────
   if (summary) {
     const vol = summary.totalVolume || 0;
-    const prev = summary.prevVolume;
-    const volDelta = prev && prev > 0 ? Math.round(((vol - prev) / prev) * 100) : null;
     const xpGained = summary.xp?.xpGained || 0;
+    const streak = summary.streak?.currentStreak ?? 0;
+    const firstName = (userName || '').trim().split(' ')[0] || '';
+    const nextAt = summary.xp?.xpForNextLevel;
+    const totalXP = summary.xp?.totalXP;
+    const toNextLevel = nextAt != null && totalXP != null ? Math.max(0, nextAt - totalXP) : null;
     const prs = summary.prs || [];
+    const doneExercises = exs.filter(e => e.sets.some(s => s.done));
     return (
-      <div className="ws-overlay">
-        {confetti.map((cf, i) => (
-          <div
-            key={i}
-            className="ws-confetti"
-            style={{
-              insetInlineStart: `${cf.left}%`,
-              width: cf.size,
-              height: cf.size,
-              background: cf.color,
-              borderRadius: cf.radius,
-              animationDuration: `${cf.dur}s`,
-              animationDelay: `${cf.delay}s`,
-            }}
-          />
-        ))}
-        <div className="ws-summary">
-          <div className="ws-summary__burst">🎉</div>
-          <h2 className="ws-summary__title">{isHe ? 'כל הכבוד!' : 'Well done!'}</h2>
-          <p className="ws-summary__sub">
-            {isHe ? 'האימון נשמר בהצלחה' : 'Workout saved successfully'}
-          </p>
-
-          <div className="ws-summary__grid">
-            <div className="ws-stat">
-              <div className="ws-stat__value">{fmtClock(elapsed)}</div>
-              <div className="ws-stat__label">{isHe ? 'משך' : 'Duration'}</div>
-            </div>
-            <div className="ws-stat">
-              <div className="ws-stat__value">{doneSets}</div>
-              <div className="ws-stat__label">{isHe ? 'סטים' : 'Sets'}</div>
-            </div>
-            <div className="ws-stat">
-              <div className="ws-stat__value">{summary.caloriesBurned || 0}</div>
-              <div className="ws-stat__label">{isHe ? 'קק״ל' : 'kcal'}</div>
-            </div>
-            {location === 'gym' && vol > 0 && (
-              <div className="ws-stat">
-                <div className="ws-stat__value">{vol.toLocaleString()}</div>
-                <div className="ws-stat__label">
-                  {isHe ? 'נפח (ק״ג)' : 'Volume (kg)'}
-                  {volDelta !== null && (
-                    <span style={{ color: volDelta >= 0 ? '#2FE3C2' : '#FFB648', marginInlineStart: 4 }}>
-                      {volDelta >= 0 ? '↑' : '↓'}{Math.abs(volDelta)}%
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-            {xpGained > 0 && (
-              <div className="ws-stat ws-stat--xp">
-                <div className="ws-stat__value">+{xpAnimated}</div>
-                <div className="ws-stat__label">XP</div>
-              </div>
-            )}
+      <div className="ws-overlay ws-done">
+        <div className="ws-done__top">
+          <div className="ws-done__check">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
+                 strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12.5l4.5 4.5L19 7" />
+            </svg>
           </div>
+          <h1 className="ws-done__title">
+            {isHe ? `כל הכבוד${firstName ? `, ${firstName}` : ''}! 🎉` : `Well done${firstName ? `, ${firstName}` : ''}! 🎉`}
+          </h1>
+          <p className="ws-done__sub">
+            {dayName ? `${dayName} · ` : ''}{isHe ? 'הושלם' : 'complete'}
+          </p>
+        </div>
 
-          {prs.length > 0 && (
-            <div className="ws-prs">
-              <div className="ws-prs__title">🏆 {isHe ? 'שיאים חדשים!' : 'New records!'}</div>
-              {prs.map((pr, i) => (
-                <div key={i} className="ws-prs__row">
-                  <span>{isHe ? pr.name : getEnglishName(pr.name)}</span>
-                  <strong>{pr.weight} {isHe ? 'ק״ג' : 'kg'}</strong>
-                </div>
-              ))}
+        <div className="ws-done__stats">
+          <div className="ws-done__stat">
+            <div className="ws-done__stat-value">{Math.max(1, Math.round(elapsed / 60))}</div>
+            <div className="ws-done__stat-label">{isHe ? 'דקות' : 'minutes'}</div>
+          </div>
+          <div className="ws-done__stat">
+            <div className="ws-done__stat-value">
+              {location === 'gym' && vol > 0 ? vol.toLocaleString() : doneSets}
             </div>
-          )}
+            <div className="ws-done__stat-label">
+              {location === 'gym' && vol > 0 ? (isHe ? 'ק״ג נפח' : 'kg volume') : (isHe ? 'סטים' : 'sets')}
+            </div>
+          </div>
+          <div className="ws-done__stat ws-done__stat--streak">
+            <div className="ws-done__stat-value">
+              <span>{streak}</span>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--streak)"
+                   strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3c1 3.5 5 5.5 5 9.5a5 5 0 0 1-10 0C7 10 8.5 8.5 9.5 7c.5 1.5 1.3 2.4 2.8 3-.8-2.3-.8-4.7-.3-7z" />
+              </svg>
+            </div>
+            <div className="ws-done__stat-label">{isHe ? 'ימי רצף' : 'day streak'}</div>
+          </div>
+        </div>
 
-          <div className="ws-summary__list">
-            {exs.filter(e => e.sets.some(s => s.done)).map((ex, i) => {
+        {xpGained > 0 && (
+          <div className="ws-done__xp">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--violet)"
+                 strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 4l1.7 4.6 4.8 1.7-4.8 1.7L12 16.6l-1.7-4.6-4.8-1.7 4.8-1.7z" />
+            </svg>
+            <span>
+              +{xpAnimated} XP
+              {toNextLevel != null && ` · ${isHe ? `עוד ${toNextLevel} XP לרמה ${(summary.xp?.level ?? 1) + 1}` : `${toNextLevel} XP to level ${(summary.xp?.level ?? 1) + 1}`}`}
+            </span>
+          </div>
+        )}
+
+        {prs.length > 0 && (
+          <div className="ws-done__prs">
+            <div className="ws-done__prs-title">🏆 {isHe ? 'שיאים חדשים' : 'New records'}</div>
+            {prs.map((pr, i) => (
+              <div className="ws-done__pr" key={i}>
+                <span>{isHe ? pr.name : getEnglishName(pr.name)}</span>
+                <strong>{pr.weight} {isHe ? 'ק״ג' : 'kg'}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {doneExercises.length > 0 && (
+          <div className="ws-done__summary">
+            {doneExercises.map((ex, i) => {
               const done = ex.sets.filter(s => s.done);
               const top = done.reduce((m, s) => (s.weight || 0) > (m?.weight || 0) ? s : m, done[0]);
               return (
-                <div key={i} className="ws-summary__ex">
-                  <span className="ws-summary__ex-dot" style={{ background: MUSCLE_COLORS[ex.muscleGroup] || '#2FE3C2' }} />
-                  <span className="ws-summary__ex-name">{isHe ? ex.name : getEnglishName(ex.name)}</span>
-                  <span className="ws-summary__ex-detail">
+                <div className="ws-done__ex" key={i}>
+                  <span className="ws-done__ex-dot" style={{ background: MUSCLE_COLORS[ex.muscleGroup] || 'var(--accent)' }} />
+                  <span className="ws-done__ex-name">{isHe ? ex.name : getEnglishName(ex.name)}</span>
+                  <span className="ws-done__ex-detail" dir="ltr">
                     {ex.mode === 'time'
                       ? fmtClock(done.reduce((n, s) => n + (s.durationSec || 0), 0))
                       : `${done.length}×${top?.reps || '—'}${top?.weight ? ` @ ${top.weight}` : ''}`}
@@ -469,9 +471,16 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
               );
             })}
           </div>
+        )}
 
-          <button type="button" className="ws-btn-primary" onClick={() => onFinish(summary)}>
-            {isHe ? 'סגור' : 'Done'}
+        <div className="ws-done__cta">
+          <button type="button" className="ws-live__primary" style={{ width: '100%' }} onClick={() => onFinish(summary, { goHome: true })}>
+            {isHe ? 'חזרה הביתה' : 'Back home'}
+          </button>
+          {/* Closing without goHome lands back on the workout tab, where the
+              start button for the next session is. */}
+          <button type="button" className="ws-done__again" onClick={() => onFinish(summary)}>
+            {isHe ? 'רוצה עוד? התחל אימון נוסף' : 'Want more? Start another workout'}
           </button>
         </div>
       </div>
@@ -481,21 +490,60 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
   // ─────────────────────────── Active session ───────────────────────────
   if (!cur) return null;
   const primaryName = isHe ? cur.name : getEnglishName(cur.name);
-  const secondaryName = isHe && getEnglishName(cur.name) !== cur.name ? getEnglishName(cur.name) : null;
   const perf = lastPerf[cur.name];
+  const curSetIdx = cur.sets.findIndex(s => !s.done);
+  const allDone = exs.every(e => e.sets.every(s => s.done));
+  const restSecs = restSecondsFor(cur);
+
+  // Set rows are read-only here: the numbers come from the last-performance
+  // prefill, so a set is one tap rather than four.
+  const setDetail = (s) => {
+    if (cur.mode === 'time') return fmtClock(s.durationSec || 60);
+    const reps = s.reps ?? suggestReps(cur.targetReps);
+    return s.weight
+      ? `${reps} × ${s.weight} ${isHe ? 'ק״ג' : 'kg'}`
+      : `${reps} ${isHe ? 'חזרות' : 'reps'}`;
+  };
+
+  // The single CTA walks the plan: finish this set, roll onto the next
+  // exercise when this one runs out, and become "finish" at the very end.
+  function handleSetCta() {
+    if (allDone) { handleFinish(); return; }
+    const nextUnfinished = (from) => exs.findIndex((e, i) => i > from && e.sets.some(s => !s.done));
+    if (curSetIdx === -1) {
+      const n = nextUnfinished(curIdx);
+      setCurIdx(n === -1 ? exs.findIndex(e => e.sets.some(s => !s.done)) : n);
+      return;
+    }
+    completeSet(curSetIdx);
+    const remaining = cur.sets.filter((s, j) => j !== curSetIdx && !s.done).length;
+    if (remaining === 0) {
+      const n = nextUnfinished(curIdx);
+      if (n !== -1) setCurIdx(n);
+    }
+  }
+
+  const openTutorial = () => window.open(
+    `https://www.youtube.com/results?search_query=${encodeURIComponent(getEnglishName(cur.name) + ' exercise tutorial form')}`,
+    '_blank',
+  );
 
   return (
-    <div className="ws-overlay">
-      {/* Header */}
-      <div className="ws-header">
-        <button type="button" className="ws-header__exit" onClick={() => setConfirmExit(true)} aria-label={isHe ? 'יציאה' : 'Exit'}>
-          ✕
+    <div className="ws-overlay ws-live">
+      {/* Header: elapsed pill · position · exit */}
+      <div className="ws-live__head">
+        <div className="ws-live__clock" dir="ltr">
+          <ClockIcon color="var(--accent)" />
+          <span>{fmtClock(elapsed)}</span>
+        </div>
+        <span className="ws-live__pos">
+          {isHe ? `תרגיל ${curIdx + 1} מתוך ${exs.length}` : `Exercise ${curIdx + 1} of ${exs.length}`}
+        </span>
+        <button type="button" className="ws-live__x" onClick={() => setConfirmExit(true)} aria-label={isHe ? 'יציאה' : 'Exit'}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
         </button>
-        <div className="ws-header__clock" dir="ltr">⏱ {fmtClock(elapsed)}</div>
-        <div className="ws-header__progress-text">{doneSets}/{totalSets} {isHe ? 'סטים' : 'sets'}</div>
-      </div>
-      <div className="ws-progress-track">
-        <div className="ws-progress-fill" style={{ width: `${pct}%` }} />
       </div>
 
       {/* Exit confirm */}
@@ -512,149 +560,130 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
         </div>
       )}
 
-      {/* Body */}
-      <div className="ws-body">
-        {/* Exercise pager dots */}
-        <div className="ws-dots">
-          {exs.map((e, i) => {
-            const exDone = e.sets.every(s => s.done);
-            return (
-              <button
-                key={i}
-                type="button"
-                className={`ws-dot${i === curIdx ? ' ws-dot--active' : ''}${exDone ? ' ws-dot--done' : ''}`}
-                onClick={() => setCurIdx(i)}
-                aria-label={`${isHe ? 'תרגיל' : 'Exercise'} ${i + 1}`}
-              />
-            );
-          })}
-        </div>
-
-        {/* Exercise card */}
-        <div className="ws-exercise" key={curIdx} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-          <div className="ws-exercise__head">
-            <div className="ws-exercise__bar" style={{ background: exColor }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="ws-exercise__name">{primaryName}</div>
-              <div className="ws-exercise__meta">
-                {secondaryName && <span>{secondaryName} · </span>}
-                <span style={{ color: exColor }}>{cur.muscleGroup}</span>
-                {cur.targetReps && cur.mode === 'reps' && (
-                  <span> · {isHe ? 'יעד' : 'target'} {cur.targetReps}</span>
-                )}
-              </div>
-            </div>
-            <button
-              type="button"
-              className="ws-video-btn"
-              onClick={() => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(getEnglishName(cur.name) + ' exercise tutorial form')}`, '_blank')}
-              aria-label={isHe ? 'סרטון הדרכה' : 'Tutorial video'}
-            >▶</button>
+      {/* Exercise card: demo strip, the prescription, then the set rows */}
+      <div className="ws-live__card" key={curIdx}>
+        <button type="button" className="ws-live__demo" onClick={openTutorial}>
+          <DumbbellIcon />
+          <span>{isHe ? 'וידאו הדגמת תרגיל' : 'Exercise demo video'}</span>
+        </button>
+        <div className="ws-live__card-body">
+          <div className="ws-live__name">{primaryName}</div>
+          <div className="ws-live__meta">
+            {cur.sets.length} {isHe ? 'סטים' : 'sets'}
+            {cur.mode === 'reps' && cur.targetReps && ` × ${cur.targetReps} ${isHe ? 'חזרות' : 'reps'}`}
+            {` · ${isHe ? 'מנוחה' : 'rest'} ${restSecs} ${isHe ? 'שנ׳' : 's'}`}
           </div>
 
-          {/* Last performance hint */}
+          {/* What you did last time, and the nudge past it */}
           {perf && cur.mode === 'reps' && (
-            <div className="ws-lasttime">
-              {isHe ? 'פעם קודמת: ' : 'Last time: '}
-              <strong>
-                {perf.sets.length}×{perf.sets[0]?.reps || '—'}
-                {perf.sets[0]?.weight ? ` @ ${perf.sets[0].weight} ${isHe ? 'ק״ג' : 'kg'}` : ''}
-              </strong>
-            </div>
-          )}
-
-          {/* Smart weight suggestion — last weight + progressive overload */}
-          {perf && cur.mode === 'reps' && location === 'gym' && perf.sets[0]?.weight != null && (
-            <div className="ws-suggest">
-              <span>⚡ {isHe ? 'הצעה חכמה' : 'Smart pick'}: {perf.sets[0].weight + 2.5} {isHe ? 'ק״ג' : 'kg'}</span>
-              <button type="button" onClick={applySuggestion}>{isHe ? 'החל' : 'Apply'}</button>
-            </div>
-          )}
-
-          {cur.mode === 'reps' && (
-            <div className="ws-markall-row">
-              <button type="button" className="ws-markall" onClick={markAllSets}>
-                ✓ {isHe ? 'סמן הכל כהושלם' : 'Mark all done'}
-              </button>
-            </div>
-          )}
-
-          {/* Set rows */}
-          <div className="ws-sets">
-            {cur.sets.map((s, si) => (
-              <div key={si} className={`ws-set${s.done ? ' ws-set--done' : ''}`}>
-                <div className="ws-set__num">{si + 1}</div>
-
-                {cur.mode === 'time' ? (
-                  <>
-                    <div className="ws-set__time" dir="ltr">
-                      {workTimer?.setIdx === si
-                        ? fmtClock(workTimer.left)
-                        : fmtClock(s.durationSec || 60)}
-                    </div>
-                    {!s.done && (
-                      workTimer?.setIdx === si ? (
-                        <button type="button" className="ws-set__timerbtn ws-set__timerbtn--stop" onClick={() => setWorkTimer(null)}>
-                          ⏸
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="ws-set__timerbtn"
-                          onClick={() => setWorkTimer({ setIdx: si, total: s.durationSec || 60, left: s.durationSec || 60 })}
-                        >▶</button>
-                      )
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {location === 'gym' && (
-                      <div className="ws-set__stepper">
-                        <button type="button" className="ws-stepper__btn" onClick={() => updateSet(si, { weight: Math.max(0, (s.weight ?? 0) - 2.5) })} aria-label={isHe ? 'הפחת משקל' : 'Decrease weight'}>−</button>
-                        <div className="ws-stepper__val">
-                          <span>{s.weight ?? 0}</span>
-                          <span className="ws-set__unit">{isHe ? 'ק״ג' : 'kg'}</span>
-                        </div>
-                        <button type="button" className="ws-stepper__btn" onClick={() => updateSet(si, { weight: (s.weight ?? 0) + 2.5 })} aria-label={isHe ? 'הוסף משקל' : 'Increase weight'}>+</button>
-                      </div>
-                    )}
-                    <div className="ws-set__stepper">
-                      <button type="button" className="ws-stepper__btn" onClick={() => updateSet(si, { reps: Math.max(0, (s.reps ?? 0) - 1) })} aria-label={isHe ? 'הפחת חזרות' : 'Decrease reps'}>−</button>
-                      <div className="ws-stepper__val">
-                        <span>{s.reps ?? 0}</span>
-                        <span className="ws-set__unit">{isHe ? 'חזרות' : 'reps'}</span>
-                      </div>
-                      <button type="button" className="ws-stepper__btn" onClick={() => updateSet(si, { reps: (s.reps ?? 0) + 1 })} aria-label={isHe ? 'הוסף חזרות' : 'Increase reps'}>+</button>
-                    </div>
-                  </>
-                )}
-
-                <button
-                  type="button"
-                  className={`ws-set__check${s.done ? ' ws-set__check--on' : ''}`}
-                  style={s.done ? { borderColor: exColor, background: `${exColor}22`, color: exColor } : {}}
-                  onClick={() => completeSet(si)}
-                  aria-label={isHe ? 'סמן סט' : 'Mark set'}
-                >
-                  ✓
+            <div className="ws-live__last">
+              <span>
+                {isHe ? 'פעם קודמת: ' : 'Last time: '}
+                <strong>
+                  {perf.sets.length}×{perf.sets[0]?.reps || '—'}
+                  {perf.sets[0]?.weight ? ` @ ${perf.sets[0].weight} ${isHe ? 'ק״ג' : 'kg'}` : ''}
+                </strong>
+              </span>
+              {location === 'gym' && perf.sets[0]?.weight != null && (
+                <button type="button" className="ws-live__suggest" onClick={applySuggestion}>
+                  ⚡ {perf.sets[0].weight + 2.5} {isHe ? 'ק״ג' : 'kg'}
                 </button>
-              </div>
-            ))}
-          </div>
-
-          {/* Add / remove set */}
-          {cur.mode === 'reps' && (
-            <div className="ws-set-actions">
-              <button type="button" className="ws-chip" onClick={addSet}>+ {isHe ? 'הוסף סט' : 'Add set'}</button>
-              {cur.sets.length > 1 && (
-                <button type="button" className="ws-chip" onClick={removeSet}>− {isHe ? 'הסר סט' : 'Remove set'}</button>
               )}
             </div>
           )}
-        </div>
 
-        {error && <div className="ws-error">{error}</div>}
+          {cur.mode === 'reps' && (
+            <div className="ws-live__setops">
+              <button type="button" className="ws-live__op" onClick={markAllSets}>
+                ✓ {isHe ? 'סמן הכל' : 'Mark all'}
+              </button>
+              <button type="button" className="ws-live__op" onClick={addSet}>+ {isHe ? 'סט' : 'Set'}</button>
+              {cur.sets.length > 1 && (
+                <button type="button" className="ws-live__op" onClick={removeSet}>− {isHe ? 'סט' : 'Set'}</button>
+              )}
+            </div>
+          )}
+
+          <div className="ws-live__sets">
+            {cur.sets.map((s, si) => {
+              const state = s.done ? 'done' : si === curSetIdx ? 'current' : 'pending';
+              return (
+                <div key={si} className={`ws-live__set ws-live__set--${state}`}>
+                  <button
+                    type="button"
+                    className="ws-live__set-main"
+                    onClick={() => completeSet(si)}
+                    aria-pressed={s.done}
+                  >
+                    {state === 'done' ? (
+                      <svg className="ws-live__set-mark" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                           stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12.5l4.5 4.5L19 7" />
+                      </svg>
+                    ) : (
+                      <span className="ws-live__set-mark ws-live__set-dot" />
+                    )}
+                    <span className="ws-live__set-name">{isHe ? `סט ${si + 1}` : `Set ${si + 1}`}</span>
+                    <span className="ws-live__set-detail" dir="ltr">{setDetail(s)}</span>
+                  </button>
+
+                  {/* Only the set in focus carries the editor: the numbers have
+                      to be writable — volume and PRs are computed from them —
+                      but four steppers on every row would bury the design. */}
+                  {state === 'current' && cur.mode === 'reps' && (
+                    <div className="ws-live__edit">
+                      {location === 'gym' && (
+                        <Stepper
+                          label={isHe ? 'ק״ג' : 'kg'}
+                          value={s.weight ?? 0}
+                          step={2.5}
+                          onChange={(v) => updateSet(si, { weight: v })}
+                        />
+                      )}
+                      <Stepper
+                        label={isHe ? 'חזרות' : 'reps'}
+                        value={s.reps ?? suggestReps(cur.targetReps)}
+                        step={1}
+                        onChange={(v) => updateSet(si, { reps: v })}
+                      />
+                    </div>
+                  )}
+
+                  {state === 'current' && cur.mode === 'time' && (
+                    <div className="ws-live__edit">
+                      <button
+                        type="button"
+                        className="ws-live__timer"
+                        onClick={() => (workTimer?.setIdx === si
+                          ? setWorkTimer(null)
+                          : setWorkTimer({ setIdx: si, total: s.durationSec || 60, left: s.durationSec || 60 }))}
+                      >
+                        {workTimer?.setIdx === si
+                          ? `⏸ ${fmtClock(workTimer.left)}`
+                          : `▶ ${isHe ? 'התחל' : 'Start'} ${fmtClock(s.durationSec || 60)}`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
+
+      {/* What happens next */}
+      <div className="ws-live__note">
+        <ClockIcon color="var(--violet)" />
+        <span>
+          {allDone
+            ? (isHe ? 'כל הסטים הושלמו — מעולה!' : 'All sets done — great work!')
+            : (isHe
+                ? `מנוחה של ${restSecs} שנ׳ תתחיל אוטומטית בסיום הסט`
+                : `A ${restSecs}s rest starts automatically when you finish the set`)}
+        </span>
+      </div>
+
+      {error && <div className="ws-error">{error}</div>}
 
       {/* Rest timer sheet */}
       {rest && (
@@ -686,34 +715,51 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
         </div>
       )}
 
-      {/* Footer nav */}
-      <div className="ws-footer">
-        <button
-          type="button"
-          className="ws-nav-btn"
-          disabled={curIdx === 0}
-          onClick={() => setCurIdx(i => Math.max(0, i - 1))}
-        >
-          {isHe ? '→ הקודם' : '← Prev'}
+      {/* Finish early sits beside the set CTA; it needs at least one logged set
+          to have anything worth saving. */}
+      <div className="ws-live__cta">
+        <button type="button" className="ws-live__early" onClick={handleFinish} disabled={saving || doneSets === 0}>
+          {saving ? (isHe ? 'שומר…' : 'Saving…') : (isHe ? 'סיים מוקדם' : 'Finish early')}
         </button>
-
-        {doneSets > 0 ? (
-          <button type="button" className="ws-finish-btn" onClick={handleFinish} disabled={saving}>
-            {saving ? (isHe ? 'שומר…' : 'Saving…') : (isHe ? '✓ סיים אימון' : '✓ Finish')}
-          </button>
-        ) : (
-          <div className="ws-footer__count">{curIdx + 1}/{exs.length}</div>
-        )}
-
-        <button
-          type="button"
-          className="ws-nav-btn"
-          disabled={curIdx === exs.length - 1}
-          onClick={() => setCurIdx(i => Math.min(exs.length - 1, i + 1))}
-        >
-          {isHe ? 'הבא ←' : 'Next →'}
+        <button type="button" className="ws-live__primary" onClick={handleSetCta} disabled={saving}>
+          {allDone
+            ? (isHe ? 'סיים אימון' : 'Finish workout')
+            : (isHe ? 'סיימתי את הסט' : 'Set complete')}
         </button>
       </div>
     </div>
+  );
+}
+
+function Stepper({ label, value, step, onChange }) {
+  const dec = () => onChange(Math.max(0, Math.round((value - step) * 100) / 100));
+  const inc = () => onChange(Math.round((value + step) * 100) / 100);
+  return (
+    <div className="ws-step">
+      <button type="button" className="ws-step__btn" onClick={dec} aria-label={`− ${label}`}>−</button>
+      <div className="ws-step__val">
+        <span className="ws-step__num">{value}</span>
+        <span className="ws-step__unit">{label}</span>
+      </div>
+      <button type="button" className="ws-step__btn" onClick={inc} aria-label={`+ ${label}`}>+</button>
+    </div>
+  );
+}
+
+function ClockIcon({ color = 'currentColor' }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="13" r="7" />
+      <path d="M12 10v3.5l2.5 1.5M9 3h6" />
+    </svg>
+  );
+}
+
+function DumbbellIcon() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)"
+         strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6.5 8v8M3.5 10v4M17.5 8v8M20.5 10v4M6.5 12h11" />
+    </svg>
   );
 }

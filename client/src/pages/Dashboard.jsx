@@ -70,6 +70,8 @@ export default function Dashboard() {
   const [workoutHistory, setWorkoutHistory] = useState(null);
   const [progressionData, setProgressionData] = useState(null);
   const [dailyStreak, setDailyStreak] = useState(() => readCachedStreak());
+  // Journey sub-tab (prototype): 'prog' | 'badges' | 'goals'
+  const [journeyView, setJourneyView] = useState('prog');
   const [loading, setLoading] = useState(true);
   const [xpToast, setXpToast] = useState(null);
   const [streakToast, setStreakToast] = useState(null);
@@ -95,6 +97,10 @@ export default function Dashboard() {
     { id: 'nutrition', label: isHe ? 'תזונה' : 'Eat'     },
     { id: 'progress',  label: isHe ? 'מסע'   : 'Journey' },
   ];
+
+  // Settings sits outside the four main tabs: it hides the chrome and owns the
+  // whole screen (the admin tab keeps the old in-tab layout).
+  const settingsOpen = activeTab === 'settings';
 
   const goalLabels = {
     bulk: t.goalBulk,
@@ -239,6 +245,8 @@ export default function Dashboard() {
             showXP={showXP}
             progressionData={progressionData}
             dailyStreak={dailyStreak}
+            userName={profileData?.name}
+            onGoHome={() => setActiveTab('overview')}
           />
         )}
 
@@ -268,32 +276,49 @@ export default function Dashboard() {
 
         {activeTab === 'progress' && (
           <>
-            {/* Areto 2.0 header */}
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 13, color: '#4D9FFF', fontWeight: 700, letterSpacing: '.5px', marginBottom: 2 }}>
-                {isHe ? 'המסע שלך' : 'Your journey'}
-              </div>
-              <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, color: 'var(--text-1)', margin: 0 }}>
-                {isHe ? 'התקדמות' : 'Progress'}
-              </h1>
+            <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--text-1)' }}>
+              {isHe ? 'המסע שלך' : 'Your journey'}
+            </h1>
+            {/* Sub-tabs (prototype): progress / badges / goals */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              {[
+                { id: 'prog', label: isHe ? 'התקדמות' : 'Progress' },
+                { id: 'badges', label: isHe ? 'תגים' : 'Badges' },
+                { id: 'goals', label: isHe ? 'יעדים' : 'Goals' },
+              ].map((s) => {
+                const on = journeyView === s.id;
+                return (
+                  <button key={s.id} type="button" onClick={() => setJourneyView(s.id)}
+                    style={{
+                      fontSize: 13, fontWeight: 600, borderRadius: 999, padding: '7px 16px', cursor: 'pointer',
+                      fontFamily: 'inherit', border: '1px solid var(--border-subtle)',
+                      color: on ? '#04241B' : '#93A0B4', background: on ? '#2FE3C2' : 'var(--surface)',
+                    }}>
+                    {s.label}
+                  </button>
+                );
+              })}
             </div>
-            {/* XP / level panel first — most motivating */}
-            <ProgressionPanel api={api} />
-            {/* Weight trajectory + BMI */}
-            <BMICard
-              bmiAnalysis={profileData?.bmiAnalysis}
-              profile={profileData?.profile}
-              calorieTarget={nutrition?.calorieTarget}
-              api={api}
-              onUpdate={loadData}
-            />
-            <Progress
-              nutrition={nutrition}
-              todayNutrition={todayNutrition}
-              workoutHistory={workoutHistory}
-              profile={profileData?.profile}
-              api={api}
-            />
+
+            {journeyView !== 'goals' && <ProgressionPanel api={api} view={journeyView} />}
+            {journeyView === 'goals' && (
+              <>
+                <BMICard
+                  bmiAnalysis={profileData?.bmiAnalysis}
+                  profile={profileData?.profile}
+                  calorieTarget={nutrition?.calorieTarget}
+                  api={api}
+                  onUpdate={loadData}
+                />
+                <Progress
+                  nutrition={nutrition}
+                  todayNutrition={todayNutrition}
+                  workoutHistory={workoutHistory}
+                  profile={profileData?.profile}
+                  api={api}
+                />
+              </>
+            )}
           </>
         )}
 
@@ -309,11 +334,16 @@ export default function Dashboard() {
             api={api}
             onUpdate={loadData}
             logout={logout}
+            level={progressionData?.level}
+            onExit={() => setActiveTab('overview')}
           />
         )}
       </main>
 
-      {/* Mobile top bar: flame pill (right in RTL) · brand · avatar (left in RTL) */}
+      {/* Mobile top bar: flame pill (right in RTL) · brand · avatar (left in RTL).
+          Settings is a full screen with its own back-arrow header, so the
+          topbar and the bottom nav both step aside for it. */}
+      {!settingsOpen && (
       <header className="mobile-topbar" aria-label={isHe ? 'שורת עליון' : 'Top bar'}>
         {/* Flame streak pill — first child = rightmost in RTL */}
         {dailyStreak > 0 ? (
@@ -340,7 +370,9 @@ export default function Dashboard() {
           </span>
         </button>
       </header>
+      )}
 
+      {!settingsOpen && (
       <nav className="mobile-nav" aria-label={isHe ? 'ניווט ראשי' : 'Primary navigation'}>
         {mobileTabs.map((tab) => {
           const isActive = tab.id === 'progress'
@@ -361,6 +393,7 @@ export default function Dashboard() {
           );
         })}
       </nav>
+      )}
     </div>
   );
 }
@@ -478,39 +511,14 @@ function HeroMacroBar({ label, current, target, color }) {
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-        <span style={{ fontSize: 13, color: '#B9C4D2' }}>{label}</span>
-        <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, color: 'var(--text-3)' }}>
-          {Math.round(current)}<span style={{ opacity: 0.6 }}>/{target}g</span>
-        </span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 5 }}>
+        <span style={{ color: '#93A0B4' }}>{label}</span>
+        <span style={{ color: '#B9C4D2', fontWeight: 500 }}>{Math.round(current)}/{target}g</span>
       </div>
-      <div style={{ height: 7, background: 'var(--border-subtle)', borderRadius: 99, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 99, transition: 'width .8s cubic-bezier(.4,0,.2,1)' }} />
+      <div style={{ height: 5, borderRadius: 3, background: 'var(--border-faint)' }}>
+        <div style={{ width: `${pct}%`, height: 5, borderRadius: 3, background: color, transition: 'width .6s ease' }} />
       </div>
     </div>
-  );
-}
-
-function QuickActionNew({ emoji, iconBg, title, sub, onClick }) {
-  const { lang } = useLang();
-  const isHe = lang === 'he';
-  return (
-    <button
-      onClick={onClick}
-      type="button"
-      style={{ width: '100%', border: '1px solid var(--border-subtle)', cursor: 'pointer', background: 'var(--surface)', borderRadius: 18, padding: '15px 16px', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'inherit', transition: 'border-color 0.15s' }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(47,227,194,.3)'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
-    >
-      <div style={{ width: 44, height: 44, borderRadius: 13, flexShrink: 0, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{emoji}</div>
-      <div style={{ flex: 1, textAlign: 'start' }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text-1)' }}>{title}</div>
-        {sub && <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 1 }}>{sub}</div>}
-      </div>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C8798" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isHe ? 'scaleX(-1)' : 'none', flexShrink: 0 }}>
-        <path d="m9 18 6-6-6-6"/>
-      </svg>
-    </button>
   );
 }
 
@@ -589,7 +597,8 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
 
   const calorieRemaining = Math.max(0, calorieTarget - calorieProgress);
   const caloriePct = calorieTarget > 0 ? Math.min(1, calorieProgress / calorieTarget) : 0;
-  const R = 76, C = 2 * Math.PI * R;
+  // Ring geometry matches the prototype: 124px box, r=55, 11px stroke.
+  const R = 55, C = 2 * Math.PI * R;
   const ringOffset = (C * (1 - caloriePct)).toFixed(1);
 
   // Week strip
@@ -635,64 +644,61 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
 
   return (
     <>
-      {/* Weekly body-data update prompt */}
+      {/* Weekly body-data prompt — slim inline row (prototype) */}
       {showBodyPrompt && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 16px', marginBottom: 16, background: 'rgba(47,227,194,0.08)', border: '1px solid rgba(47,227,194,0.25)', borderRadius: 'var(--r-md)' }}>
-          <div style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.4 }}>
-            📏 {isHe ? 'זה הזמן לעדכן את נתוני הגוף השבועיים שלך.' : 'Time for your weekly body check-in.'}
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-            <button type="button" onClick={() => { dismissBodyPrompt(); setShowBodyPrompt(false); setActiveTab('settings'); }} style={{ padding: '7px 14px', borderRadius: 'var(--r-md)', border: 'none', background: 'var(--accent)', color: 'var(--bg-0)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-              {isHe ? 'עדכן עכשיו' : 'Update now'}
-            </button>
-            <button type="button" onClick={() => { dismissBodyPrompt(); setShowBodyPrompt(false); }} aria-label={isHe ? 'סגור' : 'Dismiss'} style={{ padding: '7px 10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-3)', fontSize: 13, cursor: 'pointer' }}>✕</button>
-          </div>
+        <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 14, padding: '11px 14px' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8F8AF7" strokeWidth="1.8" strokeLinecap="round" style={{ flexShrink: 0 }}>
+            <rect x="3" y="9" width="18" height="6" rx="1.5" /><path d="M7 9v3M11 9v3M15 9v3" />
+          </svg>
+          <span style={{ flex: 1, fontSize: 13, color: '#93A0B4' }}>
+            {isHe ? 'זה הזמן לעדכן נתוני גוף שבועיים' : 'Time for your weekly body check-in'}
+          </span>
+          <button type="button" onClick={() => { dismissBodyPrompt(); setShowBodyPrompt(false); setActiveTab('settings'); }}
+            style={{ background: 'none', border: 'none', fontSize: 13, fontWeight: 600, color: '#2FE3C2', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+            {isHe ? 'עדכן' : 'Update'}
+          </button>
+          <button type="button" onClick={() => { dismissBodyPrompt(); setShowBodyPrompt(false); }} aria-label={isHe ? 'סגור' : 'Dismiss'}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 0 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5E6B7E" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
         </div>
       )}
 
-      {/* Greeting + level pill */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, color: 'var(--text-1)', lineHeight: 1.15 }}>
+      {/* Greeting — level pill sits inline next to the name (prototype) */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
             {userName ? `${getGreeting(lang)}, ${userName}` : (isHe ? 'ברוך שובך' : 'Welcome back')}
-          </div>
-          <div style={{ fontSize: 14, color: 'var(--text-3)', marginTop: 4 }}>{formatDate(lang)}</div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(143,138,247,.14)', border: '1px solid rgba(143,138,247,.3)', borderRadius: 999, padding: '5px 11px', flexShrink: 0 }}>
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 12, color: '#8F8AF7' }}>
+          </h1>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8F8AF7', background: 'rgba(143,138,247,.1)', borderRadius: 999, padding: '3px 10px', flexShrink: 0 }}>
             {isHe ? `רמה ${progressionData?.level ?? 1}` : `LVL ${progressionData?.level ?? 1}`}
           </span>
         </div>
+        <div style={{ fontSize: 13.5, color: '#7C8798', marginTop: 4 }}>{formatDate(lang)}</div>
       </div>
 
-      {/* Hero ring card */}
-      <div style={{ background: 'var(--surface-elev)', border: '1px solid var(--border-subtle)', borderRadius: 26, padding: '24px 22px', position: 'relative', overflow: 'hidden', boxShadow: '0 20px 40px -24px rgba(0,0,0,.7)', marginBottom: 16 }}>
-        <div style={{ position: 'absolute', top: -60, insetInlineEnd: -40, width: 200, height: 200, background: 'radial-gradient(circle,rgba(47,227,194,.14),transparent 70%)', pointerEvents: 'none' }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 22, position: 'relative' }}>
-          {/* Calorie ring */}
-          <div style={{ position: 'relative', width: 158, height: 158, flexShrink: 0 }}>
-            <svg width="158" height="158" viewBox="0 0 180 180" style={{ transform: 'rotate(-90deg)' }}>
-              <circle cx="90" cy="90" r="76" fill="none" stroke="var(--border-subtle)" strokeWidth="15" />
-              <circle cx="90" cy="90" r="76" fill="none" stroke="url(#heroRingGrad)" strokeWidth="15" strokeLinecap="round"
+      {/* Calorie ring card */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 22, padding: '22px 20px', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          {/* Calorie ring — shows consumed of target (prototype) */}
+          <div style={{ position: 'relative', width: 124, height: 124, flexShrink: 0 }}>
+            <svg width="124" height="124" viewBox="0 0 128 128" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="64" cy="64" r="55" fill="none" stroke="var(--border-faint)" strokeWidth="11" />
+              <circle cx="64" cy="64" r="55" fill="none" stroke="#2FE3C2" strokeWidth="11" strokeLinecap="round"
                 strokeDasharray={C.toFixed(1)} strokeDashoffset={ringOffset}
-                style={{ transition: 'stroke-dashoffset .8s cubic-bezier(.4,0,.2,1)' }} />
-              <defs>
-                <linearGradient id="heroRingGrad" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stopColor="#2FE3C2" /><stop offset="1" stopColor="#5FEDD3" />
-                </linearGradient>
-              </defs>
+                style={{ transition: 'stroke-dashoffset .6s ease' }} />
             </svg>
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 34, color: 'var(--text-1)', lineHeight: 1 }}>
-                {Math.round(calorieRemaining).toLocaleString()}
+              <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-1)', lineHeight: 1 }}>
+                {Math.round(calorieProgress).toLocaleString()}
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
-                {isHe ? 'קלוריות שנותרו' : 'kcal left'}
+              <div style={{ fontSize: 11, color: '#7C8798', marginTop: 4 }}>
+                {isHe ? `מתוך ${calorieTarget.toLocaleString()} קק״ל` : `of ${calorieTarget.toLocaleString()} kcal`}
               </div>
             </div>
           </div>
           {/* Macro bars */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 13 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <HeroMacroBar label={isHe ? 'חלבון' : 'Protein'} current={proteinProgress} target={proteinTarget} color="#F5698C" />
             <HeroMacroBar label={isHe ? 'פחמימות' : 'Carbs'} current={carbsProgress} target={carbsTarget} color="#4D9FFF" />
             <HeroMacroBar label={isHe ? 'שומן' : 'Fat'} current={fatProgress} target={fatTarget} color="#FFB648" />
@@ -700,118 +706,88 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
         </div>
         {/* CTA row */}
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-          <button onClick={() => setActiveTab('nutrition')} style={{ flex: 1, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#36E8C6,#1EC0A2)', color: '#04241B', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, padding: 13, borderRadius: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxShadow: '0 8px 22px -8px rgba(47,227,194,.7)' }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#04241B" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          <button onClick={() => setActiveTab('nutrition')} style={{ flex: 1.6, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'linear-gradient(135deg,#36E8C6,#1EC0A2)', color: '#04241B', fontWeight: 700, border: 'none', borderRadius: 14, padding: 14, fontSize: 15.5, fontFamily: 'inherit', cursor: 'pointer' }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#04241B" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
             {isHe ? 'הוסף ארוחה' : 'Add meal'}
           </button>
-          <button onClick={() => setActiveTab('workout')} style={{ border: '1px solid var(--border)', cursor: 'pointer', background: 'var(--surface-elev)', color: 'var(--text-1)', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, padding: '13px 18px', borderRadius: 15 }}>
+          <button onClick={() => setActiveTab('workout')} style={{ flex: 1, background: 'var(--fill-faint)', border: '1px solid var(--border)', color: 'var(--text-1)', borderRadius: 14, padding: 14, fontSize: 15, fontFamily: 'inherit', cursor: 'pointer' }}>
             {isHe ? 'אימון' : 'Train'}
           </button>
         </div>
       </div>
 
-      {/* Next Step card */}
-      <div style={{ marginBottom: 16, background: 'linear-gradient(120deg,rgba(143,138,247,.13),rgba(47,227,194,.07))', border: '1px solid rgba(143,138,247,.22)', borderRadius: 22, padding: 18, cursor: 'pointer' }} onClick={nextAction} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && nextAction()}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 11, background: 'rgba(143,138,247,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8F8AF7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>
-          </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#8F8AF7', letterSpacing: .3 }}>
-            {isHe ? 'הצעד הבא שלך' : 'Your next step'}
-          </div>
+      {/* Next Step card — icon beside the copy, single tinted block (prototype) */}
+      <div style={{ marginBottom: 14, background: 'rgba(143,138,247,.07)', border: '1px solid rgba(143,138,247,.16)', borderRadius: 18, padding: '16px 18px', display: 'flex', gap: 13, alignItems: 'flex-start', cursor: 'pointer' }}
+        onClick={nextAction} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && nextAction()}>
+        <div style={{ width: 34, height: 34, borderRadius: 11, background: 'rgba(143,138,247,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8F8AF7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4.5 13.5H11L9.5 22 18 10.5H12z"/></svg>
         </div>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, color: 'var(--text-1)', lineHeight: 1.3, marginBottom: 4 }}>{nextTitle}</div>
-        <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.5 }}>{nextSub}</div>
+        <div>
+          <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--text-1)' }}>{nextTitle}</div>
+          <div style={{ fontSize: 13, color: '#93A0B4', marginTop: 3, lineHeight: 1.6 }}>{nextSub}</div>
+        </div>
       </div>
 
       {/* Week strip */}
-      <div style={{ marginBottom: 16, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 22, padding: '18px 16px' }}>
+      <div style={{ marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 18, padding: '16px 18px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text-1)' }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-1)' }}>
             {isHe ? 'השבוע שלך' : 'Your week'}
-          </div>
+          </span>
           {streak > 0 && (
-            <div style={{ fontSize: 13, color: 'var(--streak-text)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <img src="/streak-logo.png" alt="" style={{ width: 23, height: 23, objectFit: 'contain' }} />
-              {isHe ? `רצף של ${streak} ימים` : `${streak}-day streak`}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <img src="/streak-logo.png" alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />
+              <span style={{ fontSize: 12.5, color: 'var(--streak-text)', fontWeight: 500 }}>
+                {isHe ? `רצף של ${streak} ימים` : `${streak}-day streak`}
+              </span>
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 7 }}>
           {week.map((day, i) => {
-            let bg, border, icon;
-            if (day.status === 'full') {
-              bg = 'linear-gradient(135deg,rgba(255,154,77,.22),rgba(255,90,30,.12))';
-              border = '1px solid rgba(255,154,77,.3)'; icon = <img src="/streak-logo.png" alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />;
-            } else if (day.status === 'today') {
-              bg = 'rgba(47,227,194,.05)'; border = '1.5px dashed rgba(47,227,194,.5)'; icon = '●';
-            } else {
-              // Missed and future days share one neutral treatment (prototype):
-              // a red "you failed" tint on every skipped day reads as nagging.
-              bg = 'rgba(255,255,255,.03)'; border = '1px solid rgba(255,255,255,.06)'; icon = '';
-            }
+            const done = day.status === 'full';
+            const isToday = day.status === 'today';
             return (
-              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
-                <div style={{ fontSize: 12, color: day.status === 'today' ? '#2FE3C2' : '#7C8798', fontWeight: 600 }}>{day.label}</div>
-                <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: bg, border }}>
-                  <span style={{ fontSize: day.status === 'today' ? 11 : 14 }}>{icon}</span>
+              <div key={i} style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{
+                  height: 38, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: done ? 'rgba(47,227,194,.14)' : isToday ? 'rgba(47,227,194,.05)' : 'var(--fill-ghost)',
+                  border: done ? '1px solid rgba(47,227,194,.3)' : isToday ? '1.5px dashed rgba(47,227,194,.5)' : '1px solid var(--border-faint)',
+                }}>
+                  {done && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2FE3C2" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+                  )}
                 </div>
+                <div style={{ fontSize: 11, color: isToday ? '#2FE3C2' : '#7C8798', marginTop: 5, fontWeight: isToday ? 600 : 400 }}>{day.label}</div>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Quick actions list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <QuickActionNew
-          emoji="🍽️"
-          iconBg="rgba(47,227,194,.14)"
-          title={isHe ? 'רשום ארוחה' : 'Log meal'}
-          sub={calorieProgress > 0
-            ? (isHe ? `${Math.round(calorieRemaining)} קלוריות נותרו להיום` : `${Math.round(calorieRemaining)} kcal left today`)
-            : (isHe ? 'התחל לעקוב אחרי היום' : 'Start tracking today')}
-          onClick={() => setActiveTab('nutrition')}
-        />
-        <QuickActionNew
-          emoji="🏋️"
-          iconBg="rgba(143,138,247,.16)"
-          title={isHe ? 'התחל אימון' : 'Start workout'}
-          sub={isHe ? `${profile?.workoutsPerWeek || 4} אימונים בשבוע` : `${profile?.workoutsPerWeek || 4}x per week`}
-          onClick={() => setActiveTab('workout')}
-        />
-        <QuickActionNew
-          emoji="📈"
-          iconBg="rgba(74,168,255,.14)"
-          title={isHe ? 'ההתקדמות שלי' : 'My progress'}
-          sub={isHe ? 'משקל, כוח ורצף' : 'Weight, strength & streak'}
-          onClick={() => setActiveTab('progress')}
-        />
-      </div>
-
-      {/* Sleep tracker */}
-      <div style={{ marginTop: 16 }}>
-        <SleepTracker api={api} showXP={showXP} />
-      </div>
+      {/* Sleep — compact row that opens the sleep sheet (prototype) */}
+      <SleepTracker api={api} showXP={showXP} />
     </>
   );
 }
 
 // ── Settings v2 icons ──────────────────────────────────────────────────────
 function StIc({ type, color = '#fff', size = 18 }) {
-  const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
-  if (type === 'user')    return <svg {...p}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>;
-  if (type === 'target')  return <svg {...p}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill={color} stroke="none"/></svg>;
-  if (type === 'bell')    return <svg {...p}><path d="M6 9a6 6 0 0 1 12 0v4l2 4H4l2-4z"/><path d="M9.5 20a2.5 2.5 0 0 0 5 0"/></svg>;
-  if (type === 'display') return <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none"><path d="M15 3a9 9 0 1 0 6 15 7 7 0 0 1-6-15z"/></svg>;
-  if (type === 'sliders') return <svg {...p}><line x1="5" y1="7" x2="19" y2="7"/><circle cx="9" cy="7" r="2" fill={color}/><line x1="5" y1="12" x2="19" y2="12"/><circle cx="15" cy="12" r="2" fill={color}/><line x1="5" y1="17" x2="19" y2="17"/><circle cx="11" cy="17" r="2" fill={color}/></svg>;
-  if (type === 'lock')    return <svg {...p}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>;
-  if (type === 'shield')  return <svg {...p}><path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z"/></svg>;
+  const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  if (type === 'user')    return <svg {...p}><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3 3.8-4.5 7-4.5s5.8 1.5 7 4.5"/></svg>;
+  if (type === 'target')  return <svg {...p}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg>;
+  if (type === 'mail')    return <svg {...p}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>;
+  if (type === 'bell')    return <svg {...p}><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7M10.5 20a2 2 0 0 0 3 0"/></svg>;
+  if (type === 'display') return <svg {...p}><path d="M20 14A8.5 8.5 0 1 1 10 4a7 7 0 0 0 10 10z"/></svg>;
+  if (type === 'sliders') return <svg {...p}><path d="M5 8h8M17 8h2M5 16h2M11 16h8"/><circle cx="15" cy="8" r="2.2"/><circle cx="9" cy="16" r="2.2"/></svg>;
+  if (type === 'lock')    return <svg {...p}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>;
+  if (type === 'shield')  return <svg {...p}><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>;
+  if (type === 'logout')  return <svg {...p}><path d="M15 12H4M8 8l-4 4 4 4M15 4h5v16h-5"/></svg>;
   if (type === 'chat')    return <svg {...p}><path d="M4 5h16v11H8l-4 3z"/></svg>;
   return null;
 }
 
-function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
+function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, level, onExit }) {
   const { t, lang, setLanguage } = useLang();
   const { theme, setTheme } = useTheme();
   const { openPrivacy, openTerms } = useLegal();
@@ -1075,15 +1051,33 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
     { screen: 'privacy',  label: isHe ? 'מחיקת חשבון'   : 'Delete account' },
   ];
 
+  const goalLabels = {
+    cut:      isHe ? 'חיטוב'  : 'Cut',
+    bulk:     isHe ? 'מסה'    : 'Bulk',
+    maintain: isHe ? 'שמירה'  : 'Maintain',
+  };
+  const enabledNotifs = [notifWorkout, notifMeal, notifStreak, notifWeekly].filter(Boolean).length;
+
   const sections = [
-    { id: 'body',     icon: 'user',    label: isHe ? 'נתוני גוף'      : 'Body Data',      sub: isHe ? 'משקל, גובה, מגדר'       : 'Weight, height, gender' },
-    { id: 'goal',     icon: 'target',  label: isHe ? 'מטרת אימון'     : 'Training Goal',  sub: isHe ? 'חיתוך, בנייה, שמירה'     : 'Cut, bulk, maintain' },
-    { id: 'notif',    icon: 'bell',    label: isHe ? 'התראות'          : 'Notifications',  sub: isHe ? 'תזכורות יומיות'          : 'Daily reminders' },
-    { id: 'display',  icon: 'display', label: isHe ? 'תצוגה'          : 'Display',        sub: isHe ? 'שפה וערכת צבעים'         : 'Language and theme' },
+    { id: 'body',     icon: 'user',    label: isHe ? 'נתוני גוף'      : 'Body Data',      sub: isHe ? 'משקל, גובה, מגדר'       : 'Weight, height, gender',
+      value: weight && height ? (isHe ? `${weight} ק״ג · ${height}` : `${weight} kg · ${height}`) : null },
+    { id: 'goal',     icon: 'target',  label: isHe ? 'מטרת אימון'     : 'Training Goal',  sub: isHe ? 'חיתוך, בנייה, שמירה'     : 'Cut, bulk, maintain',
+      value: goalLabels[goal] || null },
+    { id: 'account',  icon: 'mail',    label: isHe ? 'חשבון'           : 'Account',        sub: isHe ? 'שם וגיל'                 : 'Name and age' },
+    { id: 'notif',    icon: 'bell',    label: isHe ? 'התראות'          : 'Notifications',  sub: isHe ? 'תזכורות יומיות'          : 'Daily reminders',
+      value: enabledNotifs ? (isHe ? `${enabledNotifs} פעילות` : `${enabledNotifs} on`) : (isHe ? 'כבוי' : 'Off') },
+    { id: 'display',  icon: 'display', label: isHe ? 'תצוגה'          : 'Display',        sub: isHe ? 'שפה וערכת צבעים'         : 'Language and theme',
+      value: theme === 'dark' ? (isHe ? 'כהה' : 'Dark') : (isHe ? 'בהיר' : 'Light') },
     { id: 'access',   icon: 'sliders', label: isHe ? 'נגישות'          : 'Accessibility',  sub: isHe ? 'גודל טקסט, ניגודיות'    : 'Text size, contrast' },
-    { id: 'account',  icon: 'user',    label: isHe ? 'חשבון'           : 'Account',        sub: isHe ? 'שם וגיל'                 : 'Name and age' },
     { id: 'security', icon: 'lock',    label: isHe ? 'אבטחה'           : 'Security',       sub: isHe ? 'סיסמה ואימות'            : 'Password and auth' },
     { id: 'privacy',  icon: 'shield',  label: isHe ? 'פרטיות ונתונים'  : 'Privacy & Data', sub: isHe ? 'ייצוא, איפוס, מחיקה'    : 'Export, reset, delete' },
+  ];
+
+  // The prototype groups the eight sections under three headers.
+  const navGroups = [
+    { label: isHe ? 'פרופיל'          : 'Profile',            ids: ['body', 'goal', 'account'] },
+    { label: isHe ? 'העדפות'          : 'Preferences',        ids: ['notif', 'display', 'access'] },
+    { label: isHe ? 'פרטיות ואבטחה'   : 'Privacy & Security', ids: ['security', 'privacy'] },
   ];
 
   // Results render inside <SettingsSearch/>; here we only need to know whether
@@ -1117,15 +1111,20 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
     fontWeight: active ? 600 : 500, fontSize: 13, transition: 'all 0.15s',
   });
 
-  function NavItem({ sectionId, icon, label, sub }) {
+  function NavItem({ sectionId, icon, label, value }) {
     return (
       <button type="button" className="st2-nav-item" onClick={() => setScreen(sectionId)}>
-        <span className="st2-nav-icon"><StIc type={icon} color="var(--accent)" size={20} /></span>
+        <span className="st2-nav-icon"><StIc type={icon} color="var(--accent)" size={19} /></span>
         <span className="st2-nav-text">
           <span className="st2-nav-label">{label}</span>
-          <span className="st2-nav-sub">{sub}</span>
         </span>
-        <span className="st2-nav-chevron" aria-hidden="true">{isHe ? '‹' : '›'}</span>
+        {value && <span className="st2-nav-value">{value}</span>}
+        <span className="st2-nav-chevron" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d={isHe ? 'M14 6l-6 6 6 6' : 'M10 6l6 6-6 6'} />
+          </svg>
+        </span>
       </button>
     );
   }
@@ -1152,15 +1151,19 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
   return (
     <div className="st2-root" dir={isHe ? 'rtl' : 'ltr'}>
 
-      {/* ── Top bar ─────────────────────────────────────────── */}
+      {/* ── Header: back arrow + title, inline (prototype) ──── */}
       <div className="st2-topbar">
-        {screen !== 'home' ? (
-          <button className="st2-back" onClick={() => setScreen('home')} aria-label={isHe ? 'חזרה' : 'Back'}>
-            <span aria-hidden="true">{isHe ? '→' : '←'}</span>
-          </button>
-        ) : <span />}
-        <h2 className="st2-topbar-title">{screenTitles[screen] ?? screenTitles.home}</h2>
-        <span />
+        <button
+          className="st2-back"
+          onClick={() => (screen === 'home' ? onExit && onExit() : setScreen('home'))}
+          aria-label={isHe ? 'חזרה' : 'Back'}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d={isHe ? 'M4 12h16M14 6l6 6-6 6' : 'M20 12H4M10 6l-6 6 6 6'} />
+          </svg>
+        </button>
+        <h1 className="st2-topbar-title">{screenTitles[screen] ?? screenTitles.home}</h1>
       </div>
 
       {/* ── Home ─────────────────────────────────────────────── */}
@@ -1168,10 +1171,13 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
         <div className="st2-screen">
           <div className="st2-profile-card">
             <div className="st2-avatar">{initials}</div>
-            <div>
+            <div className="st2-profile-text">
               <div className="st2-profile-name">{displayName}</div>
               <div className="st2-profile-email">{user?.email || ''}</div>
             </div>
+            {level != null && (
+              <span className="st2-profile-level">{isHe ? `רמה ${level}` : `Level ${level}`}</span>
+            )}
           </div>
 
           <SettingsSearch
@@ -1184,14 +1190,27 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
           />
 
           {!searchActive && (
-            <div className="st2-nav-list">
-              {sections.map(s => (
-                <NavItem key={s.id} sectionId={s.id} icon={s.icon} label={s.label} sub={s.sub} />
+            <>
+              {navGroups.map(g => (
+                <div className="st2-nav-list" key={g.label}>
+                  <div className="st2-nav-group-label">{g.label}</div>
+                  <div className="st2-nav-group">
+                    {g.ids.map(id => {
+                      const s = sections.find(x => x.id === id);
+                      return <NavItem key={id} sectionId={id} icon={s.icon} label={s.label} value={s.value} />;
+                    })}
+                  </div>
+                </div>
               ))}
-            </div>
+
+              <button type="button" className="st2-logout-row" onClick={() => setSheet('logout')}>
+                <StIc type="logout" color="var(--c-protein)" size={18} />
+                <span>{isHe ? 'התנתק' : 'Log out'}</span>
+              </button>
+            </>
           )}
 
-          <div className="st2-version">Areto v1.0.8</div>
+          <div className="st2-version">Areto v1.2.0</div>
         </div>
       )}
 
@@ -1431,13 +1450,6 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
           <div className="st2-danger-section">
             <div className="st2-danger-title">{isHe ? 'פעולות מסוכנות' : 'Danger Zone'}</div>
 
-            <div className="st2-danger-row">
-              <div>
-                <div className="st2-danger-label">{t.logout}</div>
-                <div className="st2-danger-sub">{isHe ? 'תצטרך להיכנס שוב.' : 'You\'ll need to log in again.'}</div>
-              </div>
-              <button className="st2-danger-btn" onClick={() => { setConfirmText(''); setSheet('logout'); }}>⏻ {t.logout}</button>
-            </div>
 
             <div className="st2-danger-row">
               <div>
@@ -1477,10 +1489,12 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName }) {
         <>
           <div className="st2-overlay" onClick={() => setSheet(null)} />
           <div className="st2-sheet">
+            <div className="st2-sheet-handle" aria-hidden="true" />
             {sheet === 'logout' && (
               <>
-                <div className="st2-sheet-title">{isHe ? 'יציאה מהחשבון?' : 'Log out?'}</div>
-                <div className="st2-sheet-sub">{isHe ? 'תצטרך להיכנס שוב כדי לראות את הנתונים שלך.' : "You'll need to log in again to see your data."}</div>
+                <div className="st2-sheet-icon"><StIc type="logout" color="var(--c-protein)" size={24} /></div>
+                <div className="st2-sheet-title">{isHe ? 'להתנתק מהחשבון?' : 'Log out?'}</div>
+                <div className="st2-sheet-sub">{isHe ? 'הנתונים שלך שמורים. אפשר להתחבר שוב בכל רגע.' : 'Your data is saved. You can log back in any time.'}</div>
                 <button className="st2-sheet-confirm-btn" onClick={() => logout && logout()}>{t.logout}</button>
                 <button className="st2-sheet-cancel-btn" onClick={() => setSheet(null)}>{isHe ? 'ביטול' : 'Cancel'}</button>
               </>
