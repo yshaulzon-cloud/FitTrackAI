@@ -747,6 +747,88 @@ ${content}
         </div>
       </div>
 
+      {/* Menu controls: daily/weekly switch + PDF export. Both call functions
+          the rebuild left in place but stopped rendering. */}
+      {menuOpen && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+          <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 999, padding: 3 }}>
+            <button type="button" onClick={() => { setMenuMode('daily'); if (!menu) fetchMenu(); }}
+              style={{ fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: '6px 14px', cursor: 'pointer', border: 'none', fontFamily: 'inherit',
+                color: menuMode === 'daily' ? '#04241B' : '#93A0B4', background: menuMode === 'daily' ? '#2FE3C2' : 'transparent' }}>
+              {isHe ? 'יומי' : 'Daily'}
+            </button>
+            <button type="button" onClick={() => { setMenuMode('weekly'); if (!weeklyMenu) fetchWeeklyMenu(); }}
+              style={{ fontSize: 12.5, fontWeight: 600, borderRadius: 999, padding: '6px 14px', cursor: 'pointer', border: 'none', fontFamily: 'inherit',
+                color: menuMode === 'weekly' ? '#04241B' : '#93A0B4', background: menuMode === 'weekly' ? '#2FE3C2' : 'transparent' }}>
+              {isHe ? 'שבועי' : 'Weekly'}
+            </button>
+          </div>
+          <button type="button" onClick={handleDownloadMenu} disabled={menuMode === 'weekly' ? !weeklyMenu : !menu}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#93A0B4', fontSize: 12.5 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+            </svg>
+            {isHe ? 'הורד PDF' : 'Download PDF'}
+          </button>
+        </div>
+      )}
+
+      {/* Weekly menu — day pills + the selected day's meal cards + total */}
+      {menuOpen && menuMode === 'weekly' && (
+        weeklyMenu ? (
+          <>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16, overflowX: 'auto', paddingBottom: 4 }}>
+              {weeklyMenu.map((_, i) => {
+                const on = i === weeklyDayIdx;
+                return (
+                  <button key={i} type="button" onClick={() => setWeeklyDayIdx(i)}
+                    style={{ flex: 'none', fontSize: 13, fontWeight: on ? 600 : 400, borderRadius: 999, padding: '8px 15px', cursor: 'pointer', fontFamily: 'inherit',
+                      border: on ? 'none' : '1px solid var(--border-subtle)',
+                      color: on ? '#04241B' : '#93A0B4', background: on ? '#2FE3C2' : 'var(--surface)' }}>
+                    {isHe ? `יום ${i + 1}` : `Day ${i + 1}`}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 18 }}>
+              {weeklyDayMeals.map((meal, mi) => (
+                <div key={mi} style={{ background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 16, padding: '15px 17px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--text-1)' }}>
+                      {isHe ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'צהריים', dinner: 'ערב' }[meal.type] || meal.type)
+                            : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[meal.type] || meal.type)}
+                    </span>
+                    <span style={{ fontSize: 12.5, color: '#7C8798', fontVariantNumeric: 'tabular-nums' }}>{MEAL_TYPE_TIMES[meal.type] || '—'}</span>
+                  </div>
+                  <div style={{ fontSize: 13.5, color: '#93A0B4', marginTop: 5, lineHeight: 1.6 }}>{isHe ? meal.he : (meal.en || meal.he)}</div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                    <span style={{ fontSize: 11, color: '#F5698C', background: 'rgba(245,105,140,.08)', borderRadius: 999, padding: '3px 9px' }}>{meal.protein}g {isHe ? 'חלבון' : 'protein'}</span>
+                    <span style={{ fontSize: 11, color: '#7C8798', background: 'var(--fill-faint)', borderRadius: 999, padding: '3px 9px' }}>{meal.calories} {isHe ? 'קק״ל' : 'kcal'}</span>
+                    <button type="button" onClick={() => swapWeeklyMealAt(weeklyDayIdx, mi)} disabled={swappingIdx === `${weeklyDayIdx}-${mi}`}
+                      style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#7C8798', fontSize: 12 }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 8h11l-3-3M17 16H6l3 3" /></svg>
+                      {isHe ? 'החלף' : 'Swap'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {weeklyMenu[weeklyDayIdx] && (
+              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 14, padding: '13px 16px' }}>
+                <span style={{ fontSize: 13.5, color: '#93A0B4' }}>{isHe ? `סה״כ יום ${weeklyDayIdx + 1}` : `Day ${weeklyDayIdx + 1} total`}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>
+                  {weeklyMenu[weeklyDayIdx].totalCalories?.toLocaleString()} {isHe ? 'קק״ל' : 'kcal'} · {weeklyMenu[weeklyDayIdx].totalProtein}g {isHe ? 'חלבון' : 'protein'}
+                </span>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ textAlign: 'center', color: '#7C8798', fontSize: 14, padding: 40 }}>
+            {menuLoading ? (isHe ? 'טוען…' : 'Loading…') : (isHe ? 'טוען תפריט שבועי…' : 'Loading weekly menu…')}
+          </div>
+        )
+      )}
+
       {/* Calorie summary card — one block instead of three stat tiles */}
       {!menuOpen && (
         <div style={{ marginTop: 16, background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 20, padding: '18px 20px' }}>
@@ -887,7 +969,7 @@ ${content}
 
       {/* Menu view — prototype: a highlighted "next meal" card, then the
           rest of the day as compact rows, then the day's total. */}
-      {menuOpen && menuMeals.length > 0 && (() => {
+      {menuOpen && menuMode === 'daily' && menuMeals.length > 0 && (() => {
         const typeLabel = (type) => isHe
           ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' }[type] || type)
           : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[type] || type);
