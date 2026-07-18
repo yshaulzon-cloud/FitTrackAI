@@ -1198,6 +1198,27 @@ select:focus-visible {
 }
 .ob-skip:hover { color: var(--text-2); }
 
+/* Food search results — live matches under the search field */
+.food-results { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.food-results__count { font-size: 12.5px; color: var(--text-4); padding: 0 2px; }
+.food-result {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: var(--surface); border: 1px solid var(--border-faint);
+  border-radius: 16px; padding: 13px 16px;
+  cursor: pointer; text-align: start; font-family: inherit;
+  transition: border-color .12s;
+}
+.food-result:hover { border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.food-result:disabled { opacity: .5; cursor: default; }
+.food-result__text { flex: 1; min-width: 0; }
+.food-result__name { display: block; font-size: 15px; font-weight: 500; color: var(--text-1); }
+.food-result__macros { display: block; font-size: 12.5px; color: var(--text-4); margin-top: 3px; }
+.food-result__add {
+  width: 34px; height: 34px; flex: none; border-radius: 11px;
+  background: var(--accent-glow); color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+}
+
 /* Violet aside in the reset sheet — context, not an error */
 .reset-note {
   background: color-mix(in srgb, var(--violet) 7%, transparent);

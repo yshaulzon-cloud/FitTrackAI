@@ -233,6 +233,7 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
   const isHe = lang === 'he';
 
   const [foodInput, setFoodInput] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const isNative = isNativeShell();
   const [message, setMessage] = useState('');
@@ -585,6 +586,45 @@ ${content}
     }
   }
 
+  // Search-as-you-type against FOOD_DB. Debounced; a stale response can't
+  // overwrite a newer one because we drop it if the query moved on.
+  useEffect(() => {
+    const q = foodInput.trim();
+    if (menuOpen || q.length < 2) { setSearchResults([]); return; }
+    let cancelled = false;
+    const id = setTimeout(async () => {
+      try {
+        const res = await api(`/nutrition/search?q=${encodeURIComponent(q)}`);
+        if (!cancelled) setSearchResults(res.results || []);
+      } catch { if (!cancelled) setSearchResults([]); }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [foodInput, menuOpen]); // eslint-disable-line
+
+  // Tapping a result logs it by its exact DB name, so estimateNutrition hits
+  // the entry directly — same path as the free-text Add, no AI fallback needed.
+  async function addSearchResult(name) {
+    setSearchResults([]);
+    setFoodInput('');
+    setLoading(true);
+    setMessage('');
+    try {
+      const result = await api('/nutrition/log', {
+        method: 'POST',
+        body: JSON.stringify({ description: name }),
+      });
+      if (showXP && result?.xp) showXP(result.xp);
+      setMessage(`${t.added} ${result.meal.description} · ${result.meal.calories} ${t.caloriesWord}`);
+      setTimeout(() => setMessage(''), 3000);
+      onUpdate();
+    } catch (err) {
+      setMessage(err.message || t.errorSaving);
+      setTimeout(() => setMessage(''), 5000);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleDeleteMeal(mealId) {
     const meal = todayData?.meals?.find(m => m._id === mealId);
     setDeletingId(mealId);
@@ -767,6 +807,27 @@ ${content}
             </button>
           </div>
         </form>
+
+        {/* Live matches from the food database. Free-text Add still works for
+            anything not listed — that path keeps the AI fallback. */}
+        {searchResults.length > 0 && (
+          <div className="food-results">
+            <div className="food-results__count">
+              {searchResults.length} {isHe ? 'תוצאות' : 'results'}
+            </div>
+            {searchResults.map((r, i) => (
+              <button key={i} type="button" className="food-result" onClick={() => addSearchResult(r.name)} disabled={loading}>
+                <span className="food-result__text">
+                  <span className="food-result__name">{r.name}</span>
+                  <span className="food-result__macros">
+                    {isHe ? '100 גרם' : '100g'} · {r.cal} {isHe ? 'קק״ל' : 'kcal'} · {r.p}g {isHe ? 'חלבון' : 'protein'}
+                  </span>
+                </span>
+                <span className="food-result__add" aria-hidden="true"><PlusIcon /></span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {quickChips.length > 0 && (
           <div className="quick-add__chips">

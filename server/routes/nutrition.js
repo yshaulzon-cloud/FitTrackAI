@@ -2,7 +2,7 @@
 const { param, query } = require('express-validator');
 const auth = require('../middleware/auth');
 const Nutrition = require('../models/Nutrition');
-const { estimateNutrition, estimateNutritionAI, calculateTDEE, calculateCalorieTarget, calculateMacros } = require('../utils/calculations');
+const { estimateNutrition, estimateNutritionAI, calculateTDEE, calculateCalorieTarget, calculateMacros, FOOD_DB } = require('../utils/calculations');
 const { checkNutritionGoals, revokeXP, updateStreak, recalcStreak, reconcileStreakForToday } = require('../utils/progression');
 const { startOfUserDay, startOfUserDayOffset } = require('../utils/dates');
 const { withUserLock } = require('../utils/userLock');
@@ -252,6 +252,40 @@ router.get('/history', auth, async (req, res) => {
 });
 
 // GET /nutrition/daily-menu - Get a suggested daily menu based on calorie target
+// GET /nutrition/search?q= — live matches from FOOD_DB for the search-as-you-
+// type list. Values are per-100g / per-portion exactly as stored; logging still
+// goes through /log so estimateNutrition + the AI fallback stay the one source
+// of truth for what actually gets saved.
+router.get(
+  '/search',
+  auth,
+  [query('q').isString().trim().isLength({ min: 1, max: 60 })],
+  async (req, res) => {
+    const q = (req.query.q || '').toString().trim().toLowerCase();
+    if (!q) return res.json({ results: [] });
+    const he = /[֐-׿]/.test(q);
+    const scored = [];
+    for (const item of FOOD_DB) {
+      // Rank the entry by its best-matching key: exact > prefix > substring.
+      let best = 0;
+      for (const key of item.keys) {
+        const k = key.toLowerCase();
+        if (k === q) { best = Math.max(best, 3); break; }
+        if (k.startsWith(q)) best = Math.max(best, 2);
+        else if (k.includes(q)) best = Math.max(best, 1);
+      }
+      if (best === 0) continue;
+      // Show a label in the query's language when the entry has one.
+      const heKey = item.keys.find((k) => /[֐-׿]/.test(k));
+      const enKey = item.keys.find((k) => !/[֐-׿]/.test(k));
+      const label = (he ? heKey : enKey) || item.keys[0];
+      scored.push({ score: best, name: label, cal: item.cal, p: item.p, c: item.c, f: item.f });
+    }
+    scored.sort((a, b) => b.score - a.score || a.name.length - b.name.length);
+    res.json({ results: scored.slice(0, 8).map(({ score, ...r }) => r) });
+  },
+);
+
 router.get('/daily-menu', auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId);

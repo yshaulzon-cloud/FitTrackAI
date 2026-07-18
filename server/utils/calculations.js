@@ -1749,6 +1749,7 @@ module.exports = {
   generateBMIAnalysis,
   estimateNutrition,
   estimateNutritionAI,
+  FOOD_DB,
   generateWorkoutPlan,
   getSleepRecommendation,
   calculateCycleStatus,
