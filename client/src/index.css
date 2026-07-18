@@ -4359,17 +4359,86 @@ svg { overflow: hidden; }
 .ws-live__card-body { padding: 18px 20px; }
 .ws-live__name { font-size: 19px; font-weight: 700; color: var(--text-1); }
 .ws-live__meta { font-size: 13px; color: var(--text-3); margin-top: 3px; }
+.ws-live__last {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 12px;
+  font-size: 12.5px; color: var(--text-4);
+}
+.ws-live__last strong { color: var(--text-2); }
+.ws-live__suggest {
+  flex: none;
+  background: var(--accent-glow);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 12px; font-weight: 600; font-family: inherit;
+  color: var(--accent);
+  cursor: pointer;
+}
+.ws-live__setops { display: flex; gap: 8px; margin-top: 12px; }
+.ws-live__op {
+  background: var(--fill-faint);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px; font-family: inherit;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.ws-live__op:hover { color: var(--text-1); border-color: var(--border-strong); }
 .ws-live__sets { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+/* The row is a container now: the tap target is .ws-live__set-main, and the
+   set in focus grows an editor beneath it. */
 .ws-live__set {
+  border-radius: 13px;
+  border: 1px solid transparent;
+  overflow: hidden;
+}
+.ws-live__set-main {
   display: flex; align-items: center; gap: 12px;
   width: 100%;
-  border-radius: 13px;
   padding: 12px 14px;
   cursor: pointer;
   text-align: start;
   font-family: inherit;
   background: none;
-  border: 1px solid transparent;
+  border: none;
+}
+.ws-live__edit {
+  display: flex; gap: 8px;
+  padding: 0 14px 12px;
+}
+.ws-step {
+  flex: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 11px;
+  padding: 4px;
+  min-width: 0;
+}
+.ws-step__btn {
+  width: 34px; height: 34px; flex: none;
+  border: none; border-radius: 8px;
+  background: var(--fill-faint);
+  color: var(--text-1);
+  font-size: 19px; font-family: inherit; line-height: 1;
+  cursor: pointer;
+}
+.ws-step__btn:active { background: var(--accent-glow); color: var(--accent); }
+.ws-step__val { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.ws-step__num { font-size: 15px; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.ws-step__unit { font-size: 10px; color: var(--text-4); }
+.ws-live__timer {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 11px;
+  padding: 11px;
+  font-size: 14px; font-weight: 600; font-family: inherit;
+  color: var(--text-1);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
 }
 .ws-live__set-mark { flex: none; }
 .ws-live__set-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,.2); }
@@ -4380,7 +4449,7 @@ svg { overflow: hidden; }
 .ws-live__set--done .ws-live__set-name,
 .ws-live__set--done .ws-live__set-detail { font-size: 14px; color: var(--text-3); }
 
-.ws-live__set--current { background: var(--bg-input); border: 1.5px solid var(--accent); }
+.ws-live__set--current { background: var(--surface-elev); border: 1.5px solid var(--accent); }
 .ws-live__set--current .ws-live__set-dot { border-color: var(--accent); }
 .ws-live__set--current .ws-live__set-name { font-size: 14.5px; font-weight: 600; color: var(--text-1); }
 .ws-live__set--current .ws-live__set-detail { font-size: 15px; font-weight: 600; color: var(--text-1); }

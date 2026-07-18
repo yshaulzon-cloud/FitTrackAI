@@ -456,6 +456,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
   // ─────────────────────────── Active session ───────────────────────────
   if (!cur) return null;
   const primaryName = isHe ? cur.name : getEnglishName(cur.name);
+  const perf = lastPerf[cur.name];
   const curSetIdx = cur.sets.findIndex(s => !s.done);
   const allDone = exs.every(e => e.sets.every(s => s.done));
   const restSecs = restSecondsFor(cur);
@@ -539,28 +540,97 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
             {` · ${isHe ? 'מנוחה' : 'rest'} ${restSecs} ${isHe ? 'שנ׳' : 's'}`}
           </div>
 
+          {/* What you did last time, and the nudge past it */}
+          {perf && cur.mode === 'reps' && (
+            <div className="ws-live__last">
+              <span>
+                {isHe ? 'פעם קודמת: ' : 'Last time: '}
+                <strong>
+                  {perf.sets.length}×{perf.sets[0]?.reps || '—'}
+                  {perf.sets[0]?.weight ? ` @ ${perf.sets[0].weight} ${isHe ? 'ק״ג' : 'kg'}` : ''}
+                </strong>
+              </span>
+              {location === 'gym' && perf.sets[0]?.weight != null && (
+                <button type="button" className="ws-live__suggest" onClick={applySuggestion}>
+                  ⚡ {perf.sets[0].weight + 2.5} {isHe ? 'ק״ג' : 'kg'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {cur.mode === 'reps' && (
+            <div className="ws-live__setops">
+              <button type="button" className="ws-live__op" onClick={markAllSets}>
+                ✓ {isHe ? 'סמן הכל' : 'Mark all'}
+              </button>
+              <button type="button" className="ws-live__op" onClick={addSet}>+ {isHe ? 'סט' : 'Set'}</button>
+              {cur.sets.length > 1 && (
+                <button type="button" className="ws-live__op" onClick={removeSet}>− {isHe ? 'סט' : 'Set'}</button>
+              )}
+            </div>
+          )}
+
           <div className="ws-live__sets">
             {cur.sets.map((s, si) => {
               const state = s.done ? 'done' : si === curSetIdx ? 'current' : 'pending';
               return (
-                <button
-                  key={si}
-                  type="button"
-                  className={`ws-live__set ws-live__set--${state}`}
-                  onClick={() => completeSet(si)}
-                  aria-pressed={s.done}
-                >
-                  {state === 'done' ? (
-                    <svg className="ws-live__set-mark" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                         stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12.5l4.5 4.5L19 7" />
-                    </svg>
-                  ) : (
-                    <span className="ws-live__set-mark ws-live__set-dot" />
+                <div key={si} className={`ws-live__set ws-live__set--${state}`}>
+                  <button
+                    type="button"
+                    className="ws-live__set-main"
+                    onClick={() => completeSet(si)}
+                    aria-pressed={s.done}
+                  >
+                    {state === 'done' ? (
+                      <svg className="ws-live__set-mark" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                           stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12.5l4.5 4.5L19 7" />
+                      </svg>
+                    ) : (
+                      <span className="ws-live__set-mark ws-live__set-dot" />
+                    )}
+                    <span className="ws-live__set-name">{isHe ? `סט ${si + 1}` : `Set ${si + 1}`}</span>
+                    <span className="ws-live__set-detail" dir="ltr">{setDetail(s)}</span>
+                  </button>
+
+                  {/* Only the set in focus carries the editor: the numbers have
+                      to be writable — volume and PRs are computed from them —
+                      but four steppers on every row would bury the design. */}
+                  {state === 'current' && cur.mode === 'reps' && (
+                    <div className="ws-live__edit">
+                      {location === 'gym' && (
+                        <Stepper
+                          label={isHe ? 'ק״ג' : 'kg'}
+                          value={s.weight ?? 0}
+                          step={2.5}
+                          onChange={(v) => updateSet(si, { weight: v })}
+                        />
+                      )}
+                      <Stepper
+                        label={isHe ? 'חזרות' : 'reps'}
+                        value={s.reps ?? suggestReps(cur.targetReps)}
+                        step={1}
+                        onChange={(v) => updateSet(si, { reps: v })}
+                      />
+                    </div>
                   )}
-                  <span className="ws-live__set-name">{isHe ? `סט ${si + 1}` : `Set ${si + 1}`}</span>
-                  <span className="ws-live__set-detail" dir="ltr">{setDetail(s)}</span>
-                </button>
+
+                  {state === 'current' && cur.mode === 'time' && (
+                    <div className="ws-live__edit">
+                      <button
+                        type="button"
+                        className="ws-live__timer"
+                        onClick={() => (workTimer?.setIdx === si
+                          ? setWorkTimer(null)
+                          : setWorkTimer({ setIdx: si, total: s.durationSec || 60, left: s.durationSec || 60 }))}
+                      >
+                        {workTimer?.setIdx === si
+                          ? `⏸ ${fmtClock(workTimer.left)}`
+                          : `▶ ${isHe ? 'התחל' : 'Start'} ${fmtClock(s.durationSec || 60)}`}
+                      </button>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -623,6 +693,21 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
             : (isHe ? 'סיימתי את הסט' : 'Set complete')}
         </button>
       </div>
+    </div>
+  );
+}
+
+function Stepper({ label, value, step, onChange }) {
+  const dec = () => onChange(Math.max(0, Math.round((value - step) * 100) / 100));
+  const inc = () => onChange(Math.round((value + step) * 100) / 100);
+  return (
+    <div className="ws-step">
+      <button type="button" className="ws-step__btn" onClick={dec} aria-label={`− ${label}`}>−</button>
+      <div className="ws-step__val">
+        <span className="ws-step__num">{value}</span>
+        <span className="ws-step__unit">{label}</span>
+      </div>
+      <button type="button" className="ws-step__btn" onClick={inc} aria-label={`+ ${label}`}>+</button>
     </div>
   );
 }
