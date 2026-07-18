@@ -555,8 +555,10 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             </div>
           </div>
 
-          {/* Next workout card */}
-          <div style={{ marginTop: 18, background: 'linear-gradient(160deg,#13202B,#121A28)', border: `1px solid rgba(${accentRgb},.18)`, borderRadius: 22, padding: '22px 20px' }}>
+          {/* Next workout card — accent-tinted surface, so the title stays
+              readable in light mode (the old hardcoded dark gradient left it
+              dark-on-dark). */}
+          <div style={{ marginTop: 18, background: `linear-gradient(160deg, color-mix(in srgb, ${accentVar} 8%, var(--surface)), var(--surface))`, border: `1px solid rgba(${accentRgb},.18)`, borderRadius: 22, padding: '22px 20px' }}>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: accentVar, letterSpacing: '.3px' }}>
               {isHe ? 'האימון הבא שלך' : 'Your next workout'}
             </div>
