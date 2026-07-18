@@ -107,6 +107,12 @@ function getExercisesForDuration(exercises, minutes) {
 
 const DURATION_OPTIONS = [30, 45, 60, 75, 90];
 
+// Same palette the live session uses, so a muscle keeps one colour across screens.
+const MUSCLE_DOT = {
+  'חזה': '#F5698C', 'גב': '#4D9FFF', 'כתפיים': '#FFB648', 'זרועות': '#8F8AF7',
+  'רגליים': '#2FE3C2', 'תאומים': '#4D9FFF', 'ליבה': '#FFB648', 'אירובי': '#2FE3C2', 'כללי': '#7C8798',
+};
+
 // Convert gym exercises to home alternatives
 function toHomeExercises(exercises) {
   return exercises.map(ex => {
@@ -130,6 +136,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [homeMode, setHomeMode] = useState(false);
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
+  const [showExercises, setShowExercises] = useState(false);
   const [perfMap, setPerfMap] = useState({});
   // Live session state: null | { exercises, dayName, location, restore? }
   const [session, setSession] = useState(null);
@@ -560,10 +567,70 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               <span>~{getDuration(currentDay?.day)} {isHe ? 'דק׳' : 'min'}</span>
               {muscleChip && (<><span>·</span><span>{muscleChip}</span></>)}
             </div>
+
+            {/* Duration picker — drives getExercisesForDuration, so it changes
+                the exercise/set count, not just a label. */}
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 12, color: '#7C8798', marginBottom: 8 }}>{isHe ? 'כמה זמן יש לך?' : 'How long do you have?'}</div>
+              <div style={{ display: 'flex', gap: 7 }}>
+                {DURATION_OPTIONS.map((mins) => {
+                  const on = getDuration(currentDay?.day) === mins;
+                  return (
+                    <button key={mins} type="button"
+                      onClick={() => setDayDurations((prev) => ({ ...prev, [currentDay?.day]: mins }))}
+                      style={{
+                        flex: 1, padding: '9px 0', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
+                        fontSize: 13, fontWeight: on ? 700 : 500,
+                        border: on ? `1.5px solid ${accentVar}` : '1px solid var(--border-subtle)',
+                        background: on ? `rgba(${accentRgb},.1)` : 'var(--bg-input)',
+                        color: on ? accentVar : '#93A0B4',
+                      }}>
+                      {mins}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <button type="button" onClick={startSession}
               style={{ width: '100%', background: homeMode ? 'linear-gradient(135deg,#c4a1ff,#9b6df2)' : 'linear-gradient(135deg,#36E8C6,#1EC0A2)', color: homeMode ? '#1b0e33' : '#04241B', fontWeight: 700, border: 'none', borderRadius: 14, padding: 15, fontSize: 16, fontFamily: 'inherit', cursor: 'pointer', marginTop: 18 }}>
               {isHe ? 'התחל אימון' : 'Start workout'}
             </button>
+
+            <button type="button" onClick={() => setShowExercises((v) => !v)}
+              style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#7C8798', fontSize: 13, marginTop: 12 }}>
+              {showExercises ? (isHe ? 'הסתר את התרגילים' : 'Hide exercises') : (isHe ? `הצג את ${adjExercises0.length} התרגילים` : `Show all ${adjExercises0.length} exercises`)}
+            </button>
+
+            {showExercises && (
+              <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {adjExercises0.map((ex, i) => {
+                  const perf = perfMap[ex.name];
+                  const last = perf?.sets?.[0];
+                  return (
+                    <button key={i} type="button" onClick={() => setSelectedExercise(ex)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'start', cursor: 'pointer', fontFamily: 'inherit',
+                        background: 'var(--bg-input)', border: '1px solid var(--border-faint)', borderRadius: 13, padding: '12px 14px',
+                      }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 99, flex: 'none', background: MUSCLE_DOT[ex.muscleGroup] || accentVar }} />
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {getExerciseName(ex.name, lang)}
+                        </span>
+                        <span style={{ display: 'block', fontSize: 12, color: '#7C8798', marginTop: 2 }}>
+                          {ex.sets}×{ex.reps}
+                          {last?.weight ? ` · ${isHe ? 'פעם קודמת' : 'last'} ${last.weight}${isHe ? ' ק״ג' : 'kg'}` : ''}
+                        </span>
+                      </span>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5E6B7E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d={isHe ? 'M14 6l-6 6 6 6' : 'M10 6l6 6-6 6'} />
+                      </svg>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Weekly plan */}
