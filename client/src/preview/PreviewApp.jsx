@@ -2,6 +2,7 @@ import { useState } from 'react';
 import PhoneFrame from './PhoneFrame.jsx';
 import { Section, Row, Btn, Seg } from './ui.jsx';
 import { useHarnessBridge } from './bridge/useHarnessBridge.js';
+import UsersSection from './sections/UsersSection.jsx';
 
 // The app's routable screens, for the "open any screen" control. The dashboard
 // tabs live behind one route (state, not URL), so deep-tab nav is refined in A4;
@@ -77,11 +78,10 @@ export default function PreviewApp() {
             </div>
           </Section>
 
+          <UsersSection bridge={bridge} />
+
           {/* Stubs — each names the stage that fills it, so the shell reads as
               a plan, not as broken buttons. */}
-          <Section title="משתמשים ונתונים" hint="A3">
-            <p className="hz-soon">החלפת משתמשי בדיקה · Demo Data · Reset · Login/Logout · Clear storage</p>
-          </Section>
           <Section title="Feature Flags · מסכים" hint="A4">
             <p className="hz-soon">דגלי פיצ׳רים · קפיצה לכל מסך פנימי</p>
           </Section>

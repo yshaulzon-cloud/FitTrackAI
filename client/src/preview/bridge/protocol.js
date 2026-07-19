@@ -13,7 +13,8 @@ export const CMD = {
   NAVIGATE: 'navigate',
   SET_THEME: 'set-theme',
   SET_LANG: 'set-lang',
-  // filled in later stages (A3 auth/demo/reset, A4 flags, A5 taps, A7 stubs)
+  LOGOUT: 'logout', // A3 — calls the app's real logout()
+  // filled in later stages (A4 flags, A5 taps, A7 stubs)
 };
 
 // App → host: replies and streamed events.

@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { useLang } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import { CMD, EVT, makeMsg, isPreviewMsg } from './protocol';
 
 export default function PreviewBridge() {
@@ -16,6 +17,7 @@ export default function PreviewBridge() {
   const location = useLocation();
   const { setTheme } = useTheme();
   const { setLanguage } = useLang();
+  const { logout } = useAuth();
 
   // Announce the current route to the harness whenever it changes, so the
   // sidebar can highlight "where am I" without polling.
@@ -41,6 +43,9 @@ export default function PreviewBridge() {
           case CMD.SET_LANG:
             setLanguage(payload.lang);
             break;
+          case CMD.LOGOUT:
+            logout();
+            break;
           default:
             return; // unknown command: ignore (later stages add more)
         }
@@ -57,7 +62,7 @@ export default function PreviewBridge() {
     return () => window.removeEventListener('message', onMessage);
     // location.pathname is intentionally read fresh inside the handler via
     // closure refresh on each render; re-subscribing per route is cheap.
-  }, [location.pathname, navigate, setTheme, setLanguage]);
+  }, [location.pathname, navigate, setTheme, setLanguage, logout]);
 
   return null;
 }

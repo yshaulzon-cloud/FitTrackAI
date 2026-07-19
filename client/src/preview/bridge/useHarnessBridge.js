@@ -62,5 +62,46 @@ export function useHarnessBridge() {
     setTimeout(() => send(CMD.PING), 120);
   }, [send]);
 
-  return { iframeRef, connected, route, send, on, onIframeLoad, CMD, TAG };
+  // ── Same-origin iframe helpers ──────────────────────────────
+  // The harness and the embedded app share an origin, so the harness can read
+  // and write the app's storage directly. This is how "switch user" works: put
+  // the token where AuthContext reads it (localStorage['token']) and reload so
+  // the app boots authenticated.
+  const reloadTo = useCallback((path = '/dashboard') => {
+    const f = iframeRef.current;
+    if (f) f.src = path; // assigning src forces a fresh load even to the same path base
+  }, []);
+
+  const applyToken = useCallback((token, path = '/dashboard') => {
+    try {
+      iframeRef.current?.contentWindow?.localStorage.setItem('token', token);
+    } catch { /* not yet loaded — the reload below will still land on `path` */ }
+    reloadTo(path);
+  }, [reloadTo]);
+
+  const clearAppStorage = useCallback((path = '/onboarding') => {
+    try {
+      const w = iframeRef.current?.contentWindow;
+      w?.localStorage.clear();
+      w?.sessionStorage.clear();
+    } catch { /* ignore */ }
+    reloadTo(path);
+  }, [reloadTo]);
+
+  const clearAppCache = useCallback(async () => {
+    try {
+      const w = iframeRef.current?.contentWindow;
+      if (w?.caches) {
+        const keys = await w.caches.keys();
+        await Promise.all(keys.map((k) => w.caches.delete(k)));
+      }
+    } catch { /* ignore */ }
+    reloadTo(iframeRef.current?.contentWindow?.location?.pathname || '/dashboard');
+  }, [reloadTo]);
+
+  return {
+    iframeRef, connected, route, send, on, onIframeLoad,
+    reloadTo, applyToken, clearAppStorage, clearAppCache,
+    CMD, TAG,
+  };
 }
