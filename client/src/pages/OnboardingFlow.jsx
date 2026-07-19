@@ -629,7 +629,7 @@ export default function OnboardingFlow() {
 
             <div className="ob-cta">
               <button type="button" className="ob-btn" onClick={next}>
-                {isHe ? 'שמור את ההתקדמות שלי' : 'Save my progress'}
+                {isHe ? 'להרשמה קצרה כדי לראות את שאר התוכנית' : 'Quick signup to see the rest of the plan'}
               </button>
               <div className="pr-fine">{isHe ? '15 שניות · בלי כרטיס אשראי' : '15 seconds · no credit card'}</div>
             </div>
