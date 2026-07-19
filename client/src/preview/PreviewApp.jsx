@@ -7,6 +7,8 @@ import ScreensSection from './sections/ScreensSection.jsx';
 import ObserveSection from './sections/ObserveSection.jsx';
 import CaptureSection from './sections/CaptureSection.jsx';
 import InjectSection from './sections/InjectSection.jsx';
+import DeviceSection from './sections/DeviceSection.jsx';
+import DeviceView from './DeviceView.jsx';
 
 // The app's routable screens, for the "open any screen" control. The dashboard
 // tabs live behind one route (state, not URL), so deep-tab nav is refined in A4;
@@ -28,6 +30,11 @@ export default function PreviewApp() {
   const [theme, setTheme] = useState('dark');
   const [lang, setLang] = useState('he');
   const [initialSrc] = useState(START);
+  // 'web' = the app in an iframe (paths A2–A7). 'device' = live mirror of the
+  // physical phone (path B).
+  const [mode, setMode] = useState('web');
+  const [deviceSize, setDeviceSize] = useState(null);
+  const [tapErr, setTapErr] = useState(null);
 
   const go = (path) => send(CMD.NAVIGATE, { path });
   const setAppTheme = (t) => { setTheme(t); send(CMD.SET_THEME, { theme: t }); };
@@ -49,6 +56,8 @@ export default function PreviewApp() {
         </div>
 
         <div className="hz-scroll">
+          <DeviceSection mode={mode} setMode={setMode} onDeviceSize={setDeviceSize} />
+
           <Section title="ניווט" hint={route || '—'}>
             <Row>
               {ROUTES.map((r) => (
@@ -93,15 +102,20 @@ export default function PreviewApp() {
       </aside>
 
       <main className="hz-stage">
-        <PhoneFrame>
+        <PhoneFrame label={mode === 'device' ? (deviceSize ? `${deviceSize.w}×${deviceSize.h} · מכשיר` : 'מכשיר') : '390 × 844'}>
+          {/* Keep the iframe mounted (so web-mode state survives a toggle) and
+              overlay the device view on top in device mode. */}
           <iframe
             ref={iframeRef}
             title="Areto app"
             className="hz-screen"
             src={initialSrc}
             onLoad={onIframeLoad}
+            style={{ display: mode === 'device' ? 'none' : 'block' }}
           />
+          {mode === 'device' && <DeviceView deviceSize={deviceSize} onTapError={setTapErr} />}
         </PhoneFrame>
+        {mode === 'device' && tapErr && <div className="hz-tap-err">{tapErr}</div>}
       </main>
     </div>
   );
