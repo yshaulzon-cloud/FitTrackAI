@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Areto** — Hebrew fitness app (RTL). React + Vite SPA, Express/MongoDB API, Capacitor Android wrapper.
 - Frontend: `https://app.digtal-c.co.il` (Wangus static host)
-- Backend: `https://bodysync-api.onrender.com` (Render free tier — named under old brand, still active)
+- Backend: `https://bodysync-api-admm.onrender.com` (Render free tier — named under old brand, still active). Note the `-admm` suffix — the bare `bodysync-api.onrender.com` does NOT exist and returns 404 `no-server`. The client reads this from `client/.env.production`.
 - Android: Google Play via signed AAB built with Gradle
 
 ---
