@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CMD, EVT, TAG, makeMsg, isPreviewMsg } from './protocol';
 
+// Compact one-line rendering of a console argument for the log panel.
+function fmtArg(a) {
+  if (typeof a === 'string') return a;
+  if (a instanceof Error) return a.message;
+  try { return JSON.stringify(a); } catch { return String(a); }
+}
+
 // Host side of the bridge. Owns the iframe ref, sends commands into the
 // embedded app, and subscribes to the events it streams back. Everything the
 // sidebar does routes through `send`; everything it displays (connection,
@@ -54,13 +61,56 @@ export function useHarnessBridge() {
     win.postMessage(makeMsg('cmd', type, payload), window.location.origin);
   }, []);
 
+  // Instrument the embedded app's console, fetch and error events — from the
+  // HOST side (same origin). Nothing is added to the app itself, and because a
+  // reload creates a fresh contentWindow, each load is re-tapped. Captured
+  // items flow to sidebar panels through the same emit()/on() pub-sub.
+  const installTaps = useCallback((win) => {
+    if (!win || win.__aretoTapped) return;
+    win.__aretoTapped = true;
+    const now = () => Date.now();
+
+    ['log', 'info', 'warn', 'error', 'debug'].forEach((level) => {
+      const orig = win.console[level]?.bind(win.console);
+      if (!orig) return;
+      win.console[level] = (...args) => {
+        emit(EVT.LOG, { level, text: args.map(fmtArg).join(' '), ts: now() });
+        orig(...args);
+      };
+    });
+
+    const origFetch = win.fetch;
+    if (origFetch) {
+      win.fetch = async (...args) => {
+        const [input, init] = args;
+        const url = typeof input === 'string' ? input : input?.url;
+        const method = (init?.method || (typeof input === 'object' && input?.method) || 'GET').toUpperCase();
+        const start = win.performance?.now?.() ?? 0;
+        try {
+          const res = await origFetch(...args);
+          emit(EVT.NET, { url, method, status: res.status, ok: res.ok, ms: Math.round((win.performance?.now?.() ?? 0) - start), ts: now() });
+          return res;
+        } catch (e) {
+          emit(EVT.NET, { url, method, status: 0, ok: false, error: String(e?.message || e), ms: Math.round((win.performance?.now?.() ?? 0) - start), ts: now() });
+          throw e;
+        }
+      };
+    }
+
+    win.addEventListener('error', (e) =>
+      emit(EVT.CRASH, { type: 'error', message: e.message, stack: e.error?.stack, ts: now() }));
+    win.addEventListener('unhandledrejection', (e) =>
+      emit(EVT.CRASH, { type: 'unhandledrejection', message: String(e.reason?.message || e.reason), stack: e.reason?.stack, ts: now() }));
+  }, [emit]);
+
   // Called by the iframe's onLoad — the app just (re)mounted, so re-handshake.
   // Connection drops until the fresh bridge answers, avoiding a stale "green".
   const onIframeLoad = useCallback(() => {
     setConnected(false);
+    installTaps(iframeRef.current?.contentWindow);
     // Give the bridge a tick to attach its listener, then ping.
     setTimeout(() => send(CMD.PING), 120);
-  }, [send]);
+  }, [send, installTaps]);
 
   // ── Same-origin iframe helpers ──────────────────────────────
   // The harness and the embedded app share an origin, so the harness can read

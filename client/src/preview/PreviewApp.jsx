@@ -4,6 +4,7 @@ import { Section, Row, Btn, Seg } from './ui.jsx';
 import { useHarnessBridge } from './bridge/useHarnessBridge.js';
 import UsersSection from './sections/UsersSection.jsx';
 import ScreensSection from './sections/ScreensSection.jsx';
+import ObserveSection from './sections/ObserveSection.jsx';
 
 // The app's routable screens, for the "open any screen" control. The dashboard
 // tabs live behind one route (state, not URL), so deep-tab nav is refined in A4;
@@ -81,12 +82,10 @@ export default function PreviewApp() {
 
           <UsersSection bridge={bridge} />
           <ScreensSection bridge={bridge} />
+          <ObserveSection bridge={bridge} />
 
           {/* Stubs — each names the stage that fills it, so the shell reads as
               a plan, not as broken buttons. */}
-          <Section title="תצפית" hint="A5">
-            <p className="hz-soon">Logs · Network · Crash reports</p>
-          </Section>
           <Section title="לכידה" hint="A6">
             <p className="hz-soon">צילום מסך · הקלטת וידאו</p>
           </Section>

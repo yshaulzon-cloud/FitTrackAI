@@ -216,6 +216,58 @@ body {
 /* RTL: the sidebar is rtl, so "on" should push the knob the other way */
 [dir='rtl'] .hz-toggle--on .hz-toggle__knob { transform: translateX(-16px); }
 
+/* ── Observability (logs / network / crashes) ────────────── */
+.hz-obs-tabs { display: flex; align-items: center; gap: 4px; }
+.hz-obs-tab {
+  background: var(--hz-panel-2); border: 1px solid var(--hz-line);
+  border-radius: 8px; padding: 5px 9px;
+  font-size: 11.5px; font-family: inherit; color: var(--hz-text-dim);
+  cursor: pointer; display: flex; align-items: center; gap: 5px;
+}
+.hz-obs-tab--on { color: var(--hz-text); border-color: var(--hz-accent); }
+.hz-obs-tab--alert { color: #f5698c; border-color: rgba(245, 105, 140, 0.3); }
+.hz-obs-tab__n {
+  font-size: 10px; background: rgba(255,255,255,0.08);
+  border-radius: 999px; padding: 1px 6px; font-variant-numeric: tabular-nums;
+}
+.hz-obs-clear {
+  margin-inline-start: auto; background: none; border: 0;
+  color: var(--hz-text-dim); cursor: pointer; font-size: 12px; padding: 4px;
+}
+.hz-obs-clear:hover { color: var(--hz-text); }
+
+.hz-obs-body {
+  margin-top: 8px;
+  height: 200px; overflow-y: auto;
+  background: #070a0f; border: 1px solid var(--hz-line); border-radius: 8px;
+  padding: 6px;
+  font-family: 'SFMono-Regular', ui-monospace, 'Cascadia Code', monospace;
+  font-size: 11px; line-height: 1.5;
+  direction: ltr; text-align: left;
+}
+.hz-obs-empty { color: var(--hz-text-dim); opacity: 0.6; padding: 8px; direction: rtl; text-align: center; }
+
+.hz-logline { display: flex; gap: 7px; padding: 2px 3px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.hz-logline__lvl { flex: none; width: 34px; color: var(--hz-text-dim); text-transform: uppercase; font-size: 9.5px; padding-top: 1px; }
+.hz-logline__txt { flex: 1; word-break: break-word; color: #c4d0de; }
+.hz-logline--warn .hz-logline__txt { color: #ffb648; }
+.hz-logline--error .hz-logline__txt { color: #f5698c; }
+.hz-logline--warn .hz-logline__lvl { color: #ffb648; }
+.hz-logline--error .hz-logline__lvl { color: #f5698c; }
+
+.hz-netline { display: flex; gap: 7px; align-items: center; padding: 2px 3px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.hz-netline__status { flex: none; width: 30px; font-weight: 700; }
+.hz-netline__status.s2 { color: #2fe3c2; }
+.hz-netline__status.s3 { color: #4d9fff; }
+.hz-netline__status.s4, .hz-netline__status.s5, .hz-netline--bad .hz-netline__status { color: #f5698c; }
+.hz-netline__method { flex: none; width: 42px; color: var(--hz-text-dim); }
+.hz-netline__url { flex: 1; color: #c4d0de; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hz-netline__ms { flex: none; color: var(--hz-text-dim); font-variant-numeric: tabular-nums; }
+
+.hz-crashline { padding: 5px 3px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.hz-crashline__msg { color: #f5698c; word-break: break-word; }
+.hz-crashline__stack { margin: 4px 0 0; color: var(--hz-text-dim); font-size: 10px; white-space: pre-wrap; opacity: 0.8; }
+
 .hz-foot {
   padding-top: 14px;
   border-top: 1px solid var(--hz-line);
