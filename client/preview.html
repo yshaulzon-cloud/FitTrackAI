@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Areto · Preview Harness</title>
+    <!--
+      DEV-ONLY ENTRY. Vite serves this at /preview.html during `npm run dev`,
+      but `vite build` only bundles index.html (see build.rollupOptions.input
+      default), so none of the harness reaches the production APK/site.
+      Sentinel below is asserted-absent by the prod-isolation test (A8).
+    -->
+    <!-- ARETO_PREVIEW_HARNESS_SENTINEL -->
+  </head>
+  <body>
+    <div id="harness-root"></div>
+    <script type="module" src="/src/preview/main.jsx"></script>
+  </body>
+</html>

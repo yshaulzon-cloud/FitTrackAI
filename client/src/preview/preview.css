@@ -1,0 +1,163 @@
+/* Preview harness styling — dev-only, fully self-contained (does not touch the
+   app's index.css). The harness chrome is intentionally its own look: a calm
+   slate console that frames the colorful app without competing with it. */
+
+:root {
+  --hz-bg: #0b0f16;
+  --hz-panel: #121824;
+  --hz-panel-2: #0f151f;
+  --hz-line: rgba(255, 255, 255, 0.07);
+  --hz-text: #e7edf5;
+  --hz-text-dim: #9aa7b8;
+  --hz-text-faint: #63708223;
+  --hz-accent: #2fe3c2;
+  --hz-side-w: 340px;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #harness-root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--hz-bg);
+  color: var(--hz-text);
+  font-family: 'Rubik', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.hz {
+  display: grid;
+  grid-template-columns: var(--hz-side-w) 1fr;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+.hz-side {
+  background: var(--hz-panel);
+  border-inline-end: 1px solid var(--hz-line);
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.hz-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--hz-line);
+}
+.hz-brand__mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #36e8c6, #189e85);
+  color: #04241b;
+  font-weight: 800;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.hz-brand__name { font-size: 15px; font-weight: 700; }
+.hz-brand__sub { font-size: 11.5px; color: var(--hz-text-dim); margin-top: 2px; }
+
+.hz-placeholder {
+  flex: 1;
+  padding: 18px 0;
+  color: var(--hz-text-dim);
+  font-size: 13px;
+}
+.hz-route-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.hz-chip {
+  background: var(--hz-panel-2);
+  border: 1px solid var(--hz-line);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--hz-text-dim);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.hz-chip:hover { color: var(--hz-text); border-color: var(--hz-accent); }
+.hz-chip--on {
+  color: #04241b;
+  background: var(--hz-accent);
+  border-color: var(--hz-accent);
+  font-weight: 600;
+}
+
+.hz-foot {
+  padding-top: 14px;
+  border-top: 1px solid var(--hz-line);
+  font-size: 11.5px;
+  color: var(--hz-text-dim);
+  line-height: 1.6;
+}
+
+/* ── Stage (phone) ───────────────────────────────────────── */
+.hz-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  overflow: auto;
+  background:
+    radial-gradient(60% 60% at 50% 0%, rgba(47, 227, 194, 0.05), transparent 70%),
+    var(--hz-bg);
+}
+
+/* ── Phone frame ─────────────────────────────────────────── */
+.pf { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.pf__frame {
+  position: relative;
+  width: 414px;               /* 390 viewport + 12px bezel each side */
+  height: 868px;              /* 844 viewport + 12px bezel top/bottom */
+  background: #05070b;
+  border-radius: 52px;
+  padding: 12px;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.06),
+    0 40px 90px rgba(0, 0, 0, 0.55);
+}
+.pf__notch {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 150px;
+  height: 26px;
+  background: #05070b;
+  border-radius: 0 0 18px 18px;
+  z-index: 2;
+}
+.pf__viewport {
+  width: 390px;
+  height: 844px;
+  border-radius: 40px;
+  overflow: hidden;
+  background: #000;
+}
+.hz-screen {
+  width: 390px;
+  height: 844px;
+  border: 0;
+  display: block;
+}
+.pf__label {
+  font-size: 11.5px;
+  color: var(--hz-text-dim);
+  font-variant-numeric: tabular-nums;
+}
