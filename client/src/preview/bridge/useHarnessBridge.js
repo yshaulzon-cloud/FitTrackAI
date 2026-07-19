@@ -18,6 +18,10 @@ export function useHarnessBridge() {
   const [route, setRoute] = useState(null);
   // Event subscribers keyed by EVT type — A5 panels register here.
   const subs = useRef(new Map());
+  // A7 fake-data rules, read live by the fetch tap. Mutable ref so toggling a
+  // stub takes effect on the next request without reinstalling the tap.
+  const stubs = useRef([]);
+  const setStubs = useCallback((rules) => { stubs.current = rules; }, []);
 
   const emit = useCallback((type, payload) => {
     const set = subs.current.get(type);
@@ -86,6 +90,21 @@ export function useHarnessBridge() {
         const url = typeof input === 'string' ? input : input?.url;
         const method = (init?.method || (typeof input === 'object' && input?.method) || 'GET').toUpperCase();
         const start = win.performance?.now?.() ?? 0;
+
+        // A7: a matching, enabled stub short-circuits the request — the app
+        // gets the synthetic response and the server is never called. This is
+        // the WebView equivalent of swapping in a fake repository.
+        const stub = stubs.current.find(
+          (r) => r.enabled && url?.includes(r.match.url) && (!r.match.method || r.match.method === method),
+        );
+        if (stub) {
+          emit(EVT.NET, { url, method, status: stub.status, ok: stub.status < 400, ms: 0, ts: now(), stubbed: true });
+          return new win.Response(JSON.stringify(stub.body ?? {}), {
+            status: stub.status,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
         try {
           const res = await origFetch(...args);
           emit(EVT.NET, { url, method, status: res.status, ok: res.ok, ms: Math.round((win.performance?.now?.() ?? 0) - start), ts: now() });
@@ -200,6 +219,7 @@ export function useHarnessBridge() {
     iframeRef, connected, route, send, on, onIframeLoad,
     reloadTo, applyToken, clearAppStorage, clearAppCache,
     getFlag, setFlag, runInApp, openScreen,
+    setStubs, reload: () => reloadTo(iframeRef.current?.contentWindow?.location?.pathname || '/dashboard'),
     CMD, TAG,
   };
 }
