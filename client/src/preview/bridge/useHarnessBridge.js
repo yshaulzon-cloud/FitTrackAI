@@ -99,9 +99,57 @@ export function useHarnessBridge() {
     reloadTo(iframeRef.current?.contentWindow?.location?.pathname || '/dashboard');
   }, [reloadTo]);
 
+  // Read/write a single app localStorage key (feature flags). null value
+  // removes the key. Reloads so the app re-reads it on mount.
+  const getFlag = useCallback((key) => {
+    try { return iframeRef.current?.contentWindow?.localStorage.getItem(key); }
+    catch { return null; }
+  }, []);
+
+  const setFlag = useCallback((key, value, { reload = true } = {}) => {
+    try {
+      const ls = iframeRef.current?.contentWindow?.localStorage;
+      if (value === null) ls?.removeItem(key);
+      else ls?.setItem(key, value);
+    } catch { /* ignore */ }
+    if (reload) reloadTo(iframeRef.current?.contentWindow?.location?.pathname || '/dashboard');
+  }, [reloadTo]);
+
+  // Operate the real app DOM the way a user would — same origin, so the harness
+  // can find and click actual elements. Steps: {click|clickIndex|delay|waitFor}.
+  const runInApp = useCallback(async (steps) => {
+    const doc = () => iframeRef.current?.contentDocument;
+    const waitFor = async (sel, timeout = 3500) => {
+      const start = Date.now();
+      while (Date.now() - start < timeout) {
+        const el = doc()?.querySelector(sel);
+        if (el) return el;
+        await new Promise((r) => setTimeout(r, 90));
+      }
+      return null;
+    };
+    for (const step of steps) {
+      if (step.waitFor) await waitFor(step.waitFor);
+      if (step.click) { const el = await waitFor(step.click); el?.click(); }
+      if (step.clickIndex) {
+        await waitFor(step.clickIndex.sel);
+        doc()?.querySelectorAll(step.clickIndex.sel)?.[step.clickIndex.i]?.click();
+      }
+      if (step.delay) await new Promise((r) => setTimeout(r, step.delay));
+    }
+  }, []);
+
+  // Land on /dashboard (real routing), then drive the app to the target screen.
+  const openScreen = useCallback(async (steps) => {
+    const onDash = iframeRef.current?.contentWindow?.location?.pathname === '/dashboard';
+    if (!onDash) { send(CMD.NAVIGATE, { path: '/dashboard' }); await new Promise((r) => setTimeout(r, 500)); }
+    await runInApp(steps);
+  }, [send, runInApp]);
+
   return {
     iframeRef, connected, route, send, on, onIframeLoad,
     reloadTo, applyToken, clearAppStorage, clearAppCache,
+    getFlag, setFlag, runInApp, openScreen,
     CMD, TAG,
   };
 }
