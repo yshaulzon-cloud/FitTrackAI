@@ -1485,51 +1485,51 @@ function generateWorkoutPlan(profile) {
   // If user selected more days, cap at 3 strength + optional light cardio
   const maintenancePlans = {
     1: [
-      { day: 'יום א\' - Full Body (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyA },
+      { day: 'יום א\' - Full Body', type: 'strength', exercises: maintenanceExercises.fullBodyA },
     ],
     2: [
-      { day: 'יום א\' - Full Body A (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyA },
-      { day: 'יום ב\' - Full Body B (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyB },
+      { day: 'יום א\' - Full Body A', type: 'strength', exercises: maintenanceExercises.fullBodyA },
+      { day: 'יום ב\' - Full Body B', type: 'strength', exercises: maintenanceExercises.fullBodyB },
     ],
     3: [
-      { day: 'יום א\' - Full Body A (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyA },
-      { day: 'יום ב\' - Full Body B (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyB },
-      { day: 'יום ג\' - Full Body C (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyC },
+      { day: 'יום א\' - Full Body A', type: 'strength', exercises: maintenanceExercises.fullBodyA },
+      { day: 'יום ב\' - Full Body B', type: 'strength', exercises: maintenanceExercises.fullBodyB },
+      { day: 'יום ג\' - Full Body C', type: 'strength', exercises: maintenanceExercises.fullBodyC },
     ],
     4: [
-      { day: 'יום א\' - Full Body A (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyA },
-      { day: 'יום ב\' - Full Body B (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyB },
-      { day: 'יום ג\' - אירובי קל (Zone 2)', type: 'cardio', exercises: [
-        { name: 'הליכה מהירה / אופניים (Zone 2)', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
+      { day: 'יום א\' - Full Body A', type: 'strength', exercises: maintenanceExercises.fullBodyA },
+      { day: 'יום ב\' - Full Body B', type: 'strength', exercises: maintenanceExercises.fullBodyB },
+      { day: 'יום ג\' - אירובי קל', type: 'cardio', exercises: [
+        { name: 'הליכה מהירה / אופניים', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
         ...exercises.core,
       ]},
-      { day: 'יום ד\' - Full Body C (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyC },
+      { day: 'יום ד\' - Full Body C', type: 'strength', exercises: maintenanceExercises.fullBodyC },
     ],
     5: [
-      { day: 'יום א\' - Full Body A (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyA },
-      { day: 'יום ב\' - אירובי קל (Zone 2)', type: 'cardio', exercises: [
-        { name: 'הליכה מהירה / אופניים (Zone 2)', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
+      { day: 'יום א\' - Full Body A', type: 'strength', exercises: maintenanceExercises.fullBodyA },
+      { day: 'יום ב\' - אירובי קל', type: 'cardio', exercises: [
+        { name: 'הליכה מהירה / אופניים', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
       ]},
-      { day: 'יום ג\' - Full Body B (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyB },
+      { day: 'יום ג\' - Full Body B', type: 'strength', exercises: maintenanceExercises.fullBodyB },
       { day: 'יום ד\' - אירובי קל + ליבה', type: 'cardio', exercises: [
-        { name: 'הליכה מהירה / אופניים (Zone 2)', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
+        { name: 'הליכה מהירה / אופניים', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
         ...exercises.core,
       ]},
-      { day: 'יום ה\' - Full Body C (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyC },
+      { day: 'יום ה\' - Full Body C', type: 'strength', exercises: maintenanceExercises.fullBodyC },
     ],
     6: [
-      { day: 'יום א\' - Full Body A (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyA },
-      { day: 'יום ב\' - אירובי קל (Zone 2)', type: 'cardio', exercises: [
-        { name: 'הליכה מהירה / אופניים (Zone 2)', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
+      { day: 'יום א\' - Full Body A', type: 'strength', exercises: maintenanceExercises.fullBodyA },
+      { day: 'יום ב\' - אירובי קל', type: 'cardio', exercises: [
+        { name: 'הליכה מהירה / אופניים', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
       ]},
-      { day: 'יום ג\' - Full Body B (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyB },
+      { day: 'יום ג\' - Full Body B', type: 'strength', exercises: maintenanceExercises.fullBodyB },
       { day: 'יום ד\' - אירובי קל + ליבה', type: 'cardio', exercises: [
-        { name: 'הליכה מהירה / אופניים (Zone 2)', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
+        { name: 'הליכה מהירה / אופניים', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
         ...exercises.core,
       ]},
-      { day: 'יום ה\' - Full Body C (RPE 8-9)', type: 'strength', exercises: maintenanceExercises.fullBodyC },
+      { day: 'יום ה\' - Full Body C', type: 'strength', exercises: maintenanceExercises.fullBodyC },
       { day: 'יום ו\' - אירובי קל', type: 'cardio', exercises: [
-        { name: 'הליכה מהירה / אופניים (Zone 2)', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
+        { name: 'הליכה מהירה / אופניים', sets: 1, reps: '30-45 דקות', muscleGroup: 'אירובי' },
       ]},
     ],
   };
@@ -1610,7 +1610,7 @@ function generateWorkoutPlan(profile) {
         day: 'יום ג\' - אירובי קל + ליבה',
         type: 'cardio',
         exercises: [
-          { name: 'הליכה מהירה / אופניים (Zone 2)', sets: 1, reps: '45 דקות', muscleGroup: 'אירובי' },
+          { name: 'הליכה מהירה / אופניים', sets: 1, reps: '45 דקות', muscleGroup: 'אירובי' },
           ...adjustSets(exercises.core),
         ],
       },
@@ -1640,7 +1640,7 @@ function generateWorkoutPlan(profile) {
         day: 'יום ג\' - אירובי קל + ליבה',
         type: 'cardio',
         exercises: [
-          { name: 'הליכה מהירה / אופניים (Zone 2)', sets: 1, reps: '45 דקות', muscleGroup: 'אירובי' },
+          { name: 'הליכה מהירה / אופניים', sets: 1, reps: '45 דקות', muscleGroup: 'אירובי' },
           ...adjustSets(exercises.core),
         ],
       },
