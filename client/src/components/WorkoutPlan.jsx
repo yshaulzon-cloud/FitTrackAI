@@ -65,18 +65,43 @@ function getMuscleGroup(group, lang) {
   return muscleGroupMap[group] || group;
 }
 
-// Translate day names for English
-function getDayName(day, lang) {
-  if (lang === 'he') return day;
-  return day
+// A day name may carry a trailing "(focus)" — the training emphasis, e.g.
+// "פלג גוף עליון (כוח)". We split it off so the title stays clean and the focus
+// renders as a small subtitle. Two focuses are pure jargon-noise (RPE codes,
+// "Zone 2") and are dropped outright — handled here defensively so plans stored
+// before the server cleanup still display clean.
+const DAY_FOCUS_NOISE = /^(RPE\b|Zone\s*2)/i;
+function splitDay(day) {
+  const m = String(day || '').match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  if (!m) return { base: String(day || ''), focus: null };
+  const focus = m[2].trim();
+  if (DAY_FOCUS_NOISE.test(focus)) return { base: m[1].trim(), focus: null };
+  return { base: m[1].trim(), focus };
+}
+
+function translateDay(s, lang) {
+  if (lang === 'he') return s;
+  return s
     .replace(/יום א'/g, 'Day 1').replace(/יום ב'/g, 'Day 2').replace(/יום ג'/g, 'Day 3')
     .replace(/יום ד'/g, 'Day 4').replace(/יום ה'/g, 'Day 5').replace(/יום ו'/g, 'Day 6')
     .replace('פלג גוף עליון', 'Upper Body').replace('פלג גוף תחתון', 'Lower Body')
-    .replace('כוח', 'Strength').replace('היפרטרופיה', 'Hypertrophy')
     .replace('אירובי קל', 'Light Cardio').replace('ליבה', 'Core')
     .replace('Full Body קל / אירובי', 'Light Full Body / Cardio')
     .replace('Full Body + ליבה', 'Full Body + Core')
     .replace('אירובי קל + ליבה', 'Light Cardio + Core');
+}
+
+// The clean day title (no focus annotation), translated.
+function getDayName(day, lang) {
+  return translateDay(splitDay(day).base, lang);
+}
+
+// The focus subtitle (or null): the training emphasis, translated.
+function getDayFocus(day, lang) {
+  const { focus } = splitDay(day);
+  if (!focus) return null;
+  if (lang === 'he') return focus;
+  return focus.replace('כוח', 'Strength').replace('היפרטרופיה', 'Hypertrophy');
 }
 
 // Adjust exercises and sets based on available time
@@ -486,6 +511,9 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 700, marginBottom: 2 }}>{isHe ? 'האימון הבא' : 'Next workout'}</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-1)' }}>{getDayName(nextDay.day, lang)}</div>
+                {getDayFocus(nextDay.day, lang) && (
+                  <div style={{ fontSize: 11.5, color: 'var(--text-4)', fontWeight: 600, marginTop: 1 }}>{getDayFocus(nextDay.day, lang)}</div>
+                )}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>
                 {maxPerWeek - doneThisWeek > 0 ? (isHe ? `עוד ${maxPerWeek - doneThisWeek} השבוע` : `${maxPerWeek - doneThisWeek} left this week`) : (isHe ? 'שבוע מלא' : 'week complete')}
@@ -563,6 +591,9 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               {isHe ? 'האימון הבא שלך' : 'Your next workout'}
             </div>
             <div style={{ fontSize: 21, fontWeight: 700, marginTop: 8, color: 'var(--text-1)' }}>{dayTitle}</div>
+            {currentDay && getDayFocus(currentDay.day, lang) && (
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>{getDayFocus(currentDay.day, lang)}</div>
+            )}
             <div style={{ display: 'flex', gap: 14, marginTop: 10, fontSize: 13, color: '#93A0B4', flexWrap: 'wrap' }}>
               <span>{adjExercises0.length} {isHe ? 'תרגילים' : 'exercises'}</span>
               <span>·</span>
