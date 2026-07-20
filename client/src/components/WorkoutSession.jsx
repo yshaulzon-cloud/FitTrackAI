@@ -474,13 +474,11 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
         )}
 
         <div className="ws-done__cta">
+          {/* Only "back home" — the server allows one workout per calendar day
+              (POST /workout/complete rejects a second with alreadyTrainedToday),
+              so a "start another workout" option here would just lead to an error. */}
           <button type="button" className="ws-live__primary" style={{ width: '100%' }} onClick={() => onFinish(summary, { goHome: true })}>
             {isHe ? 'חזרה הביתה' : 'Back home'}
-          </button>
-          {/* Closing without goHome lands back on the workout tab, where the
-              start button for the next session is. */}
-          <button type="button" className="ws-done__again" onClick={() => onFinish(summary)}>
-            {isHe ? 'רוצה עוד? התחל אימון נוסף' : 'Want more? Start another workout'}
           </button>
         </div>
       </div>
@@ -569,9 +567,17 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
         <div className="ws-live__card-body">
           <div className="ws-live__name">{primaryName}</div>
           <div className="ws-live__meta">
-            {cur.sets.length} {isHe ? 'סטים' : 'sets'}
-            {cur.mode === 'reps' && cur.targetReps && ` × ${cur.targetReps} ${isHe ? 'חזרות' : 'reps'}`}
-            {` · ${isHe ? 'מנוחה' : 'rest'} ${restSecs} ${isHe ? 'שנ׳' : 's'}`}
+            {isHe
+              ? [
+                  `${cur.sets.length} סטים`,
+                  cur.mode === 'reps' && cur.targetReps ? `${cur.targetReps} חזרות` : null,
+                  `מנוחה ${restSecs} שניות`,
+                ].filter(Boolean).join(' · ')
+              : [
+                  `${cur.sets.length} sets`,
+                  cur.mode === 'reps' && cur.targetReps ? `${cur.targetReps} reps` : null,
+                  `${restSecs}s rest`,
+                ].filter(Boolean).join(' · ')}
           </div>
 
           {/* What you did last time, and the nudge past it */}

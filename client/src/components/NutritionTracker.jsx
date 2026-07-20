@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLang } from '../context/LanguageContext';
+import { downloadTextFile } from '../lib/downloadFile';
 function isNativeShell() {
   try {
     return typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true;
@@ -190,15 +191,16 @@ function LoggedMealRow({ meal, isHe, t, onDelete }) {
       </button>
       {expanded && (
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 10,
           padding: '0 14px 12px',
           borderTop: '1px solid var(--border-subtle)',
-          flexWrap: 'wrap',
         }}>
-          <div style={{ display: 'flex', gap: 10, paddingTop: 10, fontSize: 12, color: 'var(--text-3)' }}>
+          {/* The header row truncates the name to one line — show it in full
+              here, since that's the whole point of expanding. */}
+          <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5, paddingTop: 10 }}>
+            {name}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, paddingTop: 8, fontSize: 12, color: 'var(--text-3)' }}>
             <span className="m-p">{Math.round(meal.protein)}g {isHe ? 'חלבון' : 'protein'}</span>
             <span className="m-c">{Math.round(meal.carbs)}g {isHe ? 'פחמ\'' : 'carbs'}</span>
             <span className="m-f">{Math.round(meal.fat)}g {isHe ? 'שומן' : 'fat'}</span>
@@ -221,6 +223,7 @@ function LoggedMealRow({ meal, isHe, t, onDelete }) {
               {isHe ? 'מחק' : 'Delete'}
             </button>
           )}
+          </div>
         </div>
       )}
       </div>
@@ -251,6 +254,7 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
   const [menuLoading, setMenuLoading] = useState(false);
   const [swappingIdx, setSwappingIdx] = useState(null);
   const [loggingIdx, setLoggingIdx] = useState(null);
+  const [expandedMenuIdx, setExpandedMenuIdx] = useState(null);
   const [history, setHistory] = useState([]);
   const [hydrated, setHydrated] = useState(false);
   // Which daily-menu rows the user has ticked "eaten" today. Kept per
@@ -427,8 +431,51 @@ ${content}
 </html>`;
   }
 
+  // Plain-text counterpart of generateMenuHTML, for native sharing (see below).
+  function generateMenuText() {
+    const typeHe = { breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' };
+    const typeEn = { breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' };
+    const typeLabel = (type) => isHe ? (typeHe[type] || type) : (typeEn[type] || type);
+
+    function renderDayText(dayMenu, title) {
+      const meals = dayMenu.meals.map(m =>
+        `• ${typeLabel(m.type)}: ${isHe ? m.he : (m.en || m.he)}\n  ${m.calories} ${isHe ? 'קק"ל' : 'kcal'} · ${isHe ? 'חלבון' : 'protein'} ${m.protein}g · ${isHe ? 'פחמ\'' : 'carbs'} ${m.carbs}g · ${isHe ? 'שומן' : 'fat'} ${m.fat}g`
+      ).join('\n');
+      return `${title}\n${meals}\n${isHe ? 'סה"כ' : 'Total'}: ${dayMenu.totalCalories} ${isHe ? 'קק"ל' : 'kcal'} · ${isHe ? 'חלבון' : 'Protein'} ${dayMenu.totalProtein}g\n`;
+    }
+
+    let content = '';
+    let pageTitle = '';
+    if (menuMode === 'weekly' && weeklyMenu) {
+      pageTitle = isHe ? 'התפריט השבועי שלי' : 'My Weekly Menu';
+      const dayNames = isHe
+        ? ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת']
+        : ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
+      content = weeklyMenu.map((d, i) => renderDayText(d, isHe ? `יום ${dayNames[i]}` : dayNames[i])).join('\n');
+    } else if (menu) {
+      pageTitle = isHe ? 'התפריט היומי שלי' : 'My Daily Menu';
+      content = renderDayText(menu, isHe ? 'ארוחות היום' : "Today's meals");
+    }
+    if (!content) return null;
+    return `Areto — ${pageTitle}\n\n${content}`;
+  }
+
   async function handleDownloadMenu() {
     try {
+      // window.open + window.print() is a browser-only trick: inside the
+      // Capacitor WebView, window.open has no real target to open into, and
+      // the app was left stuck when the user tried to navigate back from it.
+      // On native we share the menu as text through the native share sheet
+      // instead — the same pattern already used for text exports (see
+      // src/lib/downloadFile.js) — so the user can save/print/send it via
+      // any app that can open the share sheet.
+      if (isNative) {
+        const text = generateMenuText();
+        if (!text) return;
+        const filename = isHe ? 'התפריט שלי.txt' : 'my-menu.txt';
+        await downloadTextFile(filename, text);
+        return;
+      }
       const html = generateMenuHTML();
       if (!html) return;
       const win = window.open('', '_blank');
@@ -531,6 +578,38 @@ ${content}
     } catch (err) {
       setMessage(err.message || t.errorSaving);
       setTimeout(() => setMessage(''), 5000);
+    } finally {
+      setLoggingIdx(null);
+    }
+  }
+
+  // The inverse of logMenuMeal: find the today's-log entry that matches this
+  // menu row's description and delete it, so "mark eaten" is fully reversible
+  // from the menu itself (mirrors the description-match un-mark that already
+  // happens when deleting from the log — see handleDeleteMeal).
+  async function unmarkMenuMeal(idx) {
+    const meal = menu?.meals?.[idx];
+    if (!meal) return;
+    const wantedHe = (meal.he || '').trim().toLowerCase();
+    const wantedEn = (meal.en || '').trim().toLowerCase();
+    const match = (todayData?.meals || []).find((m) => {
+      const d = (m.description || '').trim().toLowerCase();
+      return d === wantedHe || d === wantedEn;
+    });
+    if (!match) {
+      // No matching log entry to undo (e.g. it was already deleted elsewhere) —
+      // still clear the local checkmark so the UI isn't stuck showing "done".
+      setMenuLogged((prev) => ({ ...prev, idxs: (prev.idxs || []).filter((i) => i !== idx) }));
+      return;
+    }
+    setLoggingIdx(idx);
+    try {
+      await api(`/nutrition/meal/${match._id}`, { method: 'DELETE' });
+      setMenuLogged((prev) => ({ ...prev, idxs: (prev.idxs || []).filter((i) => i !== idx) }));
+      onUpdate();
+    } catch (err) {
+      setMessage(err.message || t.errorDeleting);
+      setTimeout(() => setMessage(''), 3000);
     } finally {
       setLoggingIdx(null);
     }
@@ -1011,18 +1090,71 @@ ${content}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               {menuMeals.map((meal, idx) => {
                 const done = loggedMenuSet.has(idx);
+                const isExpanded = expandedMenuIdx === idx;
+                const fullName = isHe ? meal.he : (meal.en || meal.he);
+                const busy = loggingIdx === idx || swappingIdx === idx;
                 return (
-                  <button key={`m-${idx}`} type="button" onClick={() => !done && logMenuMeal(idx)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 14, padding: '12px 15px', opacity: done ? 0.75 : 1, cursor: done ? 'default' : 'pointer', fontFamily: 'inherit', textAlign: 'start', width: '100%' }}>
-                    {done
-                      ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2FE3C2" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M5 12.5l4.5 4.5L19 7" /></svg>
-                      : <span style={{ width: 15, height: 15, borderRadius: '50%', border: '2px solid rgba(255,255,255,.18)', flexShrink: 0 }} />}
-                    <span style={{ fontSize: 12.5, color: '#7C8798', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{MEAL_TYPE_TIMES[meal.type] || '—'}</span>
-                    <span style={{ flex: 1, fontSize: 14, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {typeLabel(meal.type)} · {isHe ? meal.he : (meal.en || meal.he)}
-                    </span>
-                    <span style={{ fontSize: 12.5, color: '#7C8798', flexShrink: 0 }}>{meal.calories}</span>
-                  </button>
+                  <div key={`m-${idx}`} style={{ background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 14, overflow: 'hidden' }}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedMenuIdx((prev) => (prev === idx ? null : idx))}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', padding: '12px 15px', opacity: done ? 0.75 : 1, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'start', width: '100%' }}
+                    >
+                      {/* A dedicated, labelled mark-eaten control (not just a bare
+                          circle) — tapping it directly toggles the meal without
+                          needing to expand the row first. */}
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); if (!busy) (done ? unmarkMenuMeal(idx) : logMenuMeal(idx)); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); if (!busy) (done ? unmarkMenuMeal(idx) : logMenuMeal(idx)); } }}
+                        title={done ? (isHe ? 'בטל סימון' : 'Unmark') : (isHe ? 'סמן שאכלתי' : 'Mark eaten')}
+                        aria-label={done ? (isHe ? 'בטל סימון' : 'Unmark') : (isHe ? 'סמן שאכלתי' : 'Mark eaten')}
+                        style={{
+                          width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: busy ? 'wait' : 'pointer',
+                          background: done ? 'rgba(47,227,194,.15)' : 'var(--fill-faint)',
+                          border: done ? '2px solid #2FE3C2' : '2px dashed rgba(255,255,255,.28)',
+                        }}
+                      >
+                        {done && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2FE3C2" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>}
+                      </span>
+                      <span style={{ fontSize: 12.5, color: '#7C8798', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{MEAL_TYPE_TIMES[meal.type] || '—'}</span>
+                      <span style={{ flex: 1, fontSize: 14, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {typeLabel(meal.type)} · {fullName}
+                      </span>
+                      <span style={{ fontSize: 12.5, color: '#7C8798', flexShrink: 0 }}>{meal.calories}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-4)', transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}>▾</span>
+                    </button>
+                    {isExpanded && (
+                      <div style={{ padding: '0 15px 14px', borderTop: '1px solid var(--border-faint)' }}>
+                        <div style={{ fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.6, padding: '12px 0 4px' }}>
+                          {typeLabel(meal.type)} · {fullName}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                          {done ? (
+                            <button type="button" onClick={() => unmarkMenuMeal(idx)} disabled={busy}
+                              style={{ flex: 1, background: 'var(--fill-faint)', border: '1px solid var(--border)', color: '#B9C4D2', borderRadius: 12, padding: 10, fontSize: 13.5, fontFamily: 'inherit', cursor: 'pointer' }}>
+                              {loggingIdx === idx ? '…' : (isHe ? 'בטל סימון' : 'Unmark')}
+                            </button>
+                          ) : (
+                            <>
+                              <button type="button" onClick={() => logMenuMeal(idx)} disabled={busy}
+                                style={{ flex: 2, background: 'linear-gradient(135deg,#36E8C6,#1EC0A2)', color: '#04241B', fontWeight: 700, border: 'none', borderRadius: 12, padding: 10, fontSize: 13.5, fontFamily: 'inherit', cursor: 'pointer' }}>
+                                {loggingIdx === idx ? t.saving : (isHe ? 'סמן שאכלתי' : 'Mark eaten')}
+                              </button>
+                              <button type="button" onClick={() => swapMealAtIndex(idx)} disabled={busy}
+                                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'var(--fill-faint)', border: '1px solid var(--border)', color: '#B9C4D2', borderRadius: 12, padding: 10, fontSize: 13.5, fontFamily: 'inherit', cursor: 'pointer' }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B9C4D2" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 8h11l-3-3M17 16H6l3 3" /></svg>
+                                {swappingIdx === idx ? '…' : (isHe ? 'החלף' : 'Swap')}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

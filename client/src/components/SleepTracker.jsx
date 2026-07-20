@@ -5,7 +5,14 @@ import { scheduleSleepPrompts, cancelSleepPrompts } from '../lib/notifications';
 // Prototype sleep sheet: a fixed set of hour chips rather than a drag gauge.
 // '9+' logs 9 — the server only needs the qualifying threshold, and a single
 // tap beats dragging a slider to a half-hour on a phone.
+// The lowest option uses a "<4" comparison — the bidi algorithm mirrors that
+// to read "4>" inside RTL text, so it needs a language-specific label instead
+// of a single symbolic one (labelHe falls back to label when absent).
 const HOUR_OPTIONS = [
+  { label: '<4', labelHe: 'עד 4', value: 4 },
+  { label: '4.5', value: 4.5 },
+  { label: '5', value: 5 },
+  { label: '5.5', value: 5.5 },
   { label: '6', value: 6 },
   { label: '6.5', value: 6.5 },
   { label: '7', value: 7 },
@@ -91,11 +98,12 @@ export default function SleepTracker({ api, showXP }) {
   const qLabel = (q) => t[`sleepQuality_${q}`] || q;
 
   const chip = (selected) => ({
-    flex: 1,
+    flex: '1 0 18%',
+    minWidth: 44,
     borderRadius: 13,
-    padding: '13px 0',
+    padding: '11px 0',
     textAlign: 'center',
-    fontSize: 15,
+    fontSize: 14,
     cursor: 'pointer',
     fontFamily: 'inherit',
     background: selected ? 'rgba(47,227,194,.1)' : 'var(--bg-input)',
@@ -175,10 +183,10 @@ export default function SleepTracker({ api, showXP }) {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 20 }}>
               {HOUR_OPTIONS.map((h) => (
                 <button key={h.label} type="button" onClick={() => setHours(h.value)} style={chip(hours === h.value)}>
-                  {h.label}
+                  {isHe && h.labelHe ? h.labelHe : h.label}
                 </button>
               ))}
             </div>
