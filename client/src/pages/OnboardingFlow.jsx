@@ -475,7 +475,7 @@ export default function OnboardingFlow() {
               </div>
               <div className="ob-hint">
                 {equipment.length > 0 && (isHe ? `נבחרו ${equipment.length} · ` : `${equipment.length} selected · `)}
-                {isHe ? 'חדר כושר ביתי? סמן רק מה שיש לך' : 'Home gym? Tick only what you own'}
+                {isHe ? 'סמן רק מה שיש לך בפועל' : 'Tick only what you actually own'}
               </div>
             </div>
             <div className="ob-cta">
