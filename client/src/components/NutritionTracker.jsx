@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLang } from '../context/LanguageContext';
-import { downloadTextFile } from '../lib/downloadFile';
 function isNativeShell() {
   try {
     return typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true;
@@ -450,53 +449,27 @@ ${content}
 </html>`;
   }
 
-  // Plain-text counterpart of generateMenuHTML, for native sharing (see below).
-  function generateMenuText() {
-    const typeHe = { breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' };
-    const typeEn = { breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' };
-    const typeLabel = (type) => isHe ? (typeHe[type] || type) : (typeEn[type] || type);
-
-    function renderDayText(dayMenu, title) {
-      const meals = dayMenu.meals.map(m =>
-        `• ${typeLabel(m.type)}: ${isHe ? m.he : (m.en || m.he)}\n  ${m.calories} ${isHe ? 'קק"ל' : 'kcal'} · ${isHe ? 'חלבון' : 'protein'} ${m.protein}g · ${isHe ? 'פחמ\'' : 'carbs'} ${m.carbs}g · ${isHe ? 'שומן' : 'fat'} ${m.fat}g`
-      ).join('\n');
-      return `${title}\n${meals}\n${isHe ? 'סה"כ' : 'Total'}: ${dayMenu.totalCalories} ${isHe ? 'קק"ל' : 'kcal'} · ${isHe ? 'חלבון' : 'Protein'} ${dayMenu.totalProtein}g\n`;
-    }
-
-    let content = '';
-    let pageTitle = '';
-    if (menuMode === 'weekly' && weeklyMenu) {
-      pageTitle = isHe ? 'התפריט השבועי שלי' : 'My Weekly Menu';
-      const dayNames = isHe
-        ? ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת']
-        : ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
-      content = weeklyMenu.map((d, i) => renderDayText(d, isHe ? `יום ${dayNames[i]}` : dayNames[i])).join('\n');
-    } else if (menu) {
-      pageTitle = isHe ? 'התפריט היומי שלי' : 'My Daily Menu';
-      content = renderDayText(menu, isHe ? 'ארוחות היום' : "Today's meals");
-    }
-    if (!content) return null;
-    return `Areto — ${pageTitle}\n\n${content}`;
-  }
 
   async function handleDownloadMenu() {
     try {
       // window.open + window.print() is a browser-only trick: inside the
       // Capacitor WebView, window.open has no real target to open into, and
       // the app was left stuck when the user tried to navigate back from it.
-      // On native we share the menu as text through the native share sheet
-      // instead — the same pattern already used for text exports (see
-      // src/lib/downloadFile.js) — so the user can save/print/send it via
-      // any app that can open the share sheet.
-      if (isNative) {
-        const text = generateMenuText();
-        if (!text) return;
-        const filename = isHe ? 'התפריט שלי.txt' : 'my-menu.txt';
-        await downloadTextFile(filename, text);
-        return;
-      }
+      // On native, hand the same HTML to Android's own print pipeline (see
+      // PrintPdfPlugin.java) — it renders the page in a real WebView and
+      // opens the system print dialog; tapping "Save as PDF" there produces
+      // a real PDF file. A fully silent, zero-tap save was attempted but
+      // reverted — hand-capturing the WebView's pixels produced blank or
+      // corrupted output on this device's WebView build.
       const html = generateMenuHTML();
       if (!html) return;
+      if (isNative) {
+        const { registerPlugin } = await import('@capacitor/core');
+        const PrintPdf = registerPlugin('PrintPdf');
+        const filename = isHe ? 'התפריט שלי' : 'my-menu';
+        await PrintPdf.printHtml({ html, jobName: filename });
+        return;
+      }
       const win = window.open('', '_blank');
       if (win) {
         win.document.write(html);
