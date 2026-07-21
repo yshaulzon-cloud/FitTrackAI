@@ -356,7 +356,14 @@ html, body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* Native (Capacitor) safe-area: status bar / nav bar / iOS notch */
+}
+/* Native (Capacitor) safe-area: status bar / nav bar / iOS notch.
+   Applied on <body> ONLY — "html, body" above is a grouped selector that
+   would apply padding to BOTH boxes independently, and since body sits
+   inside html, that stacks the inset twice. Screens must NOT add their own
+   env(safe-area-inset-top) on top of this; see .main-content below for the
+   pattern (flat px offset, safe area already covered here). */
+body {
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -1198,7 +1205,9 @@ select:focus-visible {
   max-width: 420px;
   display: flex;
   flex-direction: column;
-  padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px 0;
+  /* No safe-area-inset-top here — body already reserves it (see body rule
+     in the base styles); adding it again here double-counts the status bar. */
+  padding: 24px 24px 0;
   box-sizing: border-box;
 }
 /* .wizard-step carries its own 18px gap from the old layout; the ob-* children
@@ -3900,10 +3909,11 @@ select:focus-visible {
     padding-inline: 16px;
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 100px);
   }
-  /* Settings hides the shared topbar and bottom nav and owns the whole screen,
-     so it needs none of the chrome padding — only the safe-area insets. */
+  /* Settings hides the shared topbar and bottom nav and owns the whole screen.
+     Top safe-area is already applied once on <body> (see base styles) — don't
+     add it again here or it double-counts, same as .main-content above. */
   .main-content--settings {
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: 0;
     padding-inline: 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
@@ -3921,6 +3931,8 @@ select:focus-visible {
   .auth-split { min-height: auto; }
   .auth-split__hero { display: none; }
   .auth-split__form {
+    /* No safe-area-inset-top here — body already reserves it (see body rule
+       above); adding it again here double-counts the status bar height. */
     padding: 28px 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
     min-height: 100vh;
     min-height: 100dvh;
