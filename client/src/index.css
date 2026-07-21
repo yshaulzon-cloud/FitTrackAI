@@ -405,7 +405,10 @@ h1, h2, h3, h4, h5 { font-family: var(--font-display); letter-spacing: -0.01em; 
 .auth-split {
   display: grid;
   grid-template-columns: 1fr 1.1fr;
-  min-height: 100vh;
+  /* body already reserves env(safe-area-inset-top/bottom) via its own
+     padding — subtract it back out so this box doesn't overflow the
+     real viewport and force a scroll. */
+  min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   background: var(--bg-0);
 }
 
@@ -1194,8 +1197,12 @@ select:focus-visible {
    stretch into a banner.
    ============================================================ */
 .ob-shell {
-  min-height: 100vh;
-  min-height: 100dvh;
+  /* body already reserves env(safe-area-inset-top/bottom) via its own
+     padding (see base styles), so a flat 100vh/100dvh here would stack on
+     top of that and push this box past the real viewport, forcing a
+     scroll. Subtract body's padding back out. */
+  min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  min-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   background: var(--bg-1);
   display: flex;
   justify-content: center;
@@ -1411,7 +1418,10 @@ select:focus-visible {
 
 /* Splash */
 .sp {
-  min-height: 100vh; min-height: 100dvh;
+  /* Subtract body's safe-area padding (see base styles) so this doesn't
+     overflow the real viewport and force a scroll on the very first screen. */
+  min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  min-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   background: radial-gradient(120% 90% at 50% 0%, #0F1B22 0%, #0B101A 55%, #0D1220 100%);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
@@ -3931,13 +3941,23 @@ select:focus-visible {
   .auth-split { min-height: auto; }
   .auth-split__hero { display: none; }
   .auth-split__form {
-    /* No safe-area-inset-top here — body already reserves it (see body rule
-       above); adding it again here double-counts the status bar height. */
-    padding: 28px 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
-    min-height: 100vh;
-    min-height: 100dvh;
+    /* No safe-area-inset-top/bottom in the padding here — body already
+       reserves both (see base styles); adding them again double-counts.
+       min-height likewise subtracts body's padding back out of 100dvh so
+       this box doesn't overflow the real viewport and force a scroll. */
+    padding: 28px 20px 24px;
+    min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    min-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   }
-  .auth-form-shell { display: flex; flex-direction: column; min-height: calc(100vh - 56px); min-height: calc(100dvh - 56px); }
+  .auth-form-shell {
+    display: flex;
+    flex-direction: column;
+    /* Subtract body's safe-area padding (see base styles) the same way its
+       parent .auth-split__form does, or this independent min-height wins
+       and forces the whole chain past the real viewport height. */
+    min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 56px);
+    min-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 56px);
+  }
   .auth-form-shell form .btn-primary-cta,
   .auth-form-shell form button[type="submit"].btn-primary-cta {
     /* Push submit button to the bottom of the available space (thumb zone) */
