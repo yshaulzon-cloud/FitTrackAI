@@ -19,13 +19,22 @@ function isNative() {
   } catch { return false; }
 }
 
+// Wrapped in { plugin } rather than returned directly: a Capacitor plugin
+// object intercepts *any* property access (including `.then`) and forwards
+// it to a native method call. If this async function resolved directly to
+// the plugin object, `await getPlugin()` would make JS's promise machinery
+// probe it for a `.then` method to see if it's itself a thenable — which
+// the proxy "answers" by attempting a real native call to a method literally
+// named "then", throwing "LocalNotifications.then() is not implemented on
+// android" and silently breaking every call in this file. A plain wrapper
+// object has no `.then`, so no such probing happens.
 async function getPlugin() {
   const { LocalNotifications } = await import('@capacitor/local-notifications');
-  return LocalNotifications;
+  return { plugin: LocalNotifications };
 }
 
 async function ensurePermission() {
-  const LN = await getPlugin();
+  const { plugin: LN } = await getPlugin();
   const perm = await LN.checkPermissions();
   if (perm.display !== 'granted') {
     const req = await LN.requestPermissions();
@@ -46,7 +55,7 @@ export async function requestNotificationPermission() {
 export async function getNotificationPermissionStatus() {
   if (!isNative()) return null;
   try {
-    const LN = await getPlugin();
+    const { plugin: LN } = await getPlugin();
     const perm = await LN.checkPermissions();
     return perm.display;
   } catch { return null; }
@@ -55,7 +64,7 @@ export async function getNotificationPermissionStatus() {
 async function cancelById(id) {
   if (!isNative()) return true;
   try {
-    const LN = await getPlugin();
+    const { plugin: LN } = await getPlugin();
     await LN.cancel({ notifications: [{ id }] });
   } catch { /* not scheduled */ }
   return true;
@@ -67,7 +76,7 @@ async function scheduleDaily({ id, hour, minute, title, body }) {
   if (!isNative()) return true;
   const ok = await ensurePermission();
   if (!ok) return false;
-  const LN = await getPlugin();
+  const { plugin: LN } = await getPlugin();
   await LN.cancel({ notifications: [{ id }] }).catch(() => {});
   await LN.schedule({
     notifications: [{
@@ -83,7 +92,7 @@ async function scheduleWeekly({ id, weekday, hour, minute, title, body }) {
   if (!isNative()) return true;
   const ok = await ensurePermission();
   if (!ok) return false;
-  const LN = await getPlugin();
+  const { plugin: LN } = await getPlugin();
   await LN.cancel({ notifications: [{ id }] }).catch(() => {});
   await LN.schedule({
     notifications: [{
@@ -103,7 +112,7 @@ async function scheduleOneTime({ id, when, title, body }) {
   if (!isNative()) return true;
   const ok = await ensurePermission();
   if (!ok) return false;
-  const LN = await getPlugin();
+  const { plugin: LN } = await getPlugin();
   await LN.cancel({ notifications: [{ id }] }).catch(() => {});
   await LN.schedule({
     notifications: [{
