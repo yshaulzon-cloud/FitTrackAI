@@ -184,6 +184,47 @@
 [data-theme="light"] ::-webkit-scrollbar-thumb { background: var(--border); }
 [data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
+/* ── Accessibility settings ──────────────────────────────────
+   Driven by data-* attributes AccessibilityProvider sets on <html>
+   (client/src/context/AccessibilityContext.jsx). The Settings toggles were
+   previously local component state that never reached the DOM — they
+   flipped visually but changed nothing. */
+
+/* Text size: `zoom` (not a root font-size cascade) because the app's styles
+   are almost entirely fixed px, both in index.css and inline JSX styles —
+   scaling the root font-size wouldn't touch any of them. `zoom` scales the
+   whole rendered layout proportionally regardless of unit, and is supported
+   by Chromium — which is what both Android's WebView and desktop Chrome/Edge
+   use, covering the app's real targets. It's a no-op (not broken, just
+   inactive) on the rare browser without zoom support. */
+[data-text-size="small"] #root { zoom: 0.9; }
+[data-text-size="large"] #root { zoom: 1.15; }
+
+/* Reduce motion: a blanket kill-switch on CSS animation/transition, so it
+   works regardless of which component triggers the motion. */
+[data-reduce-motion="1"] *,
+[data-reduce-motion="1"] *::before,
+[data-reduce-motion="1"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* High contrast: push the muted-text and hairline-border tokens toward the
+   readable extremes. Uses the app's existing CSS variables, so every
+   component that already reads --text-3/--text-4/--border-subtle etc. picks
+   it up with no per-component change. */
+[data-high-contrast="1"] {
+  --text-2: var(--text-1);
+  --text-3: var(--text-1);
+  --text-4: var(--text-2);
+  --text-faint: var(--text-2);
+  --border-subtle: var(--border-strong);
+  --border-faint: var(--border-strong);
+  --border-hairline: var(--border-strong);
+}
+
 [data-theme="light"] .auth-split__hero {
   background: linear-gradient(155deg, #e0f2f1 0%, #f4f6fb 50%, #ede9fe 100%);
 }
@@ -996,7 +1037,7 @@ select:focus-visible {
 }
 .stat-card:hover { border-color: var(--border); transform: translateY(-1px); }
 
-.stat-card .stat-icon { font-size: 22px; margin-bottom: 8px; }
+.stat-card .stat-icon { font-size: 22px; margin-bottom: 8px; display: flex; }
 .stat-card .stat-value {
   font-family: var(--font-display);
   font-size: 28px;
@@ -4137,7 +4178,8 @@ select:focus-visible {
 .xp-toast--streak { top: 92px; border-color: #f59e0b; box-shadow: 0 8px 32px rgba(245, 158, 11, 0.35); }
 .xp-toast--streak .xp-toast-title { color: #f59e0b; }
 .xp-toast-content { display: flex; align-items: center; gap: 10px; }
-.xp-toast-icon { font-size: 22px; }
+.xp-toast-icon { font-size: 22px; display: flex; align-items: center; color: var(--accent); }
+.xp-toast--streak .xp-toast-icon { color: #f59e0b; }
 .xp-toast-xp { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--accent); }
 .xp-toast-title { font-size: 16px; font-weight: 700; color: var(--accent); }
 .xp-toast-detail { font-size: 13px; color: var(--text-2); }

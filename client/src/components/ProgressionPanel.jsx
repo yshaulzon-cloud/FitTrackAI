@@ -22,6 +22,25 @@ function badgeTint(id) {
   return 'var(--accent)'; // workouts
 }
 
+// Small functional-icon set matching the nav bar's stroke-line style (see
+// NavTabIcon in Dashboard.jsx / StIc / ObIcon) — used for the stat-row and
+// streak-card icons, which are category markers, not gamification badges.
+// The 30-entry BADGE_ICONS trophy list above is deliberately left as emoji:
+// per the prototype's own design note, emoji are reserved for gamification
+// celebration, and hand-designing 30 bespoke trophy icons is a separate,
+// much larger pass than this one.
+function StatIcon({ type, color = 'currentColor', size = 17 }) {
+  const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  if (type === 'target')   return <svg {...p}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3.5" /></svg>;
+  if (type === 'dumbbell') return <svg {...p}><path d="M6.5 8v8M3.5 10v4M17.5 8v8M20.5 10v4M6.5 12h11" /></svg>;
+  if (type === 'scale')    return <svg {...p}><path d="M12 3v18M7 21h10M5 7h6M5 7l-3 6a3 3 0 0 0 6 0zM17 7l-3 6a3 3 0 0 0 6 0zM12 3l5 4M12 3 7 7" /></svg>;
+  if (type === 'moon')     return <svg {...p}><path d="M20 14A8.5 8.5 0 1 1 10 4a7 7 0 0 0 10 10z" /></svg>;
+  if (type === 'flame')    return <svg {...p}><path d="M12 3c1 3.5 5 5.5 5 9.5a5 5 0 0 1-10 0C7 10 8.5 8.5 9.5 7c.5 1.5 1.3 2.4 2.8 3-.8-2.3-.8-4.7-.3-7z" /></svg>;
+  if (type === 'salad')    return <svg {...p}><path d="M4 12a8 8 0 0 1 16 0z" /><path d="M4 12h16M8 12V8M12 12V6M16 12V8" /></svg>;
+  if (type === 'calendar') return <svg {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>;
+  return null;
+}
+
 const ALL_BADGES = [
   'first_workout', 'workout_10', 'workout_25', 'workout_50', 'workout_100', 'workout_200',
   'streak_3', 'streak_7', 'streak_14', 'streak_30', 'streak_60', 'streak_100',
@@ -206,7 +225,7 @@ export default function ProgressionPanel({ api, view = 'prog' }) {
         </div>
         {data.currentStreak > 0 && (
           <div className="xp-hero__streak">
-            🔥 {data.currentStreak} {isHe ? 'ימים ברצף' : 'day streak'}
+            <StatIcon type="flame" color="var(--streak, #FF9A4D)" size={15} /> {data.currentStreak} {isHe ? 'ימים ברצף' : 'day streak'}
           </div>
         )}
       </div>
@@ -216,17 +235,17 @@ export default function ProgressionPanel({ api, view = 'prog' }) {
       {showProg && (
       <div className="streak-grid">
         <div className="streak-card">
-          <div className="streak-icon">🔥</div>
+          <div className="streak-icon"><StatIcon type="flame" color="var(--streak, #FF9A4D)" size={20} /></div>
           <div className="streak-value">{data.currentStreak}<span style={{ fontSize: 14, fontWeight: 400 }}> {t.days}</span></div>
           <div className="streak-label">{t.currentStreak}</div>
         </div>
         <div className="streak-card">
-          <div className="streak-icon">🥗</div>
+          <div className="streak-icon"><StatIcon type="salad" color="var(--c-carbs, #4D9FFF)" size={20} /></div>
           <div className="streak-value">{data.calorieStreak}<span style={{ fontSize: 14, fontWeight: 400 }}> {t.days}</span></div>
           <div className="streak-label">{t.longestStreak}</div>
         </div>
         <div className="streak-card">
-          <div className="streak-icon">📅</div>
+          <div className="streak-icon"><StatIcon type="calendar" color="var(--accent, #2FE3C2)" size={20} /></div>
           <div className="streak-value">{data.weekStreaksCompleted}</div>
           <div className="streak-label">{t.weekStreaks}</div>
         </div>
@@ -244,16 +263,16 @@ export default function ProgressionPanel({ api, view = 'prog' }) {
             // Prototype's "אחוזי התקדמות" palette: discipline teal, strength
             // pink, weight-goal amber, sleep purple — one hue per stat so the
             // bars read as distinct categories rather than a status gradient.
-            { key: 'discipline', label: t.statDiscipline, icon: '🎯', color: '#2FE3C2' },
-            { key: 'strength',   label: t.statStrength,   icon: '💪', color: '#F5698C' },
-            { key: 'recovery',   label: t.statRecovery,   icon: '⚖️', color: '#FFB648' },
-            { key: 'sleep',      label: t.statSleep,      icon: '🌙', color: '#8F8AF7' },
+            { key: 'discipline', label: t.statDiscipline, icon: 'target',   color: '#2FE3C2' },
+            { key: 'strength',   label: t.statStrength,   icon: 'dumbbell', color: '#F5698C' },
+            { key: 'recovery',   label: t.statRecovery,   icon: 'scale',    color: '#FFB648' },
+            { key: 'sleep',      label: t.statSleep,      icon: 'moon',     color: '#8F8AF7' },
           ].map(stat => {
             const val = data.stats?.[stat.key] || 0;
             return (
               <div className="rpg-stat-row" key={stat.key}>
                 <div className="rpg-stat-header">
-                  <span className="rpg-stat-icon">{stat.icon}</span>
+                  <span className="rpg-stat-icon"><StatIcon type={stat.icon} color={stat.color} /></span>
                   <span className="rpg-stat-name">{stat.label}</span>
                   <span className="rpg-stat-value" style={{ color: stat.color }}>{val}%</span>
                 </div>

@@ -443,7 +443,12 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
 
         {prs.length > 0 && (
           <div className="ws-done__prs">
-            <div className="ws-done__prs-title">🏆 {isHe ? 'שיאים חדשים' : 'New records'}</div>
+            <div className="ws-done__prs-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--streak, #FF9A4D)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-3px', marginInlineEnd: 4 }}>
+                <path d="M7 4h10v4a5 5 0 0 1-10 0V4z" /><path d="M7 5H4a3 3 0 0 0 3 4M17 5h3a3 3 0 0 1-3 4" /><path d="M12 13v3M9 20h6M10 16.5h4l.5 3.5h-5z" />
+              </svg>
+              {isHe ? 'שיאים חדשים' : 'New records'}
+            </div>
             {prs.map((pr, i) => (
               <div className="ws-done__pr" key={i}>
                 <span>{isHe ? pr.name : getEnglishName(pr.name)}</span>
@@ -592,7 +597,10 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
               </span>
               {location === 'gym' && perf.sets[0]?.weight != null && (
                 <button type="button" className="ws-live__suggest" onClick={applySuggestion}>
-                  ⚡ {perf.sets[0].weight + 2.5} {isHe ? 'ק״ג' : 'kg'}
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-2px', marginInlineEnd: 3 }}>
+                    <path d="M12 4l1.7 4.6 4.8 1.7-4.8 1.7L12 16.6l-1.7-4.6-4.8-1.7 4.8-1.7z" />
+                  </svg>
+                  {perf.sets[0].weight + 2.5} {isHe ? 'ק״ג' : 'kg'}
                 </button>
               )}
             </div>

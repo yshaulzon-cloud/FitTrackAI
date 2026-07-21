@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLegal } from '../context/LegalContext';
+import { useAccessibility } from '../context/AccessibilityContext';
 import WorkoutPlan from '../components/WorkoutPlan';
 import NutritionTracker from '../components/NutritionTracker';
 import Progress from '../components/Progress';
@@ -81,14 +82,14 @@ export default function Dashboard() {
 
   const isAdmin = profileData?.isAdmin || false;
   const tabs = [
-    { id: 'overview', label: t.tabOverview, icon: '📊' },
-    { id: 'workout', label: t.tabWorkout, icon: '🏋️' },
-    { id: 'nutrition', label: t.tabNutrition, icon: '🍽️' },
-    { id: 'goals', label: t.tabGoals, icon: '🎯' },
-    { id: 'xp', label: t.tabProgression, icon: '⚔️' },
-    { id: 'progress', label: t.tabProgress, icon: '📈' },
-    { id: 'settings', label: t.tabSettings, icon: '⚙️' },
-    ...(isAdmin ? [{ id: 'admin', label: t.tabAdmin, icon: '🛡️' }] : []),
+    { id: 'overview', label: t.tabOverview },
+    { id: 'workout', label: t.tabWorkout },
+    { id: 'nutrition', label: t.tabNutrition },
+    { id: 'goals', label: t.tabGoals },
+    { id: 'xp', label: t.tabProgression },
+    { id: 'progress', label: t.tabProgress },
+    { id: 'settings', label: t.tabSettings },
+    ...(isAdmin ? [{ id: 'admin', label: t.tabAdmin }] : []),
   ];
 
   const mobileTabs = [
@@ -197,7 +198,7 @@ export default function Dashboard() {
               className={activeTab === tab.id ? 'active' : ''}
               onClick={() => setActiveTab(tab.id)}
             >
-              <span className="nav-icon">{tab.icon}</span>
+              <span className="nav-icon"><NavTabIcon id={tab.id} active={activeTab === tab.id} /></span>
               {tab.label}
             </button>
           ))}
@@ -434,6 +435,30 @@ function NavTabIcon({ id, active }) {
       <path d="m19 9-5 5-4-4-3 3"/>
     </svg>
   );
+  // Desktop sidebar has a few extra tabs the mobile bottom-nav doesn't —
+  // same stroke style/size as the four above.
+  if (id === 'goals') return (
+    <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
+      <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/>
+    </svg>
+  );
+  if (id === 'xp') return (
+    // Same "spark" glyph used for XP elsewhere in the app (ProgressionPanel).
+    <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
+      <path d="M12 4l1.7 4.6 4.8 1.7-4.8 1.7L12 16.6l-1.7-4.6-4.8-1.7 4.8-1.7z"/>
+    </svg>
+  );
+  if (id === 'settings') return (
+    <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  );
+  if (id === 'admin') return (
+    <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
+      <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/>
+    </svg>
+  );
   return null;
 }
 
@@ -581,6 +606,18 @@ function dismissBodyPrompt() {
   localStorage.setItem(BODY_UPDATE_KEY, String(Date.now()));
 }
 
+// First-visit home: a simpler welcome variant instead of the full dashboard
+// (calorie ring at 0/target, a week strip of empty cells, a sleep prompt) —
+// which reads as clutter/failure on day one rather than a starting point.
+// Same one-shot-flag pattern as the body prompt above.
+const HOME_INTRO_KEY = 'areto:home-intro-seen';
+function shouldShowHomeIntro() {
+  return !localStorage.getItem(HOME_INTRO_KEY);
+}
+function dismissHomeIntro() {
+  localStorage.setItem(HOME_INTRO_KEY, '1');
+}
+
 function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userName, api, showXP, setActiveTab, progressionData, dailyStreak }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
@@ -641,6 +678,65 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
   }
 
   const streak = dailyStreak || 0;
+
+  // First visit: nothing logged yet anywhere, ever. Show a short "get started"
+  // screen instead of the full dashboard — a calorie ring at 0/target and a
+  // week strip of empty cells reads as clutter (or failure) on day one, not a
+  // starting point. Auto-dismisses the moment there's any real activity, so a
+  // returning user is never stuck here past their first action.
+  const [showFirstTime, setShowFirstTime] = useState(() => shouldShowHomeIntro());
+  const isBrandNew = (workoutHistory?.workouts || []).length === 0 && !hasLoggedToday;
+  useEffect(() => {
+    if (showFirstTime && !isBrandNew) { dismissHomeIntro(); setShowFirstTime(false); }
+  }, [showFirstTime, isBrandNew]);
+
+  if (showFirstTime && isBrandNew) {
+    return (
+      <div style={{ paddingTop: 8 }}>
+        <div style={{ textAlign: 'center', padding: '28px 8px 8px' }}>
+          <div style={{ width: 64, height: 64, borderRadius: 20, margin: '0 auto 18px', background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 4l1.7 4.6 4.8 1.7-4.8 1.7L12 16.6l-1.7-4.6-4.8-1.7 4.8-1.7z" />
+            </svg>
+          </div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: 'var(--text-1)' }}>
+            {isHe ? `ברוך הבא, ${userName || ''}` : `Welcome, ${userName || ''}`}
+          </div>
+          <div style={{ fontSize: 13.5, color: 'var(--text-3)', marginTop: 6 }}>
+            {isHe ? 'שני צעדים קטנים כדי להתחיל' : 'Two small steps to get started'}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 20 }}>
+          <button type="button" onClick={() => setActiveTab('nutrition')} style={{ textAlign: 'start', display: 'flex', alignItems: 'center', gap: 14, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: 16, cursor: 'pointer', fontFamily: 'inherit' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v18M5 3v4a3 3 0 0 0 6 0V3M17 21V3c-2 .8-3.5 3-3.5 5.5 0 2.3 1.5 4 3.5 4.5" /></svg>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>{isHe ? 'רשום ארוחה ראשונה' : 'Log your first meal'}</div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 2 }}>{isHe ? `היעד שלך: ${calorieTarget.toLocaleString()} קלוריות ליום` : `Your target: ${calorieTarget.toLocaleString()} kcal/day`}</div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={isHe ? 'M14 6l-6 6 6 6' : 'M10 6l6 6-6 6'} /></svg>
+          </button>
+
+          <button type="button" onClick={() => setActiveTab('workout')} style={{ textAlign: 'start', display: 'flex', alignItems: 'center', gap: 14, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: 16, cursor: 'pointer', fontFamily: 'inherit' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 8v8M3.5 10v4M17.5 8v8M20.5 10v4M6.5 12h11" /></svg>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>{isHe ? 'התחל את האימון הראשון' : 'Start your first workout'}</div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 2 }}>{isHe ? `${profile?.workoutsPerWeek || 4} אימונים בשבוע בתוכנית שלך` : `${profile?.workoutsPerWeek || 4} workouts/week in your plan`}</div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={isHe ? 'M14 6l-6 6 6 6' : 'M10 6l6 6-6 6'} /></svg>
+          </button>
+        </div>
+
+        <button type="button" onClick={() => { dismissHomeIntro(); setShowFirstTime(false); }} style={{ display: 'block', width: '100%', textAlign: 'center', background: 'none', border: 'none', color: 'var(--text-4)', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', marginTop: 22, padding: 8 }}>
+          {isHe ? 'דלג, קח אותי לדשבורד המלא' : 'Skip, take me to the full dashboard'}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -776,6 +872,8 @@ function StIc({ type, color = '#fff', size = 18 }) {
   const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
   if (type === 'user')    return <svg {...p}><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3 3.8-4.5 7-4.5s5.8 1.5 7 4.5"/></svg>;
   if (type === 'target')  return <svg {...p}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg>;
+  if (type === 'flame')    return <svg {...p}><path d="M12 3c1 3.5 5 5.5 5 9.5a5 5 0 0 1-10 0C7 10 8.5 8.5 9.5 7c.5 1.5 1.3 2.4 2.8 3-.8-2.3-.8-4.7-.3-7z"/></svg>;
+  if (type === 'dumbbell') return <svg {...p}><path d="M6.5 8v8M3.5 10v4M17.5 8v8M20.5 10v4M6.5 12h11"/></svg>;
   if (type === 'mail')    return <svg {...p}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>;
   if (type === 'bell')    return <svg {...p}><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7M10.5 20a2 2 0 0 0 3 0"/></svg>;
   if (type === 'display') return <svg {...p}><path d="M20 14A8.5 8.5 0 1 1 10 4a7 7 0 0 0 10 10z"/></svg>;
@@ -878,13 +976,9 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
   const [dangerLoading, setDangerLoading] = useState(false);
   const [confirmText, setConfirmText] = useState('');
 
-  // Accessibility prefs (localStorage)
-  const [textSize, setTextSizeState] = useState(() => localStorage.getItem('a11y:textSize') || 'normal');
-  const [reduceMotion, setReduceMotionState] = useState(() => localStorage.getItem('a11y:reduceMotion') === '1');
-  const [highContrast, setHighContrastState] = useState(() => localStorage.getItem('a11y:highContrast') === '1');
-  const setTextSize = (v) => { localStorage.setItem('a11y:textSize', v); setTextSizeState(v); };
-  const setReduceMotion = (v) => { localStorage.setItem('a11y:reduceMotion', v ? '1' : '0'); setReduceMotionState(v); };
-  const setHighContrast = (v) => { localStorage.setItem('a11y:highContrast', v ? '1' : '0'); setHighContrastState(v); };
+  // Accessibility prefs — lifted to AccessibilityProvider (main.jsx) so they're
+  // active from first paint, not just while this screen happens to be open.
+  const { textSize, setTextSize, reduceMotion, setReduceMotion, highContrast, setHighContrast } = useAccessibility();
 
   const [tfa, setTfaState] = useState(() => localStorage.getItem('sec:tfa') === '1');
   const setTfa = (v) => { localStorage.setItem('sec:tfa', v ? '1' : '0'); setTfaState(v); };
@@ -1247,7 +1341,9 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
 
           {liveCalories != null && (
             <div className="st2-live-preview">
-              <span>⚡</span>
+              <span style={{ display: 'flex' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--violet, #8F8AF7)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4l1.7 4.6 4.8 1.7-4.8 1.7L12 16.6l-1.7-4.6-4.8-1.7 4.8-1.7z" /></svg>
+              </span>
               <span>
                 {isHe
                   ? <>יעד קלוריות: <strong>{liveCalories.toLocaleString()}</strong></>
@@ -1275,12 +1371,12 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
           </p>
           <div className="st2-goal-grid">
             {[
-              { value: 'cut',      icon: '🔥',  label: t.goalCut,      desc: t.goalCutDesc },
-              { value: 'bulk',     icon: '💪',  label: t.goalBulk,     desc: t.goalBulkDesc },
-              { value: 'maintain', icon: '⚖️', label: t.goalMaintain, desc: t.goalMaintainDesc },
+              { value: 'cut',      icon: 'flame',    color: 'var(--streak, #FF9A4D)', label: t.goalCut,      desc: t.goalCutDesc },
+              { value: 'bulk',     icon: 'dumbbell', color: 'var(--accent)',          label: t.goalBulk,     desc: t.goalBulkDesc },
+              { value: 'maintain', icon: 'target',   color: 'var(--violet, #8F8AF7)', label: t.goalMaintain, desc: t.goalMaintainDesc },
             ].map(g => (
               <button key={g.value} type="button" className={`goal-option${goal === g.value ? ' selected' : ''}`} onClick={() => setGoal(g.value)}>
-                <div className="goal-icon">{g.icon}</div>
+                <div className="goal-icon"><StIc type={g.icon} color={g.color} size={22} /></div>
                 <div className="goal-label">{g.label}</div>
                 <div className="goal-desc">{g.desc}</div>
               </button>
@@ -1288,7 +1384,9 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
           </div>
           {liveCalories != null && (
             <div className="st2-live-preview">
-              <span>💡</span>
+              <span style={{ display: 'flex' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4l1.7 4.6 4.8 1.7-4.8 1.7L12 16.6l-1.7-4.6-4.8-1.7 4.8-1.7z" /></svg>
+              </span>
               <span>
                 {isHe ? <>יעד יומי: <strong>{liveCalories.toLocaleString()} קל'</strong></> : <>Daily target: <strong>{liveCalories.toLocaleString()} kcal</strong></>}
               </span>

@@ -134,7 +134,14 @@ function MealRow({ time, emoji, name, desc, cal, p, c, f, status, onLog, onDelet
             title={isHe ? 'החלף ארוחה' : 'Swap meal'}
             aria-label={isHe ? 'החלף ארוחה' : 'Swap meal'}
           >
-            {swapping ? '…' : (isHe ? '🔄 החלף' : '🔄 Swap')}
+            {swapping ? '…' : (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-2px', marginInlineEnd: 4 }}>
+                  <path d="M7 8h11l-3-3M17 16H6l3 3" />
+                </svg>
+                {isHe ? 'החלף' : 'Swap'}
+              </>
+            )}
           </button>
         )}
       </div>
@@ -149,7 +156,13 @@ function MealRow({ time, emoji, name, desc, cal, p, c, f, status, onLog, onDelet
 function LoggedMealRow({ meal, isHe, t, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   const name = isHe ? meal.description : (meal.englishName || meal.description);
-  const tag = meal.source === 'ai' ? '🤖' : meal.source === 'default' ? '⚠️' : '';
+  // AI-estimated / rough-default source tags — small stroke icons instead of
+  // emoji, matching the app's nav-icon style.
+  const tag = meal.source === 'ai'
+    ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-4)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" title={isHe ? 'הערכת AI' : 'AI estimate'}><rect x="5" y="8" width="14" height="10" rx="2" /><path d="M9 8V6a3 3 0 0 1 6 0v2M9 13h.01M15 13h.01" /></svg>
+    : meal.source === 'default'
+    ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFB648" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" title={isHe ? 'הערכה כללית' : 'Rough estimate'}><path d="M12 9v4M12 16.5v.5" /><circle cx="12" cy="12" r="9" /></svg>
+    : null;
   return (
     <div style={{
       background: 'var(--surface)',
@@ -178,7 +191,9 @@ function LoggedMealRow({ meal, isHe, t, onDelete }) {
           cursor: 'pointer',
         }}
       >
-        <span style={{ color: 'var(--success)', flexShrink: 0 }}>✓</span>
+        <span style={{ color: 'var(--success)', flexShrink: 0, display: 'flex' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+        </span>
         <span style={{ flex: 1, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {name} {tag}
         </span>
@@ -415,6 +430,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080C13;color:#e2e8f0;pa
 .m-cal{color:#FFB648}.m-p{color:#F5698C}.m-c{color:#4D9FFF}.m-f{color:#c084fc}
 .day-total{background:rgba(47,227,194,.1);border:1px solid rgba(47,227,194,.35);border-radius:12px;padding:11px 15px;margin-top:4px;margin-bottom:6px;display:flex;gap:20px;font-size:14px;font-weight:700;color:#2FE3C2}
 .print-btn{position:fixed;bottom:20px;${isHe ? 'left' : 'right'}:20px;background:linear-gradient(135deg,#2FE3C2,#1EC0A2);color:#04241B;border:none;border-radius:50px;padding:13px 26px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(47,227,194,.45);font-family:inherit}
+.back-btn{position:fixed;bottom:20px;${isHe ? 'right' : 'left'}:20px;background:rgba(255,255,255,.08);color:#e2e8f0;border:1px solid rgba(255,255,255,.16);border-radius:50px;padding:13px 22px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.back-hint{text-align:center;font-size:12px;color:#64748b;margin-top:18px;padding-bottom:70px}
 /* Print / PDF overrides — placed LAST so they win over the screen rules above
    (equal specificity → later source order wins). */
 @media print{body{background:#fff;color:#111;padding:0}.no-print{display:none!important}.header{background:#f0fdfa;border-color:#99f6e4}.logo{-webkit-text-fill-color:#0d1224;background:none;color:#0d1224}.subtitle{color:#64748b}.day-title{color:#1EC0A2}.meal-card{background:#f8f9fa;border-color:#dee2e6}.meal-type{color:#1EC0A2}.meal-name{color:#1a1a2e}.m-cal{color:#b45309}.m-p{color:#dc2626}.m-c{color:#2563eb}.m-f{color:#9333ea}.day-total{background:#e8f8f5;border-color:#2FE3C2;color:#0d6e60}}
@@ -426,6 +443,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080C13;color:#e2e8f0;pa
   <div class="subtitle">${pageTitle} · ${dateStr}</div>
 </div>
 ${content}
+<div class="back-hint no-print">${isHe ? 'אפשר גם לסגור את הכרטיסייה הזו כדי לחזור' : 'You can also just close this tab to go back'}</div>
+<button class="back-btn no-print" onclick="window.close()">${isHe ? '← חזרה לאפליקציה' : '← Back to app'}</button>
 <button class="print-btn no-print" onclick="window.print()">${isHe ? '📥 שמור כ-PDF' : '📥 Save as PDF'}</button>
 </body>
 </html>`;
@@ -627,8 +646,8 @@ ${content}
       });
       setFoodInput('');
       if (showXP && result?.xp) showXP(result.xp);
-      const aiTag = result.meal.source === 'ai' ? ` 🤖 ${t.aiEstimate}`
-        : result.meal.source === 'default' ? ` ⚠️ ${isHe ? 'הערכה כללית (לא במאגר)' : 'rough estimate (not in database)'}`
+      const aiTag = result.meal.source === 'ai' ? ` · ${t.aiEstimate}`
+        : result.meal.source === 'default' ? ` · ${isHe ? 'הערכה כללית (לא במאגר)' : 'rough estimate (not in database)'}`
         : '';
       setMessage(
         `${t.added} ${result.meal.description} (${result.meal.calories} ${t.caloriesWord}, ${result.meal.protein} ${t.proteinGrams})${aiTag}`
@@ -1171,7 +1190,9 @@ ${content}
       {/* Empty state — nothing logged yet and no menu loaded */}
       {loggedMeals.length === 0 && !menuOpen && (
         <div className="card" style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>🍽</div>
+          <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12a8 8 0 0 1 16 0z" /><path d="M4 12h16M8 12V8M12 12V6M16 12V8" /></svg>
+          </div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
             {isHe ? 'עדיין לא רשמת ארוחות' : 'No meals logged yet'}
           </div>
@@ -1248,7 +1269,9 @@ ${content}
       {/* Footer hint card */}
       {!menuOpen && targets?.macros?.proteinPerMeal && (
         <div className="gradient-hint" style={{ marginTop: 16 }}>
-          <span style={{ fontSize: 20 }}>💡</span>
+          <span style={{ display: 'flex' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4l1.7 4.6 4.8 1.7-4.8 1.7L12 16.6l-1.7-4.6-4.8-1.7 4.8-1.7z" /></svg>
+          </span>
           <div style={{ flex: 1 }}>
             <strong>{isHe ? 'מבוסס על המטרה שלך' : 'Based on your goal'}</strong>
             {' — '}
