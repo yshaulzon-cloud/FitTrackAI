@@ -502,7 +502,10 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 600 }}>{isHe ? 'ק״ג נפח' : 'kg volume'}</div>
             </div>
             <div style={{ flex: 1, textAlign: 'center', padding: '14px 6px', borderRadius: 14, background: 'var(--accent-glow, rgba(47,227,194,.07))', border: '1px solid rgba(47,227,194,.3)' }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--accent)', fontFamily: 'var(--font-display)' }}>🔥 {dailyStreak}</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--accent)', fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3c1 3.5 5 5.5 5 9.5a5 5 0 0 1-10 0C7 10 8.5 8.5 9.5 7c.5 1.5 1.3 2.4 2.8 3-.8-2.3-.8-4.7-.3-7z" /></svg>
+                {dailyStreak}
+              </div>
               <div style={{ fontSize: 11.5, color: 'var(--accent)', fontWeight: 600 }}>{isHe ? 'רצף' : 'streak'}</div>
             </div>
           </div>
@@ -549,7 +552,12 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ width: 26, height: 26, borderRadius: 99, background: 'var(--accent-glow, rgba(47,227,194,.13))', color: 'var(--accent)', fontSize: 13, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>✓</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.location === 'home' ? '🏠 ' : ''}{getDayName(w.dayName, lang) || (isHe ? 'אימון' : 'Workout')}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {w.location === 'home' && (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}><path d="M4 11l8-7 8 7M6 10v9h12v-9" /></svg>
+                    )}
+                    {getDayName(w.dayName, lang) || (isHe ? 'אימון' : 'Workout')}
+                  </div>
                   <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{new Date(w.date).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US')}</div>
                 </div>
                 <div style={{ fontSize: 12.5, color: 'var(--text-3)', fontWeight: 600, flex: 'none' }}>{w.durationMinutes} {isHe ? 'דק׳' : 'min'}</div>
@@ -757,7 +765,9 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <div style={{ fontSize: '48px', marginBottom: '8px' }}>🏋️</div>
+              <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'center' }}>
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 8v8M3.5 10v4M17.5 8v8M20.5 10v4M6.5 12h11" /></svg>
+              </div>
               <h3 style={{ color: 'var(--text-primary)', marginBottom: '4px', fontSize: '18px' }}>
                 {getExerciseName(selectedExercise.name, lang)}
               </h3>

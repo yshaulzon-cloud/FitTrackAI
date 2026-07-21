@@ -87,7 +87,7 @@ const translations = {
     expAdvancedDesc: 'מעל 2 שנות אימון',
 
     // Overview
-    hello: 'שלום! 👋',
+    hello: 'שלום!',
     helloName: 'שלום',
     goal: 'מטרה',
     weight: 'משקל',
@@ -131,12 +131,12 @@ const translations = {
     dailyBurnLabel: 'שריפה יומית:',
 
     // Nutrition Tracker
-    nutritionTracking: 'מעקב תזונה 🍽️',
+    nutritionTracking: 'מעקב תזונה',
     nutritionSubtitle: 'הזן את מה שאכלת והמערכת תחשב את הערכים התזונתיים',
     addMeal: 'הוסף ארוחה',
     foodPlaceholder: 'לדוגמה: "חזה עוף עם אורז" או "שייק חלבון"',
     add: 'הוסף',
-    dbInfo: '300+ מזונות מוכרים במאגר. לא מוכר? 🤖 בינה מלאכותית תעריך אוטומטית את הערכים התזונתיים.',
+    dbInfo: '300+ מזונות מוכרים במאגר. לא מוכר? בינה מלאכותית תעריך אוטומטית את הערכים התזונתיים.',
     dailySummary: 'סיכום יומי',
     outOf: 'מתוך',
     optimalProtein: 'חלוקת חלבון מיטבית:',
@@ -152,11 +152,11 @@ const translations = {
     carbsShort: 'פחמ\'',
 
     // Workout Plan
-    workoutPlan: 'תוכנית אימונים 🏋️',
+    workoutPlan: 'תוכנית אימונים',
     upperLowerSplit: 'חלוקת פלג גוף עליון/תחתון',
     level: 'רמה',
     workoutDuration: 'משך אימון (דקות):',
-    finishedWorkout: 'סיימתי אימון ✓',
+    finishedWorkout: 'סיימתי אימון',
     sets: 'סטים',
     importantPrinciples: 'עקרונות חשובים',
     minSetsPerWeek: 'לפחות 10 סטים שבועיים לכל קבוצת שריר',
@@ -168,7 +168,7 @@ const translations = {
     cardio: 'אירובי',
 
     // Progress
-    progress: 'התקדמות 📈',
+    progress: 'התקדמות',
     trackProgress: 'מעקב אחר ההתקדמות שלך | מטרה:',
     streakDays: 'רצף אימונים (ימים)',
     totalWorkouts: 'סה"כ אימונים',
@@ -304,7 +304,7 @@ const translations = {
 
     // Daily Menu
     dailyMenu: 'תפריט יומי',
-    dailyMenuBtn: '🍽️ תפריט יומי מומלץ',
+    dailyMenuBtn: 'תפריט יומי מומלץ',
     swapMenu: 'החלף תפריט',
     swapMeal: 'החלף ארוחה',
     menuBreakfast: 'ארוחת בוקר',
@@ -538,7 +538,7 @@ const translations = {
     expIntermediateDesc: '6 months to 2 years',
     expAdvancedDesc: 'Over 2 years of training',
 
-    hello: 'Hello! 👋',
+    hello: 'Hello!',
     goal: 'Goal',
     weight: 'Weight',
     kg: 'kg',
@@ -580,12 +580,12 @@ const translations = {
     restBurn: 'Resting burn:',
     dailyBurnLabel: 'Daily burn:',
 
-    nutritionTracking: 'Nutrition Tracking 🍽️',
+    nutritionTracking: 'Nutrition Tracking',
     nutritionSubtitle: 'Enter what you ate and the system will calculate nutritional values',
     addMeal: 'Add Meal',
     foodPlaceholder: 'e.g. "chicken breast with rice" or "protein shake"',
     add: 'Add',
-    dbInfo: '300+ foods in database. Not found? 🤖 AI will automatically estimate nutritional values.',
+    dbInfo: '300+ foods in database. Not found? AI will automatically estimate nutritional values.',
     dailySummary: 'Daily Summary',
     outOf: 'of',
     optimalProtein: 'Optimal protein distribution:',
@@ -600,11 +600,11 @@ const translations = {
     errorSaving: 'Error saving meal',
     carbsShort: 'carbs',
 
-    workoutPlan: 'Workout Plan 🏋️',
+    workoutPlan: 'Workout Plan',
     upperLowerSplit: 'Upper/Lower Split',
     level: 'Level',
     workoutDuration: 'Workout duration (min):',
-    finishedWorkout: 'Finished ✓',
+    finishedWorkout: 'Finished',
     sets: 'sets',
     importantPrinciples: 'Key Principles',
     minSetsPerWeek: 'At least 10 weekly sets per muscle group',
@@ -615,7 +615,7 @@ const translations = {
     hypertrophy: 'Hypertrophy',
     cardio: 'Cardio',
 
-    progress: 'Progress 📈',
+    progress: 'Progress',
     trackProgress: 'Track your progress | Goal:',
     streakDays: 'Workout Streak (days)',
     totalWorkouts: 'Total Workouts',
@@ -749,7 +749,7 @@ const translations = {
 
     // Daily Menu
     dailyMenu: 'Daily Menu',
-    dailyMenuBtn: '🍽️ Suggested Daily Menu',
+    dailyMenuBtn: 'Suggested Daily Menu',
     swapMenu: 'Swap Menu',
     swapMeal: 'Swap Meal',
     menuBreakfast: 'Breakfast',
@@ -790,7 +790,7 @@ const translations = {
     alreadyTrainedToday: 'Already trained today! Delete the workout to log a new one',
     weeklyLimitReached: 'You completed all workouts this week! Rest is important',
     updateWeightReminder: 'A week has passed! Update your weight in Settings to track your progress',
-    clickForTutorial: '👆 Click on an exercise to watch a YouTube tutorial',
+    clickForTutorial: 'Click on an exercise to watch a YouTube tutorial',
     undo: 'Undo',
 
     // Progression / XP System

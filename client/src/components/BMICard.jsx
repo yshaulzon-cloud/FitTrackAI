@@ -1,13 +1,26 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
 
+// Small line-icon set matching the app's nav-icon style (see StIc in
+// Dashboard.jsx / ObIcon in OnboardingFlow.jsx) — used in place of the
+// target/flame/dumbbell/scale emoji this file used to render as plain glyphs.
+function Ic({ type, color = 'currentColor', size = 18 }) {
+  const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  if (type === 'target')   return <svg {...p}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3.5" /></svg>;
+  if (type === 'flame')    return <svg {...p}><path d="M12 3c1 3.5 5 5.5 5 9.5a5 5 0 0 1-10 0C7 10 8.5 8.5 9.5 7c.5 1.5 1.3 2.4 2.8 3-.8-2.3-.8-4.7-.3-7z" /></svg>;
+  if (type === 'dumbbell') return <svg {...p}><path d="M6.5 8v8M3.5 10v4M17.5 8v8M20.5 10v4M6.5 12h11" /></svg>;
+  return null;
+}
+
+// No `icon` field — the status dot in the render is a plain CSS circle in
+// `color` (see the BMI classification pill), not an emoji glyph.
 const classificationColors = {
-  underweight: { bg: 'rgba(116, 185, 255, 0.12)', border: 'rgba(116, 185, 255, 0.3)', color: '#4D9FFF', icon: '🔵' },
-  normal:      { bg: 'rgba(34, 197, 94, 0.12)',   border: 'rgba(34, 197, 94, 0.3)',   color: 'var(--success)', icon: '🟢' },
-  overweight:  { bg: 'rgba(245, 158, 11, 0.12)',  border: 'rgba(245, 158, 11, 0.3)',  color: 'var(--warning)', icon: '🟡' },
-  obese1:      { bg: 'rgba(251, 146, 60, 0.12)',  border: 'rgba(251, 146, 60, 0.3)',  color: '#FF9A4D', icon: '🟠' },
-  obese2:      { bg: 'rgba(239, 68, 68, 0.12)',   border: 'rgba(239, 68, 68, 0.3)',   color: 'var(--danger)', icon: '🔴' },
-  obese3:      { bg: 'rgba(220, 38, 38, 0.12)',   border: 'rgba(220, 38, 38, 0.3)',   color: '#dc2626', icon: '🔴' },
+  underweight: { bg: 'rgba(116, 185, 255, 0.12)', border: 'rgba(116, 185, 255, 0.3)', color: '#4D9FFF' },
+  normal:      { bg: 'rgba(34, 197, 94, 0.12)',   border: 'rgba(34, 197, 94, 0.3)',   color: 'var(--success)' },
+  overweight:  { bg: 'rgba(245, 158, 11, 0.12)',  border: 'rgba(245, 158, 11, 0.3)',  color: 'var(--warning)' },
+  obese1:      { bg: 'rgba(251, 146, 60, 0.12)',  border: 'rgba(251, 146, 60, 0.3)',  color: '#FF9A4D' },
+  obese2:      { bg: 'rgba(239, 68, 68, 0.12)',   border: 'rgba(239, 68, 68, 0.3)',   color: 'var(--danger)' },
+  obese3:      { bg: 'rgba(220, 38, 38, 0.12)',   border: 'rgba(220, 38, 38, 0.3)',   color: '#dc2626' },
 };
 
 const classificationKeys = {
@@ -109,7 +122,7 @@ function JourneyChart({ startWeight, currentWeight, targetWeight, isHe }) {
       {/* ── Target cap (label + value BELOW the track) ── */}
       <circle cx={xTarget} cy={TRACK_Y} r="9" fill="var(--bg-0)" stroke="#22c55e" strokeWidth="2.5" />
       <text x={xTarget} y={TRACK_Y + 28} textAnchor="middle" fontFamily="Heebo" fontSize="11" fontWeight="700" fill="#22c55e" letterSpacing="0.06em">
-        {isHe ? '🚩 יעד' : '🚩 TARGET'}
+        {isHe ? 'יעד' : 'TARGET'}
       </text>
       <text x={xTarget} y={TRACK_Y + 46} textAnchor="middle" fontFamily="Heebo" fontSize="14" fontWeight="800" fill="var(--success)">
         {targetWeight} {isHe ? 'ק"ג' : 'kg'}
@@ -201,7 +214,7 @@ function JourneyChartVertical({ startWeight, currentWeight, targetWeight, isHe }
         </text>
       )}
       <text x={TRACK_X} y={yTarget - 42} textAnchor="middle" fontFamily="Heebo" fontSize="12" fontWeight="700" fill="#22c55e" letterSpacing="0.04em">
-        {isHe ? '🚩 יעד' : '🚩 TARGET'}
+        {isHe ? 'יעד' : 'TARGET'}
       </text>
       <text x={TRACK_X} y={yTarget - 20} textAnchor="middle" fontFamily="Heebo" fontSize="16" fontWeight="800" fill="var(--success)">
         {targetWeight} {kg}
@@ -614,7 +627,7 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
             borderRadius: 'var(--r-md)',
             marginTop: 8,
           }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>🎯</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><Ic type="target" color="var(--success, #22c55e)" size={36} /></div>
             <div style={{
               fontFamily: 'var(--font-display)',
               fontSize: 18,
@@ -634,10 +647,11 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
             <button
               type="button"
               className="btn btn-primary"
-              style={{ width: 'auto', padding: '12px 22px', display: 'inline-flex' }}
+              style={{ width: 'auto', padding: '12px 22px', display: 'inline-flex', alignItems: 'center', gap: 8 }}
               onClick={() => { setNewGoalChoice(null); setShowNewGoalModal(true); }}
             >
-              {isHe ? '🎯 בחר יעד חדש' : '🎯 Pick a new goal'}
+              <Ic type="target" />
+              {isHe ? 'בחר יעד חדש' : 'Pick a new goal'}
             </button>
           </div>
         ) : (
@@ -796,7 +810,8 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
             border: `1px solid ${style.border}`,
             fontWeight: 600,
           }}>
-            {style.icon} {classLabel}
+            <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: style.color, marginInlineEnd: 6, verticalAlign: 'middle' }} />
+            {classLabel}
           </span>
         </div>
 
@@ -969,9 +984,9 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
-                { value: 'cut',      icon: '🔥',  label: t.goalCut,      desc: t.goalCutDesc,      accent: '#f59e0b' },
-                { value: 'bulk',     icon: '💪',  label: t.goalBulk,     desc: t.goalBulkDesc,     accent: '#2FE3C2' },
-                { value: 'maintain', icon: '⚖️', label: t.goalMaintain, desc: t.goalMaintainDesc, accent: '#8F8AF7' },
+                { value: 'cut',      icon: 'flame',    label: t.goalCut,      desc: t.goalCutDesc,      accent: '#f59e0b' },
+                { value: 'bulk',     icon: 'dumbbell', label: t.goalBulk,     desc: t.goalBulkDesc,     accent: '#2FE3C2' },
+                { value: 'maintain', icon: 'target',   label: t.goalMaintain, desc: t.goalMaintainDesc, accent: '#8F8AF7' },
               ].map((g) => {
                 const sel = newGoalChoice === g.value;
                 return (
@@ -995,7 +1010,7 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
                       transition: 'all 0.15s',
                     }}
                   >
-                    <span style={{ fontSize: 26, lineHeight: 1 }}>{g.icon}</span>
+                    <span style={{ display: 'flex' }}><Ic type={g.icon} color={g.accent} size={24} /></span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{g.label}</div>
                       <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{g.desc}</div>

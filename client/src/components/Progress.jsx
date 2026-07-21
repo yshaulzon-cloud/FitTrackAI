@@ -1,6 +1,18 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
 
+// Same small line-icon set as BMICard.jsx/ProgressionPanel.jsx — used for the
+// personal-records list, which used to render flame/dumbbell/clock emoji.
+function Ic({ type, color = 'currentColor', size = 18 }) {
+  const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  if (type === 'flame')    return <svg {...p}><path d="M12 3c1 3.5 5 5.5 5 9.5a5 5 0 0 1-10 0C7 10 8.5 8.5 9.5 7c.5 1.5 1.3 2.4 2.8 3-.8-2.3-.8-4.7-.3-7z" /></svg>;
+  if (type === 'dumbbell') return <svg {...p}><path d="M6.5 8v8M3.5 10v4M17.5 8v8M20.5 10v4M6.5 12h11" /></svg>;
+  if (type === 'clock')    return <svg {...p}><circle cx="12" cy="13" r="7" /><path d="M12 10v3.5l2.5 1.5M9 3h6" /></svg>;
+  if (type === 'moon')     return <svg {...p}><path d="M20 14A8.5 8.5 0 1 1 10 4a7 7 0 0 0 10 10z" /></svg>;
+  if (type === 'trophy')   return <svg {...p}><path d="M7 4h10v4a5 5 0 0 1-10 0V4z" /><path d="M7 5H4a3 3 0 0 0 3 4M17 5h3a3 3 0 0 1-3 4" /><path d="M12 13v3M9 20h6M10 16.5h4l.5 3.5h-5z" /></svg>;
+  return null;
+}
+
 // ─── Calorie line area chart (variable-length time range) ─
 function CalorieLineArea({ days, calorieTarget, isHe }) {
   const W = 720, H = 160;
@@ -326,7 +338,7 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
     const records = [];
     if (longest && longest.durationMinutes > 0) {
       records.push({
-        icon: '⏱',
+        icon: 'clock',
         name: isHe ? 'אימון הכי ארוך' : 'Longest session',
         sub: new Date(longest.date).toLocaleDateString(isHe ? 'he-IL' : 'en-US', { day: 'numeric', month: 'short' }),
         value: `${longest.durationMinutes} ${isHe ? 'דק\'' : 'min'}`,
@@ -334,7 +346,7 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
     }
     if (hottest && hottest.caloriesBurned > 0) {
       records.push({
-        icon: '🔥',
+        icon: 'flame',
         name: isHe ? 'הכי הרבה קלוריות' : 'Most calories burned',
         sub: new Date(hottest.date).toLocaleDateString(isHe ? 'he-IL' : 'en-US', { day: 'numeric', month: 'short' }),
         value: `${hottest.caloriesBurned} ${t.kcal}`,
@@ -342,7 +354,7 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
     }
     if (longestStreakDay && longestStreakDay.count >= 2) {
       records.push({
-        icon: '💪',
+        icon: 'dumbbell',
         name: isHe ? 'הכי הרבה אימונים ביום' : 'Most workouts in a day',
         sub: longestStreakDay.date.toLocaleDateString(isHe ? 'he-IL' : 'en-US', { day: 'numeric', month: 'short' }),
         value: `${longestStreakDay.count}`,
@@ -400,8 +412,8 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
       {/* ─── Last night's sleep + 7-day chart ────────────────── */}
       <div className="chart-card">
         <div className="chart-card__header">
-          <div className="chart-card__title">
-            🌙 {isHe ? 'הלילה האחרון' : 'Last night'}
+          <div className="chart-card__title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Ic type="moon" size={16} color="var(--purple, #8F8AF7)" /> {isHe ? 'הלילה האחרון' : 'Last night'}
           </div>
           <div className="chart-card__meta" style={{ color: 'var(--accent)' }}>
             {isHe ? `יעד ${sleepTargetMin}-${sleepTargetMax} שעות` : `target ${sleepTargetMin}-${sleepTargetMax}h`}
@@ -527,13 +539,13 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
             <div className="chart-card__title">
               {isHe ? 'שיאי החודש' : 'Monthly highs'}
             </div>
-            <div className="chart-card__meta" style={{ color: 'var(--warning)' }}>
-              🏆 {weekRecords.length}
+            <div className="chart-card__meta" style={{ color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Ic type="trophy" size={14} color="var(--warning)" /> {weekRecords.length}
             </div>
           </div>
           {weekRecords.map((pr, i) => (
             <div className="pr-row" key={i}>
-              <div className="pr-row__icon">{pr.icon}</div>
+              <div className="pr-row__icon"><Ic type={pr.icon} color="var(--accent)" size={17} /></div>
               <div>
                 <div className="pr-row__name">{pr.name}</div>
                 <div className="pr-row__sub">{pr.sub}</div>
