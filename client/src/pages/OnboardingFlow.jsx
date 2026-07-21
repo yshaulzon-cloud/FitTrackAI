@@ -647,7 +647,7 @@ export default function OnboardingFlow() {
               <h1 className="ob-title" style={{ marginTop: 12 }}>{isHe ? 'כמעט שם' : 'Almost there'}</h1>
               <p className="ob-sub">{isHe ? 'צור חשבון כדי שהתוכנית וההתקדמות יישמרו.' : 'Create an account so your plan and progress are saved.'}</p>
 
-              <div className="ob-body" style={{ gap: 16 }}>
+              <div className="ob-body" style={{ gap: 10 }}>
                 <button type="button" onClick={handleGoogleSignup} disabled={googleLoading || authLoading} className="ob-google">
                   <GoogleMark />
                   <span>{googleLoading ? (isHe ? 'מתחבר…' : 'Signing in…') : (isHe ? 'המשך עם Google' : 'Continue with Google')}</span>
@@ -655,7 +655,7 @@ export default function OnboardingFlow() {
 
                 <div className="ob-divider"><span />{isHe ? 'או' : 'or'}<span /></div>
 
-                <form onSubmit={handleEmailSignup} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <form onSubmit={handleEmailSignup} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div>
                     <div className="ob-field__label">{isHe ? 'שם' : 'Name'}</div>
                     <input
