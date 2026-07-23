@@ -734,7 +734,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
         </div>
 
         <button type="button" onClick={() => { dismissHomeIntro(); setShowFirstTime(false); }} style={{ display: 'block', width: '100%', textAlign: 'center', background: 'none', border: 'none', color: 'var(--text-4)', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', marginTop: 22, padding: 8 }}>
-          {isHe ? 'דלג, עבור ישר לאפליקציה' : 'Skip, take me straight to the app'}
+          {isHe ? 'דלג, עבור ישר לאפליקציה המלאה' : 'Skip, take me straight to the full app'}
         </button>
       </div>
     );
