@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLang } from '../context/LanguageContext';
+import { getExerciseCue } from '../lib/exerciseCues';
 
 // ─────────────────────────────────────────────────────────────────────
 // Live workout session — full-screen tracked workout experience.
@@ -119,7 +120,8 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
   const [curIdx, setCurIdx] = useState(restore?.curIdx || 0);
   const [startedAt] = useState(restore?.startedAt || Date.now());
   const [elapsed, setElapsed] = useState(() => Math.floor((Date.now() - (restore?.startedAt || Date.now())) / 1000));
-  const [rest, setRest] = useState(null); // { total, left }
+  const [rest, setRest] = useState(null); // { total, left, finished? }
+  const [transition, setTransition] = useState(null); // { fromIdx, toIdx }
   const [workTimer, setWorkTimer] = useState(null); // { setIdx, left, total }
   const [summary, setSummary] = useState(null); // server result → finish screen
   const [saving, setSaving] = useState(false);
@@ -185,19 +187,15 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
   useEffect(() => {
     if (!rest) return;
     if (rest.left <= 0) {
-      navigator.vibrate?.(300);
-      setRest(null);
-      // Auto-advance when the current exercise is fully done.
-      setExs(prev => {
-        const done = prev[curIdx]?.sets.every(s => s.done);
-        if (done && curIdx < prev.length - 1) setCurIdx(curIdx + 1);
-        return prev;
-      });
-      return;
+      if (!rest.finished) {
+        navigator.vibrate?.(300);
+        setRest(r => (r ? { ...r, left: 0, finished: true } : null));
+      }
+      return; // stays open — dismissal is now always explicit, via dismissRest()
     }
     const tm = setTimeout(() => setRest(r => (r ? { ...r, left: r.left - 1 } : null)), 1000);
     return () => clearTimeout(tm);
-  }, [rest, curIdx]);
+  }, [rest]);
 
   // ── Work (time-based) countdown ──
   useEffect(() => {
@@ -281,6 +279,28 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
       const secs = restSecondsFor(ex);
       setRest({ total: secs, left: secs });
     }
+  }
+
+  // Dismiss the rest sheet — via timeout ("Start set") or manual skip. If the
+  // exercise that just finished is fully done and isn't the last one, hand
+  // off to the transition sheet instead of silently landing on the next card.
+  function dismissRest() {
+    setRest(null);
+    const ex = exs[curIdx];
+    if (ex && ex.sets.every(s => s.done) && curIdx < exs.length - 1) {
+      setTransition({ fromIdx: curIdx, toIdx: curIdx + 1 });
+    }
+  }
+
+  function adjustRest(delta) {
+    setRest(r => {
+      if (!r) return null;
+      if (delta < 0) {
+        const dec = Math.min(-delta, r.left);
+        return { ...r, left: r.left - dec, total: r.total - dec };
+      }
+      return { ...r, left: r.left + delta, total: r.total + delta };
+    });
   }
 
   // Smart weight suggestion: last time's weight + progressive overload step.
@@ -526,10 +546,11 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
     }
   }
 
-  const openTutorial = () => window.open(
-    `https://www.youtube.com/results?search_query=${encodeURIComponent(getEnglishName(cur.name) + ' exercise tutorial form')}`,
+  const openTutorialFor = (name) => window.open(
+    `https://www.youtube.com/results?search_query=${encodeURIComponent(getEnglishName(name) + ' exercise tutorial form')}`,
     '_blank',
   );
+  const openTutorial = () => openTutorialFor(cur.name);
 
   return (
     <div className="ws-overlay ws-live">
@@ -699,16 +720,18 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
 
       {error && <div className="ws-error">{error}</div>}
 
-      {/* Rest timer sheet */}
+      {/* Rest timer sheet + exercise-transition sheet share one scrim */}
+      {(rest || transition) && <div className="ws-rest-scrim" />}
       {rest && (
-        <div className="ws-rest">
+        <div className={`ws-rest${rest.finished ? ' ws-rest--done' : ''}`}>
+          <div className="ws-rest__exercise">{primaryName}</div>
           <div className="ws-rest__ring" dir="ltr">
             <svg width="120" height="120" viewBox="0 0 120 120">
               <circle cx="60" cy="60" r="52" stroke="rgba(255,255,255,0.08)" strokeWidth="8" fill="none" />
               <circle
                 cx="60" cy="60" r="52"
                 stroke="#2FE3C2" strokeWidth="8" fill="none" strokeLinecap="round"
-                strokeDasharray={`${(rest.left / rest.total) * 326.7} 326.7`}
+                strokeDasharray={rest.finished ? '326.7 326.7' : `${(rest.left / rest.total) * 326.7} 326.7`}
                 transform="rotate(-90 60 60)"
                 style={{ transition: 'stroke-dasharray 1s linear' }}
               />
@@ -717,17 +740,66 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
               </text>
             </svg>
           </div>
-          <div className="ws-rest__label">{isHe ? 'מנוחה' : 'Rest'}</div>
-          <div className="ws-rest__actions">
-            <button type="button" className="ws-chip" onClick={() => setRest(r => r ? { ...r, left: r.left + 15, total: r.total + 15 } : null)}>
-              +15{isHe ? ' שנ׳' : 's'}
-            </button>
-            <button type="button" className="ws-chip ws-chip--accent" onClick={() => setRest(null)}>
-              {isHe ? 'דלג ←' : 'Skip →'}
-            </button>
+          <div className="ws-rest__label">{rest.finished ? (isHe ? 'הגיע הזמן!' : "Time's up!") : (isHe ? 'מנוחה' : 'Rest')}</div>
+          <div className="ws-rest__next">
+            <span className="ws-rest__next-label">{isHe ? 'הבא בתור' : 'Up next'}</span>
+            <span className="ws-rest__next-value">
+              {curSetIdx !== -1
+                ? `${isHe ? `סט ${curSetIdx + 1}` : `Set ${curSetIdx + 1}`} · ${setDetail(cur.sets[curSetIdx])}`
+                : exs[curIdx + 1]
+                  ? (isHe ? exs[curIdx + 1].name : getEnglishName(exs[curIdx + 1].name))
+                  : (isHe ? 'התרגיל האחרון!' : 'Last exercise!')}
+            </span>
           </div>
+          {rest.finished ? (
+            <button type="button" className="ws-live__primary" style={{ width: '100%' }} onClick={dismissRest}>
+              {isHe ? 'התחל סט' : 'Start set'}
+            </button>
+          ) : (
+            <div className="ws-rest__actions">
+              <button type="button" className="ws-chip" onClick={() => adjustRest(-15)}>−15{isHe ? ' שנ׳' : 's'}</button>
+              <button type="button" className="ws-chip" onClick={() => adjustRest(15)}>+15{isHe ? ' שנ׳' : 's'}</button>
+              <button type="button" className="ws-chip ws-chip--accent" onClick={dismissRest}>{isHe ? 'דלג ←' : 'Skip →'}</button>
+            </div>
+          )}
         </div>
       )}
+
+      {/* Exercise-transition sheet — shown after dismissRest() when the just-
+          finished exercise is fully done and it isn't the last one. */}
+      {transition && (() => {
+        const fromEx = exs[transition.fromIdx];
+        const toEx = exs[transition.toIdx];
+        return (
+          <div className="ws-transition">
+            <div className="ws-transition__check">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+            </div>
+            <div className="ws-transition__title">{isHe ? `סיימת ${fromEx.name}` : `${getEnglishName(fromEx.name)} complete`}</div>
+            <div className="ws-transition__next">
+              <div className="ws-transition__next-label">{isHe ? 'הבא בתור' : 'Up next'}</div>
+              <div className="ws-transition__next-name">
+                <span className="ws-transition__dot" style={{ background: MUSCLE_COLORS[toEx.muscleGroup] || 'var(--accent)' }} />
+                {isHe ? toEx.name : getEnglishName(toEx.name)}
+              </div>
+              <div className="ws-transition__next-meta" dir="ltr">
+                {isHe
+                  ? [`${toEx.sets.length} סטים`, toEx.mode === 'reps' && toEx.targetReps ? `${toEx.targetReps} חזרות` : null].filter(Boolean).join(' · ')
+                  : [`${toEx.sets.length} sets`, toEx.mode === 'reps' && toEx.targetReps ? `${toEx.targetReps} reps` : null].filter(Boolean).join(' · ')}
+              </div>
+              <div className="ws-transition__next-cue">{getExerciseCue(toEx.name, isHe)}</div>
+            </div>
+            <div className="ws-transition__actions">
+              <button type="button" className="ws-live__primary" style={{ width: '100%' }} onClick={() => { setCurIdx(transition.toIdx); setTransition(null); }}>
+                {isHe ? 'התחל תרגיל' : 'Start exercise'}
+              </button>
+              <button type="button" className="ws-transition__demo" onClick={() => openTutorialFor(toEx.name)}>
+                {isHe ? 'צפייה בהדגמה' : 'Watch demo'}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Finish early sits beside the set CTA; it needs at least one logged set
           to have anything worth saving. */}

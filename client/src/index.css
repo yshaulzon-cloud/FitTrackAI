@@ -5026,6 +5026,36 @@ svg { overflow: hidden; }
 }
 .ws-rest__actions { display: flex; gap: 10px; }
 
+.ws-rest-scrim { position: fixed; inset: 0; z-index: 4; background: rgba(0,0,0,0.55); animation: wsFadeIn 0.2s ease; }
+.ws-rest__exercise { font-size: 13px; font-weight: 600; color: var(--text-3); }
+.ws-rest__next { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 2px; text-align: center; }
+.ws-rest__next-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-4); }
+.ws-rest__next-value { font-size: 14px; font-weight: 600; color: var(--text-2); }
+.ws-rest--done .ws-rest__label { color: var(--accent); }
+
+/* Exercise-transition sheet */
+.ws-transition {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 5;
+  background: rgba(10, 15, 22, 0.97);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(46,230,196,0.25);
+  border-radius: 24px 24px 0 0;
+  padding: 24px 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  animation: wsSheetUp 0.3s cubic-bezier(.4,0,.2,1);
+  text-align: center;
+}
+.ws-transition__title { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--text-2); }
+.ws-transition__next { width: 100%; margin-top: 4px; padding: 14px; background: var(--surface-elev); border: 1px solid var(--border-subtle); border-radius: 16px; display: flex; flex-direction: column; gap: 4px; }
+.ws-transition__next-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-4); }
+.ws-transition__next-name { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 18px; font-weight: 700; color: var(--text-1); }
+.ws-transition__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.ws-transition__next-meta { font-size: 13px; color: var(--text-3); }
+.ws-transition__next-cue { font-size: 12.5px; color: var(--text-3); margin-top: 4px; line-height: 1.4; }
+.ws-transition__actions { width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.ws-transition__demo { background: none; border: none; color: var(--text-3); font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; padding: 6px; }
+[data-theme="light"] .ws-transition { background: rgba(255,255,255,0.97); }
+
 /* Footer */
 .ws-footer {
   display: flex;
@@ -5277,6 +5307,7 @@ svg { overflow: hidden; }
 }
 [data-theme="light"] .ws-rest { background: rgba(255,255,255,0.97); }
 [data-theme="light"] .ws-rest svg text { fill: #0f172a; }
+[data-theme="light"] .ws-rest__ring svg circle:first-of-type { stroke: rgba(15,23,42,0.1); }
 [data-theme="light"] .ws-set { background: rgba(15,23,42,0.03); border-color: rgba(15,23,42,0.08); }
 [data-theme="light"] .ws-stepper__btn { background: rgba(15,23,42,0.06); }
 
