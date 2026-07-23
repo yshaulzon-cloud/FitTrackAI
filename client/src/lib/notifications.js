@@ -172,53 +172,60 @@ export async function cancelSleepPrompts() {
   return true;
 }
 
-export async function applyWorkoutReminder(enabled, isHe) {
+export async function applyWorkoutReminder(enabled, isHe, time = { hour: 18, minute: 0 }) {
   if (!enabled) return cancelById(IDS.workout);
   return scheduleDaily({
-    id: IDS.workout, hour: 18, minute: 0,
+    id: IDS.workout, hour: time.hour, minute: time.minute,
     title: isHe ? 'זמן לאימון 💪' : 'Time to train 💪',
     body:  isHe ? 'יום נהדר להתקדם — בוא נזיז את הגוף.' : 'Great day to make progress — let’s move.',
   });
 }
 
-export async function applyMealReminder(enabled, isHe) {
-  if (!enabled) {
-    await cancelById(IDS.meal_morning);
-    await cancelById(IDS.meal_afternoon);
-    await cancelById(IDS.meal_evening);
-    return;
-  }
-  await scheduleDaily({
-    id: IDS.meal_morning, hour: 8, minute: 0,
+// Split into three independent reminders (was one combined toggle covering
+// all three fixed times) so each meal can be turned on/off and timed on its
+// own — someone who only wants a dinner nudge shouldn't also get breakfast
+// and lunch ones.
+export async function applyMealMorningReminder(enabled, isHe, time = { hour: 8, minute: 0 }) {
+  if (!enabled) return cancelById(IDS.meal_morning);
+  return scheduleDaily({
+    id: IDS.meal_morning, hour: time.hour, minute: time.minute,
     title: isHe ? 'ארוחת בוקר 🥗' : 'Breakfast 🥗',
     body:  isHe ? 'תרשום את ארוחת הבוקר ב-Areto.' : 'Log your breakfast in Areto.',
   });
-  await scheduleDaily({
-    id: IDS.meal_afternoon, hour: 13, minute: 0,
+}
+
+export async function applyMealAfternoonReminder(enabled, isHe, time = { hour: 13, minute: 0 }) {
+  if (!enabled) return cancelById(IDS.meal_afternoon);
+  return scheduleDaily({
+    id: IDS.meal_afternoon, hour: time.hour, minute: time.minute,
     title: isHe ? 'ארוחת צהריים 🍽️' : 'Lunch 🍽️',
     body:  isHe ? 'אל תשכח לתעד את הצהריים.' : 'Don’t forget to log lunch.',
   });
-  await scheduleDaily({
-    id: IDS.meal_evening, hour: 19, minute: 0,
+}
+
+export async function applyMealEveningReminder(enabled, isHe, time = { hour: 19, minute: 0 }) {
+  if (!enabled) return cancelById(IDS.meal_evening);
+  return scheduleDaily({
+    id: IDS.meal_evening, hour: time.hour, minute: time.minute,
     title: isHe ? 'ארוחת ערב 🌙' : 'Dinner 🌙',
     body:  isHe ? 'תעד את ארוחת הערב לפני שאתה שוכח.' : 'Log dinner before you forget.',
   });
 }
 
-export async function applyStreakReminder(enabled, isHe) {
+export async function applyStreakReminder(enabled, isHe, time = { hour: 21, minute: 0 }) {
   if (!enabled) return cancelById(IDS.streak);
   return scheduleDaily({
-    id: IDS.streak, hour: 21, minute: 0,
+    id: IDS.streak, hour: time.hour, minute: time.minute,
     title: isHe ? 'שמור על הרצף 🔥' : 'Keep your streak 🔥',
     body:  isHe ? 'עוד לא סיימת היום — אל תפסיד את הרצף.' : 'Don’t lose your streak today.',
   });
 }
 
-export async function applyWeeklyReport(enabled, isHe) {
+export async function applyWeeklyReport(enabled, isHe, time = { hour: 10, minute: 0 }) {
   if (!enabled) return cancelById(IDS.weekly);
   // Capacitor weekday: 1=Sunday … 7=Saturday
   return scheduleWeekly({
-    id: IDS.weekly, weekday: 1, hour: 10, minute: 0,
+    id: IDS.weekly, weekday: 1, hour: time.hour, minute: time.minute,
     title: isHe ? 'סיכום שבועי 📊' : 'Weekly recap 📊',
     body:  isHe ? 'זמן להסתכל על ההתקדמות של השבוע.' : 'Time to review this week’s progress.',
   });

@@ -19,7 +19,9 @@ import SleepTracker from '../components/SleepTracker';
 import SettingsSearch from '../components/SettingsSearch';
 import {
   applyWorkoutReminder,
-  applyMealReminder,
+  applyMealMorningReminder,
+  applyMealAfternoonReminder,
+  applyMealEveningReminder,
   applyStreakReminder,
   applyWeeklyReport,
   getNotificationPermissionStatus,
@@ -732,7 +734,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
         </div>
 
         <button type="button" onClick={() => { dismissHomeIntro(); setShowFirstTime(false); }} style={{ display: 'block', width: '100%', textAlign: 'center', background: 'none', border: 'none', color: 'var(--text-4)', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', marginTop: 22, padding: 8 }}>
-          {isHe ? 'דלג, קח אותי לדשבורד המלא' : 'Skip, take me to the full dashboard'}
+          {isHe ? 'דלג, עבור ישר לאפליקציה' : 'Skip, take me straight to the app'}
         </button>
       </div>
     );
@@ -922,20 +924,38 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     const v = localStorage.getItem(`notif:${key}`);
     return v === null ? defaultVal : v === '1';
   };
+  // "notif:meal" was the old single combined toggle covering all three meal
+  // times — read it as the starting default for the three new independent
+  // ones so an existing on/off choice carries over instead of resetting.
+  const legacyMealDefault = loadNotifPref('meal', true);
+  const loadNotifTime = (key, defaultHour, defaultMinute) => {
+    const v = localStorage.getItem(`notif:${key}:time`);
+    if (!v) return { hour: defaultHour, minute: defaultMinute };
+    const [h, m] = v.split(':').map(Number);
+    return Number.isFinite(h) && Number.isFinite(m) ? { hour: h, minute: m } : { hour: defaultHour, minute: defaultMinute };
+  };
   const [notifWorkout, setNotifWorkoutState] = useState(() => loadNotifPref('workout', true));
-  const [notifMeal,    setNotifMealState]    = useState(() => loadNotifPref('meal',    true));
+  const [notifMealMorning,   setNotifMealMorningState]   = useState(() => loadNotifPref('meal_morning', legacyMealDefault));
+  const [notifMealAfternoon, setNotifMealAfternoonState] = useState(() => loadNotifPref('meal_afternoon', legacyMealDefault));
+  const [notifMealEvening,   setNotifMealEveningState]   = useState(() => loadNotifPref('meal_evening', legacyMealDefault));
   const [notifStreak,  setNotifStreakState]  = useState(() => loadNotifPref('streak',  true));
   const [notifWeekly,  setNotifWeeklyState]  = useState(() => loadNotifPref('weekly',  false));
+  const [notifWorkoutTime, setNotifWorkoutTimeState]           = useState(() => loadNotifTime('workout', 18, 0));
+  const [notifMealMorningTime, setNotifMealMorningTimeState]   = useState(() => loadNotifTime('meal_morning', 8, 0));
+  const [notifMealAfternoonTime, setNotifMealAfternoonTimeState] = useState(() => loadNotifTime('meal_afternoon', 13, 0));
+  const [notifMealEveningTime, setNotifMealEveningTimeState]   = useState(() => loadNotifTime('meal_evening', 19, 0));
+  const [notifStreakTime, setNotifStreakTimeState]             = useState(() => loadNotifTime('streak', 21, 0));
+  const [notifWeeklyTime, setNotifWeeklyTimeState]             = useState(() => loadNotifTime('weekly', 10, 0));
   // Shown under the Notifications section when the OS permission is denied,
   // so the user knows *why* toggles aren't producing real notifications
   // instead of the toggle silently doing nothing.
   const [notifPermDenied, setNotifPermDenied] = useState(false);
 
-  const persist = (key, setter, applyFn) => async (val) => {
+  const persist = (key, setter, applyFn, getTime) => async (val) => {
     localStorage.setItem(`notif:${key}`, val ? '1' : '0');
     setter(val);
     if (!applyFn) return;
-    const ok = await applyFn(val, lang === 'he').catch(() => false);
+    const ok = await applyFn(val, lang === 'he', getTime ? getTime() : undefined).catch(() => false);
     if (val && ok === false) {
       // Permission denied — revert the toggle and surface a clear message
       // instead of leaving it "on" while nothing actually fires.
@@ -946,10 +966,29 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
       setNotifPermDenied(false);
     }
   };
-  const setNotifWorkout = persist('workout', setNotifWorkoutState, applyWorkoutReminder);
-  const setNotifMeal    = persist('meal',    setNotifMealState,    applyMealReminder);
-  const setNotifStreak  = persist('streak',  setNotifStreakState,  applyStreakReminder);
-  const setNotifWeekly  = persist('weekly',  setNotifWeeklyState,  applyWeeklyReport);
+  const setNotifWorkout       = persist('workout', setNotifWorkoutState, applyWorkoutReminder, () => notifWorkoutTime);
+  const setNotifMealMorning   = persist('meal_morning', setNotifMealMorningState, applyMealMorningReminder, () => notifMealMorningTime);
+  const setNotifMealAfternoon = persist('meal_afternoon', setNotifMealAfternoonState, applyMealAfternoonReminder, () => notifMealAfternoonTime);
+  const setNotifMealEvening   = persist('meal_evening', setNotifMealEveningState, applyMealEveningReminder, () => notifMealEveningTime);
+  const setNotifStreak        = persist('streak', setNotifStreakState, applyStreakReminder, () => notifStreakTime);
+  const setNotifWeekly        = persist('weekly', setNotifWeeklyState, applyWeeklyReport, () => notifWeeklyTime);
+
+  // Changing the time re-applies the reminder immediately (cancel + reschedule
+  // at the new time) only when it's currently on — otherwise just persist it
+  // for whenever the toggle is turned on.
+  const persistTime = (key, setter, enabled, applyFn) => async (hhmm) => {
+    const [hour, minute] = hhmm.split(':').map(Number);
+    const time = { hour, minute };
+    localStorage.setItem(`notif:${key}:time`, hhmm);
+    setter(time);
+    if (enabled && applyFn) await applyFn(true, lang === 'he', time).catch(() => null);
+  };
+  const setNotifWorkoutTime       = persistTime('workout', setNotifWorkoutTimeState, notifWorkout, applyWorkoutReminder);
+  const setNotifMealMorningTime   = persistTime('meal_morning', setNotifMealMorningTimeState, notifMealMorning, applyMealMorningReminder);
+  const setNotifMealAfternoonTime = persistTime('meal_afternoon', setNotifMealAfternoonTimeState, notifMealAfternoon, applyMealAfternoonReminder);
+  const setNotifMealEveningTime   = persistTime('meal_evening', setNotifMealEveningTimeState, notifMealEvening, applyMealEveningReminder);
+  const setNotifStreakTime        = persistTime('streak', setNotifStreakTimeState, notifStreak, applyStreakReminder);
+  const setNotifWeeklyTime        = persistTime('weekly', setNotifWeeklyTimeState, notifWeekly, applyWeeklyReport);
 
   // On native startup, ensure scheduled notifications match the saved prefs.
   // Runs once on mount; on web, the helpers are no-ops.
@@ -962,10 +1001,12 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
         return;
       }
       const results = await Promise.all([
-        applyWorkoutReminder(notifWorkout, isHe).catch(() => null),
-        applyMealReminder(notifMeal, isHe).catch(() => null),
-        applyStreakReminder(notifStreak, isHe).catch(() => null),
-        applyWeeklyReport(notifWeekly, isHe).catch(() => null),
+        applyWorkoutReminder(notifWorkout, isHe, notifWorkoutTime).catch(() => null),
+        applyMealMorningReminder(notifMealMorning, isHe, notifMealMorningTime).catch(() => null),
+        applyMealAfternoonReminder(notifMealAfternoon, isHe, notifMealAfternoonTime).catch(() => null),
+        applyMealEveningReminder(notifMealEvening, isHe, notifMealEveningTime).catch(() => null),
+        applyStreakReminder(notifStreak, isHe, notifStreakTime).catch(() => null),
+        applyWeeklyReport(notifWeekly, isHe, notifWeeklyTime).catch(() => null),
       ]);
       if (results.some((r) => r === false)) setNotifPermDenied(true);
     })();
@@ -1136,7 +1177,9 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     { screen: 'goal',     label: isHe ? 'ירידה במשקל'   : 'Cut' },
     { screen: 'goal',     label: isHe ? 'עלייה במסה'    : 'Bulk' },
     { screen: 'notif',    label: isHe ? 'תזכורת אימון'  : 'Workout reminder' },
-    { screen: 'notif',    label: isHe ? 'תזכורת ארוחה'  : 'Meal reminder' },
+    { screen: 'notif',    label: isHe ? 'ארוחת בוקר'    : 'Breakfast reminder' },
+    { screen: 'notif',    label: isHe ? 'ארוחת צהריים'  : 'Lunch reminder' },
+    { screen: 'notif',    label: isHe ? 'ארוחת ערב'     : 'Dinner reminder' },
     { screen: 'display',  label: isHe ? 'שפה'           : 'Language' },
     { screen: 'display',  label: isHe ? 'ערכת צבעים'    : 'Theme' },
     { screen: 'access',   label: isHe ? 'גודל טקסט'     : 'Text size' },
@@ -1150,7 +1193,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     bulk:     isHe ? 'מסה'    : 'Bulk',
     maintain: isHe ? 'שמירה'  : 'Maintain',
   };
-  const enabledNotifs = [notifWorkout, notifMeal, notifStreak, notifWeekly].filter(Boolean).length;
+  const enabledNotifs = [notifWorkout, notifMealMorning, notifMealAfternoon, notifMealEvening, notifStreak, notifWeekly].filter(Boolean).length;
 
   const sections = [
     { id: 'body',     icon: 'user',    label: isHe ? 'נתוני גוף'      : 'Body Data',      sub: isHe ? 'משקל, גובה, מגדר'       : 'Weight, height, gender',
@@ -1238,6 +1281,28 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
         >
           <span className="st2-toggle-knob" />
         </button>
+      </div>
+    );
+  }
+
+  // A notification toggle plus its own time picker, shown only while the
+  // reminder is on — no point choosing a time for something that's off.
+  const fmtNotifTime = (t) => `${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`;
+  function NotifRow({ label, sub, value, onChange, time, onTimeChange }) {
+    return (
+      <div className="st2-notif-row">
+        <ToggleRow label={label} sub={sub} value={value} onChange={onChange} />
+        {value && (
+          <div className="st2-notif-time">
+            <span className="st2-notif-time-label">{isHe ? 'שעה' : 'Time'}</span>
+            <input
+              type="time"
+              className="st2-time-input"
+              value={fmtNotifTime(time)}
+              onChange={(e) => e.target.value && onTimeChange(e.target.value)}
+            />
+          </div>
+        )}
       </div>
     );
   }
@@ -1408,10 +1473,36 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
                 : 'Notifications are blocked. Open Phone Settings → Apps → Areto → Notifications.'}
             </div>
           )}
-          <ToggleRow label={isHe ? 'תזכורת אימון' : 'Workout reminder'} sub={isHe ? 'התראה יומית' : 'Daily nudge'} value={notifWorkout} onChange={setNotifWorkout} />
-          <ToggleRow label={isHe ? 'תזכורת ארוחה' : 'Meal reminder'} sub={isHe ? 'לפני כל ארוחה' : 'Before each meal'} value={notifMeal} onChange={setNotifMeal} />
-          <ToggleRow label={isHe ? 'התראת רצף' : 'Streak alert'} sub={isHe ? 'לא לאבד את הרצף' : 'Keep your streak'} value={notifStreak} onChange={setNotifStreak} />
-          <ToggleRow label={isHe ? 'סיכום שבועי' : 'Weekly recap'} sub={isHe ? 'כל יום ראשון' : 'Every Sunday'} value={notifWeekly} onChange={setNotifWeekly} />
+          <NotifRow
+            label={isHe ? 'תזכורת אימון' : 'Workout reminder'} sub={isHe ? 'התראה יומית' : 'Daily nudge'}
+            value={notifWorkout} onChange={setNotifWorkout}
+            time={notifWorkoutTime} onTimeChange={setNotifWorkoutTime}
+          />
+          <NotifRow
+            label={isHe ? 'ארוחת בוקר' : 'Breakfast'} sub={isHe ? 'תזכורת יומית' : 'Daily reminder'}
+            value={notifMealMorning} onChange={setNotifMealMorning}
+            time={notifMealMorningTime} onTimeChange={setNotifMealMorningTime}
+          />
+          <NotifRow
+            label={isHe ? 'ארוחת צהריים' : 'Lunch'} sub={isHe ? 'תזכורת יומית' : 'Daily reminder'}
+            value={notifMealAfternoon} onChange={setNotifMealAfternoon}
+            time={notifMealAfternoonTime} onTimeChange={setNotifMealAfternoonTime}
+          />
+          <NotifRow
+            label={isHe ? 'ארוחת ערב' : 'Dinner'} sub={isHe ? 'תזכורת יומית' : 'Daily reminder'}
+            value={notifMealEvening} onChange={setNotifMealEvening}
+            time={notifMealEveningTime} onTimeChange={setNotifMealEveningTime}
+          />
+          <NotifRow
+            label={isHe ? 'התראת רצף' : 'Streak alert'} sub={isHe ? 'לא לאבד את הרצף' : 'Keep your streak'}
+            value={notifStreak} onChange={setNotifStreak}
+            time={notifStreakTime} onTimeChange={setNotifStreakTime}
+          />
+          <NotifRow
+            label={isHe ? 'סיכום שבועי' : 'Weekly recap'} sub={isHe ? 'כל יום ראשון' : 'Every Sunday'}
+            value={notifWeekly} onChange={setNotifWeekly}
+            time={notifWeeklyTime} onTimeChange={setNotifWeeklyTime}
+          />
         </div>
       )}
 
