@@ -6,7 +6,7 @@ import * as testApi from '../api/testApi.js';
 // A3: switch test users, seed/reset their data, and clear app storage — every
 // action goes through the real server API + the app's real auth, never a mock.
 export default function UsersSection({ bridge }) {
-  const { applyToken, clearAppStorage, clearAppCache, reloadTo, send, CMD } = bridge;
+  const { applyToken, clearAppStorage, clearAppCache, reloadTo, send, setFlag, CMD } = bridge;
   const [active, setActive] = useState(null); // persona id
   const [token, setToken] = useState(null);
   const [busy, setBusy] = useState(null); // label of in-flight action
@@ -40,6 +40,10 @@ export default function UsersSection({ bridge }) {
       // Seed only for a persona that wants data, and only when freshly created,
       // so repeated switches don't pile up duplicate meals.
       if (persona.seed && created) await testApi.seedDemo(tok);
+      // "Day one" personas reuse the same account every run, but the app's
+      // first-time-home-screen flag is a one-time localStorage marker — clear
+      // it so the intro reliably shows again on every switch to this persona.
+      if (persona.resetIntro) setFlag('areto:home-intro-seen', null, { reload: false });
 
       setToken(tok);
       setActive(persona.id);

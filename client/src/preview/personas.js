@@ -19,6 +19,11 @@ export const PERSONAS = [
     name: 'טל טרי',
     profile: { ...baseProfile, goal: 'maintain', experience: 'beginner' },
     seed: false,
+    // This persona's whole point is "day one" — the account is reused across
+    // runs (see the file header), but the app's own first-time-home-screen
+    // flag is a one-time localStorage marker that never resets on its own.
+    // Without this, the intro shows once ever and then silently stops.
+    resetIntro: true,
   },
   {
     id: 'active',
