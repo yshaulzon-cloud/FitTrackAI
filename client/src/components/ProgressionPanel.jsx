@@ -36,7 +36,7 @@ function StatIcon({ type, color = 'currentColor', size = 17 }) {
   if (type === 'scale')    return <svg {...p}><path d="M12 3v18M7 21h10M5 7h6M5 7l-3 6a3 3 0 0 0 6 0zM17 7l-3 6a3 3 0 0 0 6 0zM12 3l5 4M12 3 7 7" /></svg>;
   if (type === 'moon')     return <svg {...p}><path d="M20 14A8.5 8.5 0 1 1 10 4a7 7 0 0 0 10 10z" /></svg>;
   if (type === 'flame')    return <svg {...p}><path d="M12 3c1 3.5 5 5.5 5 9.5a5 5 0 0 1-10 0C7 10 8.5 8.5 9.5 7c.5 1.5 1.3 2.4 2.8 3-.8-2.3-.8-4.7-.3-7z" /></svg>;
-  if (type === 'salad')    return <svg {...p}><path d="M8 3v6a2 2 0 1 0 4 0V3" /><path d="M10 3v18" /><path d="M16 3c-1.8 0-3 1.8-3 4.5S14.2 12 16 12" /><path d="M16 3v18" /></svg>;
+  if (type === 'salad')    return <svg {...p}><path d="M12 8c-1.8-1.8-4.5-2-6-.3-2 2.2-1.8 6.5.5 9.8C8.3 20 10.2 21 12 21s3.7-1 5.5-3.5c2.3-3.3 2.5-7.6.5-9.8-1.5-1.7-4.2-1.5-6 .3z" /><path d="M12 8V5.5" /><path d="M12 6c0-1.5 1-2.5 2.5-2.8" /></svg>;
   if (type === 'calendar') return <svg {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>;
   return null;
 }
