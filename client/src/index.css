@@ -4436,6 +4436,14 @@ svg { overflow: hidden; }
   border: 1px solid var(--border-faint, rgba(255,255,255,.06));
   border-radius: 22px;
   overflow: hidden;
+  /* Flex items shrink below their content size by default. Without this,
+     a short screen (or an exercise with many sets) silently squashes the
+     card down to whatever space is left, and overflow:hidden — needed for
+     the rounded corners around the demo strip — clips the extra content
+     instead of scrolling to it, cutting off sets and the finish-set button
+     with no way to reach them. .ws-live's own overflow-y:auto (a sibling
+     concern) then has real overflow to scroll instead of nothing to do. */
+  flex-shrink: 0;
 }
 /* Placeholder strip — taps through to a form tutorial */
 .ws-live__demo {
@@ -5629,6 +5637,31 @@ svg { overflow: hidden; }
   left: 22px;
   background: var(--bg-0);
 }
+
+/* Notification row: toggle + its own optional time picker, shown only
+   while the reminder is on. The group border moves to the outer wrapper
+   so the toggle and its time picker read as one unit. */
+.st2-notif-row { border-bottom: 1px solid var(--border-subtle); }
+.st2-notif-row .st2-toggle-row { border-bottom: none; padding-bottom: 6px; }
+.st2-notif-time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 14px;
+}
+.st2-notif-time-label { font-size: 12.5px; color: var(--text-3); }
+.st2-time-input {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+  color-scheme: dark;
+}
+[data-theme="light"] .st2-time-input { color-scheme: light; }
 
 /* Warning banner */
 .st2-warn-banner {
