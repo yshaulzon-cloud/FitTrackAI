@@ -14,7 +14,7 @@ function AIc({ type, size = 16, color = 'currentColor' }) {
   if (type === 'sparkle')   return <svg {...p}><path d="M12 4l1.7 4.6 4.8 1.7-4.8 1.7L12 16.6l-1.7-4.6-4.8-1.7 4.8-1.7z" /></svg>;
   if (type === 'dumbbell')  return <svg {...p}><path d="M6.5 8v8M3.5 10v4M17.5 8v8M20.5 10v4M6.5 12h11" /></svg>;
   if (type === 'calendar')  return <svg {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>;
-  if (type === 'salad')     return <svg {...p}><path d="M4 12a8 8 0 0 1 16 0z" /><path d="M4 12h16M8 12V8M12 12V6M16 12V8" /></svg>;
+  if (type === 'salad')     return <svg {...p}><path d="M8 3v6a2 2 0 1 0 4 0V3" /><path d="M10 3v18" /><path d="M16 3c-1.8 0-3 1.8-3 4.5S14.2 12 16 12" /><path d="M16 3v18" /></svg>;
   if (type === 'person')    return <svg {...p}><circle cx="12" cy="8" r="3.5" /><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7" /></svg>;
   return null;
 }
