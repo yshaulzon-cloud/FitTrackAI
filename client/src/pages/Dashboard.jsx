@@ -334,6 +334,7 @@ export default function Dashboard() {
             profile={profileData?.profile}
             userName={profileData?.name}
             nutrition={nutrition}
+            workoutHistory={workoutHistory}
             api={api}
             onUpdate={loadData}
             logout={logout}
@@ -887,12 +888,27 @@ function StIc({ type, color = '#fff', size = 18 }) {
   return null;
 }
 
-function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, level, onExit }) {
+function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, level, onExit, workoutHistory }) {
   const { t, lang, setLanguage } = useLang();
   const { theme, setTheme } = useTheme();
   const { openPrivacy, openTerms } = useLegal();
   const { user } = useAuth();
   const isHe = lang === 'he';
+
+  // Has the user already hit their weekly workout target (calendar week,
+  // Sunday-start — same math as the home tab's week strip)? If so the
+  // workout reminder should stay quiet until next week even though the
+  // toggle itself is still "on".
+  const weeklyGoalMet = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
+    const target = profile?.workoutsPerWeek || 4;
+    const count = (workoutHistory?.workouts || []).filter((w) => {
+      const d = new Date(w.date); d.setHours(0, 0, 0, 0);
+      return d >= weekStart && d <= today;
+    }).length;
+    return count >= target;
+  }, [workoutHistory, profile?.workoutsPerWeek]);
 
   // ── Navigation ───────────────────────────────────────────
   const [screen, setScreen] = useState('home');
@@ -1001,7 +1017,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
         return;
       }
       const results = await Promise.all([
-        applyWorkoutReminder(notifWorkout, isHe, notifWorkoutTime).catch(() => null),
+        applyWorkoutReminder(notifWorkout && !weeklyGoalMet, isHe, notifWorkoutTime).catch(() => null),
         applyMealMorningReminder(notifMealMorning, isHe, notifMealMorningTime).catch(() => null),
         applyMealAfternoonReminder(notifMealAfternoon, isHe, notifMealAfternoonTime).catch(() => null),
         applyMealEveningReminder(notifMealEvening, isHe, notifMealEveningTime).catch(() => null),
@@ -1012,6 +1028,18 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Capacitor's LocalNotifications has no "verify a condition right before
+  // firing" hook (same limitation noted on the sleep prompts in
+  // notifications.js), so the workout reminder can't skip itself once the
+  // weekly target is hit — it has to be actively cancelled here instead,
+  // and re-synced whenever weeklyGoalMet changes (history finishes loading,
+  // a workout gets logged, the toggle/time is touched, or a new week starts).
+  useEffect(() => {
+    if (!notifWorkout) return;
+    applyWorkoutReminder(!weeklyGoalMet, lang === 'he', notifWorkoutTime).catch(() => null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weeklyGoalMet, notifWorkout, notifWorkoutTime]);
 
   const [loading, setLoading] = useState(false);
   const [dangerLoading, setDangerLoading] = useState(false);
@@ -1474,7 +1502,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
             </div>
           )}
           <NotifRow
-            label={isHe ? 'תזכורת אימון' : 'Workout reminder'} sub={isHe ? 'התראה יומית' : 'Daily nudge'}
+            label={isHe ? 'תזכורת אימון' : 'Workout reminder'} sub={isHe ? 'נעצר אחרי היעד השבועי' : 'Pauses after your weekly goal'}
             value={notifWorkout} onChange={setNotifWorkout}
             time={notifWorkoutTime} onTimeChange={setNotifWorkoutTime}
           />
