@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
 import WorkoutSession, { readActiveSession, clearActiveSession } from './WorkoutSession';
+import { getExerciseCue } from '../lib/exerciseCues';
 
 // Muscle group translations
 const muscleGroupMap = {
@@ -58,6 +59,12 @@ function getEnglishName(name) {
 function getExerciseName(name, lang) {
   if (lang === 'he') return name;
   return getEnglishName(name);
+}
+
+function fmtClock(totalSec) {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 function getMuscleGroup(group, lang) {
@@ -134,6 +141,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   const [completingDay, setCompletingDay] = useState(null);
   const [message, setMessage] = useState('');
   const [selectedExercise, setSelectedExercise] = useState(null);
+  const [showTodaySummary, setShowTodaySummary] = useState(false);
   const [homeMode, setHomeMode] = useState(false);
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
   const [showExercises, setShowExercises] = useState(false);
@@ -779,6 +787,10 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               </div>
             </div>
 
+            <p style={{ fontSize: 13, color: 'var(--text-3)', textAlign: 'center', marginBottom: 16, lineHeight: 1.5 }}>
+              {getExerciseCue(selectedExercise.name, isHe)}
+            </p>
+
             {getYouTubeLinks(selectedExercise.name).map((link, i) => (
               <button
                 key={i}
@@ -807,18 +819,66 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
       )}
 
 
-      {/* Secondary CTAs for the done / week states. */}
-      {(showDone || showWeek) && (
+      {/* Secondary CTA for the done state — "start another workout" was a dead
+          end (server rejects a 2nd /workout/complete same-day), so it's
+          replaced with a working summary view rather than demoted. */}
+      {showDone && (
+        <div style={{ position: 'sticky', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 68px)', marginTop: 18, paddingTop: 14, background: 'linear-gradient(180deg, transparent, var(--bg-0) 40%)', zIndex: 5 }}>
+          <button
+            type="button"
+            onClick={() => setShowTodaySummary(true)}
+            style={{ width: '100%', height: 54, borderRadius: 18, cursor: 'pointer', border: '1.5px solid rgba(47,227,194,.5)', background: 'var(--accent-glow, rgba(47,227,194,.08))', color: 'var(--accent)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}
+          >
+            {isHe ? 'צפייה בסיכום' : 'View summary'}
+          </button>
+        </div>
+      )}
+
+      {/* Secondary CTA for the week state — same identical dead-end bug as
+          above, but out of scope for this pass; left untouched. */}
+      {showWeek && (
         <div style={{ position: 'sticky', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 68px)', marginTop: 18, paddingTop: 14, background: 'linear-gradient(180deg, transparent, var(--bg-0) 40%)', zIndex: 5 }}>
           <button
             type="button"
             onClick={startSession}
             style={{ width: '100%', height: 54, borderRadius: 18, cursor: 'pointer', border: '1.5px solid rgba(47,227,194,.5)', background: 'var(--accent-glow, rgba(47,227,194,.08))', color: 'var(--accent)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}
           >
-            {showWeek
-              ? (isHe ? 'בכל זאת רוצה להתאמן? אימון חופשי' : 'Still want to train? Free workout')
-              : (isHe ? 'רוצה עוד? התחל אימון נוסף' : 'Want more? Start another workout')}
+            {isHe ? 'בכל זאת רוצה להתאמן? אימון חופשי' : 'Still want to train? Free workout'}
           </button>
+        </div>
+      )}
+
+      {/* Today's-summary modal — reuses todayWorkout (already derived from
+          the workoutHistory prop), no new API call needed. */}
+      {showTodaySummary && todayWorkout && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'fadeIn 0.2s ease' }}
+             onClick={() => setShowTodaySummary(false)}>
+          <div style={{ background: 'var(--bg-card, #1e1e2e)', borderRadius: 16, padding: 24, maxWidth: 420, width: '90%', maxHeight: '80vh', overflowY: 'auto', animation: 'slideUp 0.3s ease', border: '1px solid var(--border)' }}
+               onClick={(e) => e.stopPropagation()}>
+            <div style={{ textAlign: 'center', marginBottom: 18 }}>
+              <h3 style={{ color: 'var(--text-primary)', marginBottom: 4, fontSize: 18 }}>{isHe ? 'סיכום האימון של היום' : "Today's workout summary"}</h3>
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{getDayName(todayWorkout.dayName, lang)}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {(todayWorkout.exercises || []).map((ex, i) => {
+                const setLog = ex.setLog || [];
+                const done = setLog.filter(s => s.done);
+                if (setLog.length > 0 && done.length === 0) return null; // fully-skipped exercise
+                const top = done.reduce((m, s) => (s.weight || 0) > (m?.weight || 0) ? s : m, done[0]);
+                const detail = ex.mode === 'time'
+                  ? fmtClock(done.reduce((n, s) => n + (s.durationSec || 0), 0))
+                  : done.length > 0 ? `${done.length}×${top?.reps || '—'}${top?.weight ? ` @ ${top.weight}` : ''}` : `${ex.sets || 0}×${ex.reps || '—'}`; // legacy fallback
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 2px', borderTop: i > 0 ? '1px solid var(--border-hairline)' : 'none' }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', flex: 'none', background: MUSCLE_DOT[ex.muscleGroup] || 'var(--accent)' }} />
+                    <span style={{ flex: 1, minWidth: 0, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getExerciseName(ex.name, lang)}</span>
+                    <span dir="ltr" style={{ color: 'var(--text-4)', flex: 'none', fontVariantNumeric: 'tabular-nums' }}>{detail}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <button className="btn" onClick={() => setShowTodaySummary(false)} style={{ width: '100%', marginTop: 16, background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>{t.close}</button>
+          </div>
         </div>
       )}
 

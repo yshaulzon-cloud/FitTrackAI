@@ -135,7 +135,7 @@ async function scheduleOneTime({ id, when, title, body }) {
 // sleep hasn't been logged yet, cancelling+re-arming for today's
 // remaining slots, and (b) the instant sleep gets logged, cancelling both
 // immediately. Tomorrow's occurrence is armed the next time the app opens.
-export async function scheduleSleepPrompts(hour = 8) {
+export async function scheduleSleepPrompts(hour = 8, isHe = true) {
   if (!isNative()) return true;
   const now = new Date();
 
@@ -152,15 +152,15 @@ export async function scheduleSleepPrompts(hour = 8) {
   if (promptAt > now) {
     await scheduleOneTime({
       id: IDS.sleep_prompt, when: promptAt,
-      title: '😴',
-      body: 'בוקר טוב! כמה שעות ישנת הלילה?',
+      title: isHe ? 'בוקר טוב 😴' : 'Good morning 😴',
+      body:  isHe ? 'כמה שעות ישנת הלילה? עדכון קצר יעזור לך לעקוב אחר השינה שלך.' : 'How many hours did you sleep last night? A quick update will help you track your sleep.',
     });
   }
   if (followupAt > now) {
     await scheduleOneTime({
       id: IDS.sleep_followup, when: followupAt,
-      title: '😴',
-      body: 'אל תשכח לעדכן את שעות השינה שלך.',
+      title: isHe ? 'תזכורת קטנה לשינה 😴' : 'A quick sleep reminder 😴',
+      body:  isHe ? 'עדיין לא עדכנת את שעות השינה שלך. אפשר לעשות את זה עכשיו בכמה שניות.' : 'You haven’t logged your sleep yet. It only takes a few seconds.',
     });
   }
   return true;
@@ -177,7 +177,7 @@ export async function applyWorkoutReminder(enabled, isHe, time = { hour: 18, min
   return scheduleDaily({
     id: IDS.workout, hour: time.hour, minute: time.minute,
     title: isHe ? 'זמן לאימון 💪' : 'Time to train 💪',
-    body:  isHe ? 'יום נהדר להתקדם — בוא נזיז את הגוף.' : 'Great day to make progress — let’s move.',
+    body:  isHe ? 'האימון שלך מחכה — כמה דקות של תנועה יקדמו אותך עוד צעד.' : 'Your workout is waiting — a little movement can take you one step further.',
   });
 }
 
@@ -189,8 +189,8 @@ export async function applyMealMorningReminder(enabled, isHe, time = { hour: 8, 
   if (!enabled) return cancelById(IDS.meal_morning);
   return scheduleDaily({
     id: IDS.meal_morning, hour: time.hour, minute: time.minute,
-    title: isHe ? 'ארוחת בוקר 🥗' : 'Breakfast 🥗',
-    body:  isHe ? 'תרשום את ארוחת הבוקר ב-Areto.' : 'Log your breakfast in Areto.',
+    title: isHe ? 'זמן לארוחת בוקר 🥗' : 'Time for breakfast 🥗',
+    body:  isHe ? 'כדאי לעדכן עכשיו את ארוחת הבוקר כדי לשמור על מעקב מדויק.' : 'Log your breakfast now to keep your tracking accurate.',
   });
 }
 
@@ -198,8 +198,8 @@ export async function applyMealAfternoonReminder(enabled, isHe, time = { hour: 1
   if (!enabled) return cancelById(IDS.meal_afternoon);
   return scheduleDaily({
     id: IDS.meal_afternoon, hour: time.hour, minute: time.minute,
-    title: isHe ? 'ארוחת צהריים 🍽️' : 'Lunch 🍽️',
-    body:  isHe ? 'אל תשכח לתעד את הצהריים.' : 'Don’t forget to log lunch.',
+    title: isHe ? 'זמן לארוחת צהריים 🍽️' : 'Time for lunch 🍽️',
+    body:  isHe ? 'עדכון קצר של ארוחת הצהריים יעזור לך להישאר במעקב.' : 'A quick lunch update will help you stay on track.',
   });
 }
 
@@ -207,8 +207,8 @@ export async function applyMealEveningReminder(enabled, isHe, time = { hour: 19,
   if (!enabled) return cancelById(IDS.meal_evening);
   return scheduleDaily({
     id: IDS.meal_evening, hour: time.hour, minute: time.minute,
-    title: isHe ? 'ארוחת ערב 🌙' : 'Dinner 🌙',
-    body:  isHe ? 'תעד את ארוחת הערב לפני שאתה שוכח.' : 'Log dinner before you forget.',
+    title: isHe ? 'זמן לארוחת ערב 🌙' : 'Time for dinner 🌙',
+    body:  isHe ? 'כדאי לעדכן את ארוחת הערב עכשיו, כל עוד הפרטים עדיין טריים.' : 'Log your dinner while the details are still fresh.',
   });
 }
 
@@ -216,8 +216,8 @@ export async function applyStreakReminder(enabled, isHe, time = { hour: 21, minu
   if (!enabled) return cancelById(IDS.streak);
   return scheduleDaily({
     id: IDS.streak, hour: time.hour, minute: time.minute,
-    title: isHe ? 'שמור על הרצף 🔥' : 'Keep your streak 🔥',
-    body:  isHe ? 'עוד לא סיימת היום — אל תפסיד את הרצף.' : 'Don’t lose your streak today.',
+    title: isHe ? 'ממשיכים את הרצף 🔥' : 'Keep your streak going 🔥',
+    body:  isHe ? 'עדיין נשאר זמן להשלים את הפעילות של היום ולשמור על הרצף.' : 'There’s still time to complete today’s activity and keep your streak going.',
   });
 }
 
@@ -226,7 +226,7 @@ export async function applyWeeklyReport(enabled, isHe, time = { hour: 10, minute
   // Capacitor weekday: 1=Sunday … 7=Saturday
   return scheduleWeekly({
     id: IDS.weekly, weekday: 1, hour: time.hour, minute: time.minute,
-    title: isHe ? 'סיכום שבועי 📊' : 'Weekly recap 📊',
-    body:  isHe ? 'זמן להסתכל על ההתקדמות של השבוע.' : 'Time to review this week’s progress.',
+    title: isHe ? 'הסיכום השבועי מוכן 📊' : 'Your weekly recap is ready 📊',
+    body:  isHe ? 'אפשר לראות מה התקדם השבוע ומה כדאי לקחת איתך לשבוע הבא.' : 'See your progress from this week and what to focus on next.',
   });
 }

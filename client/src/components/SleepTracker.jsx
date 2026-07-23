@@ -65,7 +65,7 @@ export default function SleepTracker({ api, showXP }) {
         setQuality(res.sleep.quality);
         cancelSleepPrompts().catch(() => {});
       } else {
-        scheduleSleepPrompts().catch(() => {});
+        scheduleSleepPrompts(8, isHe).catch(() => {});
       }
     } catch (err) {
       console.error('Sleep load error:', err);
