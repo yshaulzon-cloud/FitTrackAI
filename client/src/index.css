@@ -4109,7 +4109,7 @@ select:focus-visible {
   transition: border-color 0.2s;
 }
 .streak-card:hover { border-color: var(--accent); }
-.streak-icon { font-size: 24px; margin-bottom: 6px; }
+.streak-icon { display: flex; align-items: center; justify-content: center; height: 30px; margin-bottom: 6px; }
 .streak-value {
   font-family: var(--font-display);
   font-size: 28px;
