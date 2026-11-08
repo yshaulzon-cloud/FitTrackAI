@@ -51,6 +51,12 @@ const userSchema = new mongoose.Schema(
       // boundary for all streak/day calculations; falls back to Israel when
       // absent (see server/utils/dates.js).
       timezone: { type: String, trim: true, maxlength: 64, default: 'Asia/Jerusalem' },
+      // Permanent "swap this exercise" choices, applied on top of the generated
+      // plan (server/utils/planSwaps.js). Empty for everyone until they use it.
+      planSwaps: {
+        type: [{ _id: false, from: { type: String, maxlength: 120 }, to: { type: String, maxlength: 120 }, muscleGroup: { type: String, maxlength: 30 } }],
+        default: [],
+      },
     },
     onboardingComplete: { type: Boolean, default: false },
     isAdmin: { type: Boolean, default: false },

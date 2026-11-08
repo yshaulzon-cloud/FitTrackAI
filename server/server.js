@@ -55,6 +55,9 @@ const corsAllowlist = (process.env.CORS_ORIGIN || '')
   .filter(Boolean);
 // Always allow Capacitor's native WebView origins so the future Android
 // build keeps working without server config changes.
+if (corsAllowlist.length === 0 && process.env.NODE_ENV === 'production') {
+  console.warn('WARNING: CORS_ORIGIN is empty in production — every origin is allowed. Set it on the host.');
+}
 const NATIVE_ORIGINS = ['capacitor://localhost', 'https://localhost', 'http://localhost'];
 
 app.use(cors({
@@ -94,7 +97,7 @@ app.use('/sleep', sleepRoutes);
 
 // Bump on each release so a deployed build is verifiable from the health
 // endpoints (poll GET / or /health after pushing to confirm Render redeployed).
-const API_VERSION = '1.0.8';
+const API_VERSION = '1.0.9';
 
 // Health check
 app.get('/health', (req, res) => {

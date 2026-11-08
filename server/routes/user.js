@@ -10,6 +10,8 @@ const Workout = require('../models/Workout');
 const Sleep = require('../models/Sleep');
 const Progression = require('../models/Progression');
 const { EQUIPMENT, LEGACY_VALUES, normalizeEquipment } = require('../utils/equipment');
+const { applyPlanSwaps, recordSwap, MAX_SWAPS } = require('../utils/planSwaps');
+const { computeTargets, describeTargetChange } = require('../utils/targetChange');
 const {
   calculateTDEE,
   calculateCalorieTarget,
@@ -18,6 +20,11 @@ const {
   generateWorkoutPlan,
   generateBMIAnalysis,
 } = require('../utils/calculations');
+
+// The generated plan with the user's permanent exercise swaps applied.
+function planFor(profile) {
+  return applyPlanSwaps(generateWorkoutPlan(profile), profile?.planSwaps);
+}
 
 const router = express.Router();
 
@@ -62,7 +69,7 @@ router.get('/profile', auth, async (req, res) => {
         user.profile.experience,
         user.profile.bodyFatPercentage
       );
-      const workoutPlan = generateWorkoutPlan(user.profile);
+      const workoutPlan = planFor(user.profile);
       const weeklyWeightTarget = calculateWeeklyWeightTarget(
         user.profile.weight,
         user.profile.goal,
@@ -143,7 +150,7 @@ router.post(
       const { tdee, ree, formulaUsed } = calculateTDEE(user.profile);
       const calorieTarget = calculateCalorieTarget(tdee, goal, weight, bodyFatPercentage);
       const macros = calculateMacros(weight, calorieTarget, goal, experience, bodyFatPercentage);
-      const workoutPlan = generateWorkoutPlan(user.profile);
+      const workoutPlan = planFor(user.profile);
       const weeklyWeightTarget = calculateWeeklyWeightTarget(weight, goal, experience);
 
       const bmiAnalysis = generateBMIAnalysis(user.profile);
@@ -226,6 +233,9 @@ router.put(
 
       // Detect a goal direction change so we can reset the journey baseline.
       const goalChanged = goal !== undefined && goal !== user.profile.goal;
+      // Targets before the change, to tell the user what moved (see below).
+      const targetsBefore = computeTargets(user.profile);
+      const weightBefore = user.profile.weight;
 
       if (weight !== undefined) user.profile.weight = weight;
       if (height !== undefined) user.profile.height = height;
@@ -257,17 +267,27 @@ router.put(
         user.profile.weight, calorieTarget, user.profile.goal,
         user.profile.experience, user.profile.bodyFatPercentage
       );
-      const workoutPlan = generateWorkoutPlan(user.profile);
+      const workoutPlan = planFor(user.profile);
       const weeklyWeightTarget = calculateWeeklyWeightTarget(
         user.profile.weight, user.profile.goal, user.profile.experience
       );
 
       const bmiAnalysis = generateBMIAnalysis(user.profile);
+      // Weight moved by 1 kg or more, or the goal changed, and the target really
+      // changed: the client shows "target updated from X to Y" and rebuilds the menu.
+      const targetChange = describeTargetChange({
+        before: targetsBefore,
+        after: computeTargets(user.profile),
+        weightBefore,
+        weightAfter: user.profile.weight,
+        goalChanged,
+      });
       res.json({
         profile: user.profile,
         nutrition: { tdee, ree, formulaUsed, calorieTarget, macros, weeklyWeightTarget },
         workoutPlan,
         bmiAnalysis,
+        targetChange,
       });
     } catch (error) {
       console.error('Profile update error:', error);
@@ -484,6 +504,38 @@ router.post(
     } catch (error) {
       console.error('Set password error:', error);
       res.status(500).json({ message: 'שגיאה בקביעת הסיסמה', messageEn: 'Failed to set the password' });
+    }
+  }
+);
+
+// PUT /user/plan-swap — make an exercise swap permanent ("also in my plan").
+// body: { from, to, muscleGroup? }  where `from` is the name the client shows
+// now. Swapping back to the original removes the entry.
+router.put(
+  '/plan-swap',
+  auth,
+  [
+    body('from').isString().trim().isLength({ min: 1, max: 120 }),
+    body('to').isString().trim().isLength({ min: 1, max: 120 }),
+    body('muscleGroup').optional({ checkFalsy: true }).isString().trim().isLength({ max: 30 }),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg });
+      const { from, to, muscleGroup } = req.body;
+      if (from === to) return res.status(400).json({ message: 'Nothing to swap' });
+
+      const user = await User.findById(req.userId);
+      if (!user?.profile) return res.status(404).json({ message: 'User not found' });
+      const next = recordSwap(user.profile.planSwaps, { from, to, muscleGroup });
+      if (next.length > MAX_SWAPS) return res.status(400).json({ message: 'Too many swaps' });
+      user.profile.planSwaps = next;
+      await user.save();
+      res.json({ workoutPlan: planFor(user.profile), planSwaps: next });
+    } catch (error) {
+      console.error('Plan swap error:', error);
+      res.status(500).json({ message: 'Error saving the swap' });
     }
   }
 );
