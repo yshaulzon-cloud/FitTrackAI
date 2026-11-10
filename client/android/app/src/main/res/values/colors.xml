@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launch splash background: same navy as capacitor.config.json's
+         SplashScreen.backgroundColor and the in-app splash. -->
+    <color name="splash_background">#0a0e1a</color>
+</resources>

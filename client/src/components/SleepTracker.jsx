@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
-import { scheduleSleepPrompts, cancelSleepPrompts } from '../lib/notifications';
+import { updateReminderState } from '../lib/notifications';
 
 // Prototype sleep sheet: a fixed set of hour chips rather than a drag gauge.
 // '9+' logs 9 — the server only needs the qualifying threshold, and a single
@@ -63,9 +63,9 @@ export default function SleepTracker({ api, showXP }) {
       if (res.sleep) {
         setHours(res.sleep.hours);
         setQuality(res.sleep.quality);
-        cancelSleepPrompts().catch(() => {});
+        updateReminderState({ sleepLoggedToday: true }, { isHe }); // drops today's sleep reminders
       } else {
-        scheduleSleepPrompts(8, isHe).catch(() => {});
+        updateReminderState({ sleepLoggedToday: false }, { isHe });
       }
     } catch (err) {
       console.error('Sleep load error:', err);
@@ -80,7 +80,7 @@ export default function SleepTracker({ api, showXP }) {
       const res = await api('/sleep/log', { method: 'POST', body: JSON.stringify({ hours, quality }) });
       setTodaySleep(res.sleep);
       setRecommendation(res.recommendation);
-      cancelSleepPrompts().catch(() => {});
+      updateReminderState({ sleepLoggedToday: true }, { isHe });
       if (res.xpResults?.length > 0) {
         for (const xp of res.xpResults) if (xp.xpGained && showXP) showXP(xp);
       }

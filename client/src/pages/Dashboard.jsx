@@ -9,6 +9,7 @@ import { useLegal } from '../context/LegalContext';
 import { useAccessibility } from '../context/AccessibilityContext';
 import WorkoutPlan from '../components/WorkoutPlan';
 import NutritionTracker from '../components/NutritionTracker';
+import { isAdaptEnabled, setAdaptEnabled } from '../lib/workoutAdapt.mjs';
 import Progress from '../components/Progress';
 import BMICard from '../components/BMICard';
 import AdminPanel from '../components/AdminPanel';
@@ -17,15 +18,16 @@ import XPToast from '../components/XPToast';
 import StreakToast from '../components/StreakToast';
 import SleepTracker from '../components/SleepTracker';
 import SettingsSearch from '../components/SettingsSearch';
+import { streakChip, streakHeadline } from '../lib/plural.mjs';
 import {
-  applyWorkoutReminder,
-  applyMealMorningReminder,
-  applyMealAfternoonReminder,
-  applyMealEveningReminder,
-  applyStreakReminder,
-  applyWeeklyReport,
   getNotificationPermissionStatus,
+  syncReminders,
 } from '../lib/notifications';
+import { useReminderSync } from '../lib/useReminderSync';
+import {
+  CATEGORIES, CATEGORY_LABELS, NOTIF_TYPES, readPrefs, writeEnabled, writeTime, writeWeekday,
+  writeMaster, writeCategory, fmtTime, isQuietTime, isActive,
+} from '../lib/notifConfig.mjs';
 
 // The daily activity streak lives on the server (`currentStreak`) and only
 // advances when the user actually *does* something — logs a meal, completes
@@ -72,6 +74,8 @@ export default function Dashboard() {
   const [todayNutrition, setTodayNutrition] = useState(null);
   const [workoutHistory, setWorkoutHistory] = useState(null);
   const [progressionData, setProgressionData] = useState(null);
+  // Training day / rest day for today (server-computed, see server/utils/dayType.js)
+  const [dayType, setDayType] = useState(null);
   const [dailyStreak, setDailyStreak] = useState(() => readCachedStreak());
   // Journey sub-tab (prototype): 'prog' | 'badges' | 'goals'
   const [journeyView, setJourneyView] = useState('prog');
@@ -83,6 +87,18 @@ export default function Dashboard() {
   const prevStreakRef = useRef(null);
 
   const isAdmin = profileData?.isAdmin || false;
+
+  // Keeps local reminders in step with what's already been done today (meals
+  // eaten, workout done, streak safe…). Lives here, not in Settings, so it runs
+  // on every app open and resume rather than only while Settings is on screen.
+  useReminderSync({
+    todayNutrition,
+    workoutHistory,
+    profile: profileData?.profile,
+    progressionData,
+    isHe,
+    restDayToday: dayType ? dayType.type === 'rest' : undefined,
+  });
   const tabs = [
     { id: 'overview', label: t.tabOverview },
     { id: 'workout', label: t.tabWorkout },
@@ -117,16 +133,18 @@ export default function Dashboard() {
 
   async function loadData() {
     try {
-      const [profile, nutrition, workouts, progression] = await Promise.all([
+      const [profile, nutrition, workouts, progression, dayInfo] = await Promise.all([
         api('/user/profile'),
         api('/nutrition/today'),
         api('/workout/history'),
         api('/progression/status').catch(() => null),
+        api('/nutrition/day-type').catch(() => null),
       ]);
       setProfileData(profile);
       setTodayNutrition(nutrition);
       setWorkoutHistory(workouts);
       setProgressionData(progression);
+      setDayType(dayInfo);
       reconcileStreak(progression?.currentStreak);
       syncTimezone(profile?.profile?.timezone);
     } catch (err) {
@@ -260,6 +278,7 @@ export default function Dashboard() {
             api={api}
             onUpdate={loadData}
             showXP={showXP}
+            dayType={dayType}
           />
         </div>
 
@@ -351,7 +370,7 @@ export default function Dashboard() {
       <header className="mobile-topbar" aria-label={isHe ? 'שורת עליון' : 'Top bar'}>
         {/* Flame streak pill — first child = rightmost in RTL */}
         {dailyStreak > 0 ? (
-          <div className="mobile-topbar__streak" aria-label={isHe ? `${dailyStreak} ימים ברצף` : `${dailyStreak}-day streak`}>
+          <div className="mobile-topbar__streak" aria-label={streakChip(dailyStreak, isHe)}>
             <img src="/streak-logo.png" alt="" style={{ width: 28, height: 28, objectFit: 'contain', display: 'block' }} />
             <span className="mobile-topbar__streak-count">{dailyStreak}</span>
           </div>
@@ -837,7 +856,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <img src="/streak-logo.png" alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />
               <span style={{ fontSize: 12.5, color: 'var(--streak-text)', fontWeight: 500 }}>
-                {isHe ? `רצף של ${streak} ימים` : `${streak}-day streak`}
+                {streakHeadline(streak, isHe)}
               </span>
             </div>
           )}
@@ -889,26 +908,12 @@ function StIc({ type, color = '#fff', size = 18 }) {
 }
 
 function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, level, onExit, workoutHistory }) {
+  const [adaptOn, setAdaptOn] = useState(() => isAdaptEnabled());
   const { t, lang, setLanguage } = useLang();
   const { theme, setTheme } = useTheme();
   const { openPrivacy, openTerms } = useLegal();
   const { user } = useAuth();
   const isHe = lang === 'he';
-
-  // Has the user already hit their weekly workout target (calendar week,
-  // Sunday-start — same math as the home tab's week strip)? If so the
-  // workout reminder should stay quiet until next week even though the
-  // toggle itself is still "on".
-  const weeklyGoalMet = useMemo(() => {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
-    const target = profile?.workoutsPerWeek || 4;
-    const count = (workoutHistory?.workouts || []).filter((w) => {
-      const d = new Date(w.date); d.setHours(0, 0, 0, 0);
-      return d >= weekStart && d <= today;
-    }).length;
-    return count >= target;
-  }, [workoutHistory, profile?.workoutsPerWeek]);
 
   // ── Navigation ───────────────────────────────────────────
   const [screen, setScreen] = useState('home');
@@ -935,111 +940,49 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
   const [name, setName] = useState(userName || '');
   const [age, setAge]   = useState(profile?.age || '');
 
-  // Notification toggles — persisted to localStorage
-  const loadNotifPref = (key, defaultVal) => {
-    const v = localStorage.getItem(`notif:${key}`);
-    return v === null ? defaultVal : v === '1';
-  };
-  // "notif:meal" was the old single combined toggle covering all three meal
-  // times — read it as the starting default for the three new independent
-  // ones so an existing on/off choice carries over instead of resetting.
-  const legacyMealDefault = loadNotifPref('meal', true);
-  const loadNotifTime = (key, defaultHour, defaultMinute) => {
-    const v = localStorage.getItem(`notif:${key}:time`);
-    if (!v) return { hour: defaultHour, minute: defaultMinute };
-    const [h, m] = v.split(':').map(Number);
-    return Number.isFinite(h) && Number.isFinite(m) ? { hour: h, minute: m } : { hour: defaultHour, minute: defaultMinute };
-  };
-  const [notifWorkout, setNotifWorkoutState] = useState(() => loadNotifPref('workout', true));
-  const [notifMealMorning,   setNotifMealMorningState]   = useState(() => loadNotifPref('meal_morning', legacyMealDefault));
-  const [notifMealAfternoon, setNotifMealAfternoonState] = useState(() => loadNotifPref('meal_afternoon', legacyMealDefault));
-  const [notifMealEvening,   setNotifMealEveningState]   = useState(() => loadNotifPref('meal_evening', legacyMealDefault));
-  const [notifStreak,  setNotifStreakState]  = useState(() => loadNotifPref('streak',  true));
-  const [notifWeekly,  setNotifWeeklyState]  = useState(() => loadNotifPref('weekly',  false));
-  const [notifWorkoutTime, setNotifWorkoutTimeState]           = useState(() => loadNotifTime('workout', 18, 0));
-  const [notifMealMorningTime, setNotifMealMorningTimeState]   = useState(() => loadNotifTime('meal_morning', 8, 0));
-  const [notifMealAfternoonTime, setNotifMealAfternoonTimeState] = useState(() => loadNotifTime('meal_afternoon', 13, 0));
-  const [notifMealEveningTime, setNotifMealEveningTimeState]   = useState(() => loadNotifTime('meal_evening', 19, 0));
-  const [notifStreakTime, setNotifStreakTimeState]             = useState(() => loadNotifTime('streak', 21, 0));
-  const [notifWeeklyTime, setNotifWeeklyTimeState]             = useState(() => loadNotifTime('weekly', 10, 0));
-  // Shown under the Notifications section when the OS permission is denied,
-  // so the user knows *why* toggles aren't producing real notifications
-  // instead of the toggle silently doing nothing.
-  const [notifPermDenied, setNotifPermDenied] = useState(false);
+  // ── Notification preferences ──────────────────────────────────────
+  // Preferences live in localStorage (notifConfig.mjs owns the keys). What is
+  // actually scheduled is decided by notifPlan.mjs and applied by
+  // useReminderSync at the top of the Dashboard; here we only edit the
+  // preferences and ask for a re-sync.
+  const [notifPrefs, setNotifPrefs] = useState(() => readPrefs(localStorage));
+  // 'granted' | 'denied' | 'prompt' | null (web). Drives the explanation banner.
+  const [notifPermStatus, setNotifPermStatus] = useState(null);
+  const notifPermDenied = notifPermStatus === 'denied';
+  useEffect(() => { getNotificationPermissionStatus().then(setNotifPermStatus).catch(() => null); }, []);
 
-  const persist = (key, setter, applyFn, getTime) => async (val) => {
-    localStorage.setItem(`notif:${key}`, val ? '1' : '0');
-    setter(val);
-    if (!applyFn) return;
-    const ok = await applyFn(val, lang === 'he', getTime ? getTime() : undefined).catch(() => false);
-    if (val && ok === false) {
-      // Permission denied — revert the toggle and surface a clear message
-      // instead of leaving it "on" while nothing actually fires.
-      setter(false);
-      localStorage.setItem(`notif:${key}`, '0');
-      setNotifPermDenied(true);
-    } else if (ok !== false) {
-      setNotifPermDenied(false);
-    }
+  const applyNotifChange = async (write, { turningOn = false } = {}) => {
+    write(localStorage);
+    setNotifPrefs(readPrefs(localStorage));
+    // Ask for permission only when the user just switched something ON.
+    const res = await syncReminders({ isHe, askPermission: turningOn }).catch(() => null);
+    if (res?.permission) setNotifPermStatus(res.permission);
+    window.dispatchEvent(new Event('areto:notif-prefs'));
+    return res;
   };
-  const setNotifWorkout       = persist('workout', setNotifWorkoutState, applyWorkoutReminder, () => notifWorkoutTime);
-  const setNotifMealMorning   = persist('meal_morning', setNotifMealMorningState, applyMealMorningReminder, () => notifMealMorningTime);
-  const setNotifMealAfternoon = persist('meal_afternoon', setNotifMealAfternoonState, applyMealAfternoonReminder, () => notifMealAfternoonTime);
-  const setNotifMealEvening   = persist('meal_evening', setNotifMealEveningState, applyMealEveningReminder, () => notifMealEveningTime);
-  const setNotifStreak        = persist('streak', setNotifStreakState, applyStreakReminder, () => notifStreakTime);
-  const setNotifWeekly        = persist('weekly', setNotifWeeklyState, applyWeeklyReport, () => notifWeeklyTime);
-
-  // Changing the time re-applies the reminder immediately (cancel + reschedule
-  // at the new time) only when it's currently on — otherwise just persist it
-  // for whenever the toggle is turned on.
-  const persistTime = (key, setter, enabled, applyFn) => async (hhmm) => {
-    const [hour, minute] = hhmm.split(':').map(Number);
-    const time = { hour, minute };
-    localStorage.setItem(`notif:${key}:time`, hhmm);
-    setter(time);
-    if (enabled && applyFn) await applyFn(true, lang === 'he', time).catch(() => null);
+  // Permission denied → put the switch back, so it never says "on" while nothing fires.
+  const revertIfDenied = (res, undo) => {
+    if (res && res.ok === false) { undo(localStorage); setNotifPrefs(readPrefs(localStorage)); }
   };
-  const setNotifWorkoutTime       = persistTime('workout', setNotifWorkoutTimeState, notifWorkout, applyWorkoutReminder);
-  const setNotifMealMorningTime   = persistTime('meal_morning', setNotifMealMorningTimeState, notifMealMorning, applyMealMorningReminder);
-  const setNotifMealAfternoonTime = persistTime('meal_afternoon', setNotifMealAfternoonTimeState, notifMealAfternoon, applyMealAfternoonReminder);
-  const setNotifMealEveningTime   = persistTime('meal_evening', setNotifMealEveningTimeState, notifMealEvening, applyMealEveningReminder);
-  const setNotifStreakTime        = persistTime('streak', setNotifStreakTimeState, notifStreak, applyStreakReminder);
-  const setNotifWeeklyTime        = persistTime('weekly', setNotifWeeklyTimeState, notifWeekly, applyWeeklyReport);
-
-  // On native startup, ensure scheduled notifications match the saved prefs.
-  // Runs once on mount; on web, the helpers are no-ops.
-  useEffect(() => {
-    const isHe = lang === 'he';
-    (async () => {
-      const status = await getNotificationPermissionStatus();
-      if (status === 'denied') {
-        setNotifPermDenied(true);
-        return;
-      }
-      const results = await Promise.all([
-        applyWorkoutReminder(notifWorkout && !weeklyGoalMet, isHe, notifWorkoutTime).catch(() => null),
-        applyMealMorningReminder(notifMealMorning, isHe, notifMealMorningTime).catch(() => null),
-        applyMealAfternoonReminder(notifMealAfternoon, isHe, notifMealAfternoonTime).catch(() => null),
-        applyMealEveningReminder(notifMealEvening, isHe, notifMealEveningTime).catch(() => null),
-        applyStreakReminder(notifStreak, isHe, notifStreakTime).catch(() => null),
-        applyWeeklyReport(notifWeekly, isHe, notifWeeklyTime).catch(() => null),
-      ]);
-      if (results.some((r) => r === false)) setNotifPermDenied(true);
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Capacitor's LocalNotifications has no "verify a condition right before
-  // firing" hook (same limitation noted on the sleep prompts in
-  // notifications.js), so the workout reminder can't skip itself once the
-  // weekly target is hit — it has to be actively cancelled here instead,
-  // and re-synced whenever weeklyGoalMet changes (history finishes loading,
-  // a workout gets logged, the toggle/time is touched, or a new week starts).
-  useEffect(() => {
-    if (!notifWorkout) return;
-    applyWorkoutReminder(!weeklyGoalMet, lang === 'he', notifWorkoutTime).catch(() => null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weeklyGoalMet, notifWorkout, notifWorkoutTime]);
+  const setNotifEnabled = async (type, enabled) => {
+    const res = await applyNotifChange((st) => writeEnabled(st, type, enabled), { turningOn: enabled });
+    if (enabled) revertIfDenied(res, (st) => writeEnabled(st, type, false));
+  };
+  const setNotifTime = (type, hhmm) => applyNotifChange((st) => writeTime(st, type, hhmm));
+  const setNotifWeekday = (type, weekday) => applyNotifChange((st) => writeWeekday(st, type, weekday));
+  const setNotifMaster = async (enabled) => {
+    const res = await applyNotifChange((st) => writeMaster(st, enabled), { turningOn: enabled });
+    if (enabled) revertIfDenied(res, (st) => writeMaster(st, false));
+  };
+  const setNotifCategory = async (category, enabled) => {
+    const res = await applyNotifChange((st) => writeCategory(st, category, enabled), { turningOn: enabled });
+    if (enabled) revertIfDenied(res, (st) => writeCategory(st, category, false));
+  };
+  const recheckNotifPermission = async () => {
+    const status = await getNotificationPermissionStatus();
+    setNotifPermStatus(status);
+    if (status === 'granted') await syncReminders({ isHe }).catch(() => null);
+  };
 
   const [loading, setLoading] = useState(false);
   const [dangerLoading, setDangerLoading] = useState(false);
@@ -1131,7 +1074,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     setLoading(true);
     try {
       const pw = parseFloat(weight); const ph = parseFloat(height);
-      await api('/user/profile', {
+      const saved = await api('/user/profile', {
         method: 'PUT',
         body: JSON.stringify({
           weight: isNaN(pw) ? profile?.weight : pw,
@@ -1140,6 +1083,12 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
           workoutsPerWeek: parseInt(workoutsPerWeek),
         }),
       });
+      // Targets moved (weight ≥1 kg or goal changed): hand the change to the
+      // nutrition tab, which shows the banner and rebuilds the menu if it may.
+      if (saved?.targetChange) {
+        try { localStorage.setItem('nutrition:targetChange', JSON.stringify({ ...saved.targetChange, at: Date.now() })); } catch { /* ignore */ }
+        window.dispatchEvent(new Event('areto:targets-changed'));
+      }
       onUpdate();
       flashToast(isHe ? 'נשמר ✓' : 'Saved ✓');
     } catch (err) {
@@ -1208,6 +1157,10 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     { screen: 'notif',    label: isHe ? 'ארוחת בוקר'    : 'Breakfast reminder' },
     { screen: 'notif',    label: isHe ? 'ארוחת צהריים'  : 'Lunch reminder' },
     { screen: 'notif',    label: isHe ? 'ארוחת ערב'     : 'Dinner reminder' },
+    { screen: 'notif',    label: isHe ? 'תזכורת שינה'   : 'Sleep reminder' },
+    { screen: 'notif',    label: isHe ? 'התראת רצף'     : 'Streak alert' },
+    { screen: 'notif',    label: isHe ? 'סיכום שבועי'   : 'Weekly recap' },
+    { screen: 'notif',    label: isHe ? 'שעת התראה'     : 'Reminder time' },
     { screen: 'display',  label: isHe ? 'שפה'           : 'Language' },
     { screen: 'display',  label: isHe ? 'ערכת צבעים'    : 'Theme' },
     { screen: 'access',   label: isHe ? 'גודל טקסט'     : 'Text size' },
@@ -1221,7 +1174,9 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     bulk:     isHe ? 'מסה'    : 'Bulk',
     maintain: isHe ? 'שמירה'  : 'Maintain',
   };
-  const enabledNotifs = [notifWorkout, notifMealMorning, notifMealAfternoon, notifMealEvening, notifStreak, notifWeekly].filter(Boolean).length;
+  const enabledNotifs = notifPrefs.master
+    ? Object.keys(NOTIF_TYPES).filter((t) => NOTIF_TYPES[t].derivedFrom == null && isActive(notifPrefs, t)).length
+    : 0;
 
   const sections = [
     { id: 'body',     icon: 'user',    label: isHe ? 'נתוני גוף'      : 'Body Data',      sub: isHe ? 'משקל, גובה, מגדר'       : 'Weight, height, gender',
@@ -1313,24 +1268,66 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     );
   }
 
-  // A notification toggle plus its own time picker, shown only while the
-  // reminder is on — no point choosing a time for something that's off.
-  const fmtNotifTime = (t) => `${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`;
-  function NotifRow({ label, sub, value, onChange, time, onTimeChange }) {
+  // One reminder: its switch, then (while on) its time and, for the weekly
+  // recap, the weekday. A late-night/early-morning time gets a gentle warning.
+  const WEEKDAYS = isHe
+    ? ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+    : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  function NotifRow({ type, label, sub }) {
+    const item = notifPrefs.items[type];
+    const quiet = isQuietTime(item.time);
     return (
       <div className="st2-notif-row">
-        <ToggleRow label={label} sub={sub} value={value} onChange={onChange} />
-        {value && (
+        <ToggleRow label={label} sub={sub} value={item.enabled} onChange={(v) => setNotifEnabled(type, v)} />
+        {item.enabled && (
           <div className="st2-notif-time">
+            {NOTIF_TYPES[type].kind === 'weekly' && (
+              <select
+                className="st2-time-input"
+                aria-label={isHe ? 'יום בשבוע' : 'Day of the week'}
+                value={item.weekday}
+                onChange={(e) => setNotifWeekday(type, Number(e.target.value))}
+              >
+                {WEEKDAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+              </select>
+            )}
             <span className="st2-notif-time-label">{isHe ? 'שעה' : 'Time'}</span>
             <input
               type="time"
               className="st2-time-input"
-              value={fmtNotifTime(time)}
-              onChange={(e) => e.target.value && onTimeChange(e.target.value)}
+              value={fmtTime(item.time)}
+              onChange={(e) => e.target.value && setNotifTime(type, e.target.value)}
             />
           </div>
         )}
+        {item.enabled && quiet && (
+          <div className="st2-notif-hint">
+            {isHe ? 'השעה הזאת (23:00–06:00) עלולה להעיר אותך. אפשר לבחור שעה אחרת.' : 'This time (11 pm–6 am) may wake you. Pick another time if you like.'}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // A category header with its own switch; its rows dim while it (or the
+  // master switch) is off.
+  function NotifGroup({ category, children }) {
+    const on = notifPrefs.master && notifPrefs.categories[category];
+    return (
+      <div className={`st2-notif-group${on ? '' : ' st2-notif-group--off'}`}>
+        <div className="st2-notif-group__head">
+          <span>{isHe ? CATEGORY_LABELS[category].he : CATEGORY_LABELS[category].en}</span>
+          <button
+            type="button"
+            className={`st2-toggle st2-toggle--sm${notifPrefs.categories[category] ? ' st2-toggle--on' : ''}`}
+            onClick={() => setNotifCategory(category, !notifPrefs.categories[category])}
+            aria-pressed={notifPrefs.categories[category]}
+            aria-label={isHe ? CATEGORY_LABELS[category].he : CATEGORY_LABELS[category].en}
+          >
+            <span className="st2-toggle-knob" />
+          </button>
+        </div>
+        {children}
       </div>
     );
   }
@@ -1450,6 +1447,12 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
             </div>
           )}
 
+          <ToggleRow
+            label={isHe ? 'התאמת אימונים להתקדמות' : 'Adapt workouts to my progress'}
+            sub={isHe ? 'באימון חי: הצעה למשקל ולחזרות לפי מה שביצעת בפעמים הקודמות, עם הסבר. אפשר לכבות.' : 'In a live workout: a weight and rep suggestion based on your last sessions, with the reason. You can turn it off.'}
+            value={adaptOn}
+            onChange={(v) => { setAdaptEnabled(v); setAdaptOn(v); }}
+          />
           <button className="btn btn-primary st2-save-btn" disabled={loading} onClick={handleSaveBody}>
             {loading ? t.saving : t.saveChanges}
           </button>
@@ -1496,41 +1499,46 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
         <div className="st2-screen">
           {notifPermDenied && (
             <div className="st2-warn-banner">
-              {isHe
-                ? 'ההתראות חסומות במכשיר. פתח הגדרות הטלפון ← אפליקציות ← Areto ← התראות.'
-                : 'Notifications are blocked. Open Phone Settings → Apps → Areto → Notifications.'}
+              <div>
+                {isHe
+                  ? 'ההתראות חסומות במכשיר, ולכן התזכורות לא יישלחו. כדי לאפשר: הגדרות הטלפון ← אפליקציות ← Areto ← התראות ← אפשר. אחר כך חזור לכאן ולחץ "בדוק שוב".'
+                  : 'Notifications are blocked on this device, so reminders can’t be sent. To allow them: Phone Settings → Apps → Areto → Notifications → Allow. Then come back and tap “Check again”.'}
+              </div>
+              <button type="button" className="st2-warn-banner__btn" onClick={recheckNotifPermission}>
+                {isHe ? 'בדוק שוב' : 'Check again'}
+              </button>
             </div>
           )}
-          <NotifRow
-            label={isHe ? 'תזכורת אימון' : 'Workout reminder'} sub={isHe ? 'נעצר אחרי היעד השבועי' : 'Pauses after your weekly goal'}
-            value={notifWorkout} onChange={setNotifWorkout}
-            time={notifWorkoutTime} onTimeChange={setNotifWorkoutTime}
+          <ToggleRow
+            label={isHe ? 'כל ההתראות' : 'All notifications'}
+            sub={isHe ? 'מתג ראשי לכל התזכורות' : 'Master switch for every reminder'}
+            value={notifPrefs.master}
+            onChange={setNotifMaster}
           />
-          <NotifRow
-            label={isHe ? 'ארוחת בוקר' : 'Breakfast'} sub={isHe ? 'תזכורת יומית' : 'Daily reminder'}
-            value={notifMealMorning} onChange={setNotifMealMorning}
-            time={notifMealMorningTime} onTimeChange={setNotifMealMorningTime}
-          />
-          <NotifRow
-            label={isHe ? 'ארוחת צהריים' : 'Lunch'} sub={isHe ? 'תזכורת יומית' : 'Daily reminder'}
-            value={notifMealAfternoon} onChange={setNotifMealAfternoon}
-            time={notifMealAfternoonTime} onTimeChange={setNotifMealAfternoonTime}
-          />
-          <NotifRow
-            label={isHe ? 'ארוחת ערב' : 'Dinner'} sub={isHe ? 'תזכורת יומית' : 'Daily reminder'}
-            value={notifMealEvening} onChange={setNotifMealEvening}
-            time={notifMealEveningTime} onTimeChange={setNotifMealEveningTime}
-          />
-          <NotifRow
-            label={isHe ? 'התראת רצף' : 'Streak alert'} sub={isHe ? 'לא לאבד את הרצף' : 'Keep your streak'}
-            value={notifStreak} onChange={setNotifStreak}
-            time={notifStreakTime} onTimeChange={setNotifStreakTime}
-          />
-          <NotifRow
-            label={isHe ? 'סיכום שבועי' : 'Weekly recap'} sub={isHe ? 'כל יום ראשון' : 'Every Sunday'}
-            value={notifWeekly} onChange={setNotifWeekly}
-            time={notifWeeklyTime} onTimeChange={setNotifWeeklyTime}
-          />
+          <NotifGroup category="workout">
+            <NotifRow type="workout" label={isHe ? 'תזכורת אימון' : 'Workout reminder'}
+              sub={isHe ? 'לא נשלחת אחרי היעד השבועי, או אחרי שכבר התאמנת היום' : 'Skipped once you hit your weekly goal or already trained today'} />
+          </NotifGroup>
+          <NotifGroup category="nutrition">
+            <NotifRow type="meal_morning" label={isHe ? 'ארוחת בוקר' : 'Breakfast'}
+              sub={isHe ? 'לא נשלחת אם הארוחה כבר סומנה או נרשמה' : 'Skipped if the meal is already ticked or logged'} />
+            <NotifRow type="meal_afternoon" label={isHe ? 'ארוחת צהריים' : 'Lunch'}
+              sub={isHe ? 'לא נשלחת אם הארוחה כבר סומנה או נרשמה' : 'Skipped if the meal is already ticked or logged'} />
+            <NotifRow type="meal_evening" label={isHe ? 'ארוחת ערב' : 'Dinner'}
+              sub={isHe ? 'לא נשלחת אם הארוחה כבר סומנה או נרשמה' : 'Skipped if the meal is already ticked or logged'} />
+          </NotifGroup>
+          <NotifGroup category="streak">
+            <NotifRow type="streak" label={isHe ? 'התראת רצף' : 'Streak alert'}
+              sub={isHe ? 'לא נשלחת אם כבר פעלת היום' : 'Skipped if you already did something today'} />
+          </NotifGroup>
+          <NotifGroup category="sleep">
+            <NotifRow type="sleep_prompt" label={isHe ? 'תזכורת שינה' : 'Sleep reminder'}
+              sub={isHe ? 'בבוקר, ותזכורת נוספת אחרי שעתיים, עד שמעדכנים' : 'In the morning, plus one follow-up 2 hours later, until you log it'} />
+          </NotifGroup>
+          <NotifGroup category="weekly">
+            <NotifRow type="weekly" label={isHe ? 'סיכום שבועי' : 'Weekly recap'}
+              sub={isHe ? 'פעם בשבוע, ביום שתבחר' : 'Once a week, on the day you choose'} />
+          </NotifGroup>
         </div>
       )}
 

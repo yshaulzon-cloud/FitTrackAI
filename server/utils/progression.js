@@ -655,6 +655,9 @@ async function getProgressionStatus(userId, goalData, tz) {
     xpNeededForNext,
     progressPercent: Math.round((xpInCurrentLevel / xpNeededForNext) * 100),
     currentStreak: liveStreak(prog, tz),
+    // Did the user already do something that counts for the streak today (their
+    // timezone)? The streak reminder skips today when this is true.
+    activeToday: !!prog.lastActivityDate && startOfUserDay(tz, new Date(prog.lastActivityDate)).getTime() === startOfUserDay(tz).getTime(),
     longestStreak: prog.longestStreak,
     weekStreaksCompleted: prog.weekStreaksCompleted,
     stats: nextStats,

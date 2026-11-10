@@ -1332,42 +1332,6 @@ function estimateNutrition(description) {
   return combined;
 }
 
-async function estimateNutritionAI(description) {
-  const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  // Model is env-configurable so it can be swapped (e.g. if one model's
-  // free-tier quota runs out) without a code change / redeploy.
-  const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-  const model = genAI.getGenerativeModel({ model: modelName });
-
-  const result = await model.generateContent(
-    `אתה מומחה תזונה. עבור המאכל הבא, החזר רק JSON עם הערכים התזונתיים ל-100 גרם ושם באנגלית. אל תוסיף שום טקסט מלבד ה-JSON.\n\nמאכל: "${description}"\n\nפורמט:\n{"calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0,"englishName":"English Name"}`
-  );
-
-  const text = result.response.text().trim();
-  const jsonMatch = text.match(/\{[\s\S]*?\}/);
-  if (!jsonMatch) throw new Error('Gemini did not return valid JSON');
-
-  const parsed = JSON.parse(jsonMatch[0]);
-  const cal   = Math.round(Number(parsed.calories) || 0);
-  const prot  = Math.round(Number(parsed.protein)  || 0);
-  const carbs = Math.round(Number(parsed.carbs)    || 0);
-  const fat   = Math.round(Number(parsed.fat)      || 0);
-  const fiber = Math.round(Number(parsed.fiber)    || 0);
-
-  if (cal < 0 || cal > 900 || prot < 0 || prot > 100 ||
-      carbs < 0 || carbs > 100 || fat < 0 || fat > 100) {
-    throw new Error('Gemini returned out-of-range nutritional values');
-  }
-
-  return {
-    calories: cal, protein: prot, carbs, fat,
-    fiber: Math.max(0, Math.min(fiber, 50)),
-    source: 'ai',
-    englishName: typeof parsed.englishName === 'string' ? parsed.englishName.slice(0, 100) : null,
-  };
-}
-
 /**
  * Generate a weekly workout plan based on user profile
  * Based on ACSM 2026 guidelines:
@@ -1748,7 +1712,6 @@ module.exports = {
   getHealthyWeightRange,
   generateBMIAnalysis,
   estimateNutrition,
-  estimateNutritionAI,
   FOOD_DB,
   generateWorkoutPlan,
   getSleepRecommendation,

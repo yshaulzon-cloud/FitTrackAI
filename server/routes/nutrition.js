@@ -2,19 +2,39 @@
 const { param, query } = require('express-validator');
 const auth = require('../middleware/auth');
 const Nutrition = require('../models/Nutrition');
-const { estimateNutrition, estimateNutritionAI, calculateTDEE, calculateCalorieTarget, calculateMacros, FOOD_DB } = require('../utils/calculations');
+const { estimateNutrition, calculateTDEE, calculateCalorieTarget, calculateMacros, FOOD_DB } = require('../utils/calculations');
 const { checkNutritionGoals, revokeXP, updateStreak, recalcStreak, reconcileStreakForToday } = require('../utils/progression');
 const { startOfUserDay, startOfUserDayOffset } = require('../utils/dates');
 const { withUserLock } = require('../utils/userLock');
 const User = require('../models/User');
 const { getRandomMenu, getWeeklyMenu, swapMeal } = require('../data/mealPlans');
+const { withItems, withItemsForMenu } = require('../utils/mealItems');
+const Workout = require('../models/Workout');
+const { dayTypeFor } = require('../utils/dayType');
 
 const router = express.Router();
 
 // POST /nutrition/log
+// A suggested-menu meal already has exact totals (and the user may have edited
+// its foods), so the menu flow sends them along instead of having the server
+// guess them again from the description. Anything out of range is ignored and
+// the normal estimate is used.
+function parseNutritionOverride(n) {
+  if (!n || typeof n !== 'object') return null;
+  const limits = { calories: 3000, protein: 400, carbs: 600, fat: 300 };
+  const out = {};
+  for (const [k, max] of Object.entries(limits)) {
+    const v = Number(n[k]);
+    if (!Number.isFinite(v) || v < 0 || v > max) return null;
+    out[k] = Math.round(v);
+  }
+  return { ...out, fiber: 0, source: 'database', englishName: null };
+}
+
 router.post('/log', auth, async (req, res) => {
   try {
     const { description } = req.body;
+    const override = parseNutritionOverride(req.body.nutrition);
 
     if (!description || typeof description !== 'string' || !description.trim()) {
       return res.status(400).json({ message: 'Meal description is required', messageHe: 'יש להזין תיאור של הארוחה' });
@@ -23,18 +43,10 @@ router.post('/log', auth, async (req, res) => {
       return res.status(400).json({ message: 'Description too long (max 500 chars)', messageHe: 'תיאור ארוך מדי (מקסימום 500 תווים)' });
     }
 
-    let estimated = estimateNutrition(description);
+    let estimated = override || estimateNutrition(description);
 
-    // Not in the local DB — try Gemini for a one-off estimate.
-    if (!estimated) {
-      try {
-        estimated = await estimateNutritionAI(description);
-      } catch (aiErr) {
-        console.error('AI estimate error:', aiErr.message);
-      }
-    }
-
-    // AI also failed — fall back to a generic average-meal estimate.
+    // Not in the local food DB — fall back to a generic average-meal estimate.
+    // (No external service is called; meal text never leaves our server.)
     if (!estimated) {
       estimated = {
         calories: 350, protein: 15, carbs: 40, fat: 12, fiber: 3,
@@ -279,12 +291,39 @@ router.get(
       const heKey = item.keys.find((k) => /[֐-׿]/.test(k));
       const enKey = item.keys.find((k) => !/[֐-׿]/.test(k));
       const label = (he ? heKey : enKey) || item.keys[0];
-      scored.push({ score: best, name: label, cal: item.cal, p: item.p, c: item.c, f: item.f });
+      // Per 100 g, exactly as stored (fb = fibre). The client shows the basis.
+      scored.push({ score: best, name: label, cal: item.cal, p: item.p, c: item.c, f: item.f, fb: item.fb || 0, basis: 'per100g' });
     }
     scored.sort((a, b) => b.score - a.score || a.name.length - b.name.length);
     res.json({ results: scored.slice(0, 8).map(({ score, ...r }) => r) });
   },
 );
+
+// Training day / rest day for the user's local today, with the calorie target
+// adjusted so the weekly average is unchanged (see utils/dayType.js).
+async function todaysDayType(user, baseCalories) {
+  const tz = user.profile?.timezone;
+  const start = startOfUserDay(tz);
+  const end = startOfUserDayOffset(tz, 1);
+  const workedOutToday = !!(await Workout.exists({ userId: user._id, date: { $gte: start, $lt: end } }));
+  return { ...dayTypeFor({ profile: user.profile, baseCalories, workedOutToday }), workedOutToday };
+}
+
+// GET /nutrition/day-type
+router.get('/day-type', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user?.profile || !user.onboardingComplete) {
+      return res.status(400).json({ message: 'Profile not complete' });
+    }
+    const { tdee } = calculateTDEE(user.profile);
+    const baseCalories = calculateCalorieTarget(tdee, user.profile.goal, user.profile.weight, user.profile.bodyFatPercentage);
+    res.json({ ...(await todaysDayType(user, baseCalories)), baseCalories });
+  } catch (error) {
+    console.error('Day type error:', error);
+    res.status(500).json({ message: 'Error getting day type' });
+  }
+});
 
 router.get('/daily-menu', auth, async (req, res) => {
   try {
@@ -298,12 +337,22 @@ router.get('/daily-menu', auth, async (req, res) => {
     const macros = calculateMacros(user.profile.weight, calorieTarget, user.profile.goal, user.profile.experience, user.profile.bodyFatPercentage);
     const excludeId = req.query.excludeId ? parseInt(req.query.excludeId) : null;
 
-    const menu = getRandomMenu(calorieTarget, excludeId, macros.protein);
+    // Today's menu is sized for today: a bit more on a training day, a bit less
+    // on a rest day (weekly average unchanged).
+    const day = await todaysDayType(user, calorieTarget);
+    const menu = getRandomMenu(day.calories, excludeId, macros.protein);
     if (!menu) {
       return res.status(404).json({ message: 'No menu found' });
     }
 
-    res.json({ menu, calorieTarget, proteinTarget: macros.protein });
+    // `items` = per-food nutrition for each meal (shares of the meal's totals).
+    res.json({
+      menu: withItemsForMenu(menu),
+      calorieTarget: day.calories,
+      baseCalorieTarget: calorieTarget,
+      dayType: { type: day.type, deltaPct: day.deltaPct },
+      proteinTarget: macros.protein,
+    });
   } catch (error) {
     console.error('Daily menu error:', error);
     res.status(500).json({ message: 'Error getting daily menu' });
@@ -327,7 +376,7 @@ router.get('/weekly-menu', auth, async (req, res) => {
       return res.status(404).json({ message: 'No weekly menu found' });
     }
 
-    res.json({ days, calorieTarget, proteinTarget: macros.protein });
+    res.json({ days: days.map(withItemsForMenu), calorieTarget, proteinTarget: macros.protein });
   } catch (error) {
     console.error('Weekly menu error:', error);
     res.status(500).json({ message: 'Error getting weekly menu' });
@@ -356,7 +405,7 @@ router.get('/swap-meal', auth, async (req, res) => {
       return res.status(404).json({ message: 'No alternative meal found' });
     }
 
-    res.json({ meal });
+    res.json({ meal: withItems(meal) });
   } catch (error) {
     console.error('Swap meal error:', error);
     res.status(500).json({ message: 'Error swapping meal' });

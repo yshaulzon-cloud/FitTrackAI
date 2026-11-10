@@ -1,0 +1,45 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#fff}canvas{width:540px;height:540px;display:block}</style>
+<script type="importmap">{"imports":{
+  "three":"./node_modules/three/build/three.module.js",
+  "three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { ToonRenderer } from './lib/toon.js';
+
+const qs = new URLSearchParams(location.search);
+const ex = await import(`./exercises/${qs.get('ex') || 'bench-press'}.js`);
+const SIZE = +(qs.get('size') || 2160);
+
+const scene = new THREE.Scene();
+const built = await ex.build(scene);
+const cam = { ...ex.camera };
+if (qs.get('cam')) {
+  const [az, el, tx, ty, tz, half] = qs.get('cam').split(',').map(Number);
+  Object.assign(cam, { azimuth: az, elevation: el, target: [tx, ty, tz], half });
+}
+const a = cam.azimuth * Math.PI / 180, e = cam.elevation * Math.PI / 180;
+const tgt = new THREE.Vector3(...cam.target);
+const camera = new THREE.OrthographicCamera(-cam.half, cam.half, cam.half, -cam.half, 0.1, 20);
+camera.position.copy(tgt).add(new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e)).multiplyScalar(8));
+camera.lookAt(tgt);
+
+const tr = new ToonRenderer(document.getElementById('c'), SIZE, { lineRadius: SIZE / 600 * Math.min(1, 1.2 / cam.half) ** 0.5 });
+window.DURATION = ex.DURATION;
+window.renderAt = (t) => {
+  const r = built.update(t);
+  tr.render(scene, camera);
+  return r;
+};
+window.frameAt = (t) => {
+  const r = window.renderAt(t);
+  return { png: document.getElementById('c').toDataURL('image/png'), debug: JSON.parse(JSON.stringify(r.debug)) };
+};
+const gl = tr.r.getContext();
+const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+window.GPU = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : 'unknown';
+window.INFO = JSON.parse(JSON.stringify(built.info));
+window.READY = true;
+</script></body></html>

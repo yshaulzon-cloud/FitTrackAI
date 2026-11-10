@@ -1,6 +1,19 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLang } from '../context/LanguageContext';
 import { getExerciseCue } from '../lib/exerciseCues';
+import { getExerciseVideo, getExerciseVideoSlug } from '../lib/exerciseVideos.mjs';
+import VIDEO_EDGES from '../lib/exerciseVideoEdges.json';
+import ExerciseSwapSheet from './ExerciseSwapSheet';
+import { recommend, explain, isAdaptEnabled, markTooHard, tooHardAtFor } from '../lib/workoutAdapt.mjs';
+import { easierVariant, equipmentOk, normalizeUserEquipment } from '../lib/exerciseLibrary.mjs';
+
+const videoFor = (name) => getExerciseVideo(name, import.meta.env.BASE_URL);
+// Paints the strip beside the square clip with the clip's own edge colours,
+// so the white backdrop and grey floor band run edge to edge.
+const backdropFor = (name) => {
+  const g = VIDEO_EDGES[getExerciseVideoSlug(name)];
+  return g ? { background: g } : undefined;
+};
 
 // ─────────────────────────────────────────────────────────────────────
 // Live workout session — full-screen tracked workout experience.
@@ -110,7 +123,7 @@ export function clearActiveSession() {
   try { localStorage.removeItem(ACTIVE_SESSION_KEY); } catch { /* ignore */ }
 }
 
-export default function WorkoutSession({ planExercises, dayName, location, api, onFinish, onDiscard, restore, userName }) {
+export default function WorkoutSession({ planExercises, dayName, location, api, onFinish, onDiscard, restore, userName, userEquipment, onPermanentSwap }) {
   const { lang } = useLang();
   const isHe = lang === 'he';
 
@@ -128,6 +141,8 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
   const [error, setError] = useState('');
   const [confirmExit, setConfirmExit] = useState(false);
   const [lastPerf, setLastPerf] = useState({});
+  const [swapOpen, setSwapOpen] = useState(false);
+  const [swapUndo, setSwapUndo] = useState(null); // { idx, prev, to, permanent } — shown for a few seconds
   const [xpAnimated, setXpAnimated] = useState(0);
   const perfApplied = useRef(!!restore);
   const wakeLockRef = useRef(null);
@@ -281,6 +296,56 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
     }
   }
 
+  // ── Swap the current exercise ────────────────────────────────────────
+  // Only before any set of it is ticked, so the log never mixes two exercises.
+  // The log records the exercise actually performed (its name is what is saved).
+  async function loadPerfFor(name, idx) {
+    try {
+      const res = await api('/workout/performance', { method: 'POST', body: JSON.stringify({ names: [name] }) });
+      const p = res.performances?.[name];
+      if (!p) return;
+      setLastPerf((prev) => ({ ...prev, [name]: p }));
+      setExs((prev) => prev.map((ex, i) => (i !== idx || ex.name !== name || ex.mode === 'time' ? ex : {
+        ...ex,
+        sets: ex.sets.map((st, si) => ({
+          ...st,
+          weight: st.weight ?? p.sets[Math.min(si, p.sets.length - 1)]?.weight ?? null,
+          reps: p.sets[Math.min(si, p.sets.length - 1)]?.reps ?? st.reps,
+        })),
+      })));
+    } catch { /* non-critical */ }
+  }
+
+  function doSwap(alt, { permanent = false } = {}) {
+    const idx = curIdx;
+    const prevEx = exs[idx];
+    if (!prevEx || prevEx.sets.some((st) => st.done)) return;
+    const timed = alt.pattern === 'core-hold';
+    const reps = timed ? '45-60 שניות' : (prevEx.mode === 'time' ? '12-15' : prevEx.targetReps);
+    const fresh = initExercises([{ name: alt.name, sets: prevEx.sets.length, reps, muscleGroup: alt.muscle }], location)[0];
+    setExs((prev) => prev.map((e, i) => (i === idx ? fresh : e)));
+    // Choosing the easier version is the "too hard" signal for the exercise it replaced.
+    if (alt.isEasier) markTooHard(prevEx.name);
+    setSwapUndo({ idx, prev: prevEx, to: alt.name, permanent });
+    setSwapOpen(false);
+    if (permanent && onPermanentSwap) onPermanentSwap(prevEx.name, alt);
+    loadPerfFor(alt.name, idx);
+  }
+
+  function undoSwap() {
+    if (!swapUndo) return;
+    const { idx, prev, to, permanent } = swapUndo;
+    setExs((cur0) => cur0.map((e, i) => (i === idx ? prev : e)));
+    setSwapUndo(null);
+    if (permanent && onPermanentSwap) onPermanentSwap(to, { name: prev.name, muscle: prev.muscleGroup });
+  }
+
+  useEffect(() => {
+    if (!swapUndo) return undefined;
+    const tm = setTimeout(() => setSwapUndo(null), 9000);
+    return () => clearTimeout(tm);
+  }, [swapUndo]);
+
   // Dismiss the rest sheet — via timeout ("Start set") or manual skip. If the
   // exercise that just finished is fully done and isn't the last one, hand
   // off to the transition sheet instead of silently landing on the next card.
@@ -304,11 +369,12 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
   }
 
   // Smart weight suggestion: last time's weight + progressive overload step.
-  function applySuggestion() {
-    const p = lastPerf[cur.name];
-    if (!p) return;
-    const suggested = (p.sets[0]?.weight ?? 0) + 2.5;
-    setExs(prev => prev.map((e, i) => i !== curIdx ? e : { ...e, sets: e.sets.map(s => ({ ...s, weight: suggested })) }));
+  function applySuggestion(rec) {
+    if (!rec) return;
+    setExs(prev => prev.map((e, i) => i !== curIdx ? e : {
+      ...e,
+      sets: e.sets.map(s => (s.done ? s : { ...s, weight: rec.weight > 0 ? rec.weight : s.weight, reps: rec.reps })),
+    }));
   }
 
   // Swipe left/right to move between exercises.
@@ -514,6 +580,10 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
   if (!cur) return null;
   const primaryName = isHe ? cur.name : getEnglishName(cur.name);
   const perf = lastPerf[cur.name];
+  // Progression suggestion from the user's own history (can be switched off in Settings).
+  const adaptRec = (isAdaptEnabled() && perf && cur.mode === 'reps')
+    ? recommend({ recent: perf.recent || [{ date: perf.date, sets: perf.sets }], targetReps: cur.targetReps, tooHardAt: tooHardAtFor(cur.name) })
+    : null;
   const curSetIdx = cur.sets.findIndex(s => !s.done);
   const allDone = exs.every(e => e.sets.every(s => s.done));
   const restSecs = restSecondsFor(cur);
@@ -584,12 +654,25 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
         </div>
       )}
 
-      {/* Exercise card: demo strip, the prescription, then the set rows */}
+      {/* Exercise card: demo clip, the prescription, then the set rows */}
       <div className="ws-live__card" key={curIdx}>
-        <button type="button" className="ws-live__demo" onClick={openTutorial}>
-          <DumbbellIcon />
-          <span>{isHe ? 'וידאו הדגמת תרגיל' : 'Exercise demo video'}</span>
-        </button>
+        {videoFor(cur.name) ? (
+          <div className="ws-live__video" style={backdropFor(cur.name)}>
+            <DemoVideo src={videoFor(cur.name)} label={primaryName} isHe={isHe} />
+            <button type="button" className="ws-live__tutorial" onClick={openTutorial}>
+              {isHe ? 'מדריך מלא' : 'Full tutorial'}
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="ws-live__demo" onClick={openTutorial}>
+            <DumbbellIcon />
+            <span>{isHe ? 'וידאו הדגמת תרגיל' : 'Exercise demo video'}</span>
+          </button>
+        )}
+        {/* Warm up the next clip so swiping or advancing shows it at once */}
+        {exs[curIdx + 1] && videoFor(exs[curIdx + 1].name) && (
+          <video className="ws-preload" src={videoFor(exs[curIdx + 1].name)} preload="auto" muted playsInline aria-hidden="true" />
+        )}
         <div className="ws-live__card-body">
           <div className="ws-live__name">{primaryName}</div>
           <div className="ws-live__meta">
@@ -606,6 +689,25 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
                 ].filter(Boolean).join(' · ')}
           </div>
 
+          {/* Swap / easier version — before the first set of this exercise is ticked */}
+          {!cur.sets.some((st) => st.done) && (() => {
+            const easier = easierVariant(cur.name);
+            const names = exs.map((e) => e.name);
+            const showEasier = easier && !names.includes(easier.name) && equipmentOk(easier, normalizeUserEquipment(userEquipment));
+            return (
+              <div className="ws-live__swaprow">
+                {showEasier && (
+                  <button type="button" className="ws-live__swapbtn ws-live__swapbtn--easy" onClick={() => doSwap({ ...easier, isEasier: true })}>
+                    {isHe ? 'גרסה קלה יותר' : 'Easier version'}
+                  </button>
+                )}
+                <button type="button" className="ws-live__swapbtn" onClick={() => setSwapOpen(true)}>
+                  {isHe ? 'החלף תרגיל' : 'Swap exercise'}
+                </button>
+              </div>
+            );
+          })()}
+
           {/* What you did last time, and the nudge past it */}
           {perf && cur.mode === 'reps' && (
             <div className="ws-live__last">
@@ -616,16 +718,19 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
                   {perf.sets[0]?.weight ? ` @ ${perf.sets[0].weight} ${isHe ? 'ק״ג' : 'kg'}` : ''}
                 </strong>
               </span>
-              {location === 'gym' && perf.sets[0]?.weight != null && (
-                <button type="button" className="ws-live__suggest" onClick={applySuggestion}>
+              {adaptRec && (
+                <button type="button" className="ws-live__suggest" onClick={() => applySuggestion(adaptRec)}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-2px', marginInlineEnd: 3 }}>
                     <path d="M12 4l1.7 4.6 4.8 1.7-4.8 1.7L12 16.6l-1.7-4.6-4.8-1.7 4.8-1.7z" />
                   </svg>
-                  {perf.sets[0].weight + 2.5} {isHe ? 'ק״ג' : 'kg'}
+                  {adaptRec.weight > 0
+                    ? `${adaptRec.weight} ${isHe ? 'ק״ג' : 'kg'} × ${adaptRec.reps}`
+                    : `${adaptRec.reps} ${isHe ? 'חזרות' : 'reps'}`}
                 </button>
               )}
             </div>
           )}
+          {adaptRec && <div className="ws-live__why">{explain(adaptRec, isHe)}</div>}
 
           {cur.mode === 'reps' && (
             <div className="ws-live__setops">
@@ -777,6 +882,11 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
             </div>
             <div className="ws-transition__title">{isHe ? `סיימת ${fromEx.name}` : `${getEnglishName(fromEx.name)} complete`}</div>
             <div className="ws-transition__next">
+              {videoFor(toEx.name) && (
+                <div className="ws-transition__video" style={backdropFor(toEx.name)}>
+                  <DemoVideo src={videoFor(toEx.name)} label={isHe ? toEx.name : getEnglishName(toEx.name)} isHe={isHe} />
+                </div>
+              )}
               <div className="ws-transition__next-label">{isHe ? 'הבא בתור' : 'Up next'}</div>
               <div className="ws-transition__next-name">
                 <span className="ws-transition__dot" style={{ background: MUSCLE_COLORS[toEx.muscleGroup] || 'var(--accent)' }} />
@@ -800,6 +910,24 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
           </div>
         );
       })()}
+
+      {swapOpen && (
+        <ExerciseSwapSheet
+          exerciseName={cur.name}
+          inSession={exs.map((e) => e.name)}
+          equipment={userEquipment}
+          allowPermanent={!!onPermanentSwap}
+          isHe={isHe}
+          onPick={(alt, opts) => doSwap(alt, opts)}
+          onClose={() => setSwapOpen(false)}
+        />
+      )}
+      {swapUndo && (
+        <div className="ws-undo" role="status">
+          <span>{isHe ? 'הוחלף ל' : 'Swapped to '}{isHe ? getEnglishName(swapUndo.to) === swapUndo.to ? swapUndo.to : swapUndo.to.replace(/\s*\(.*\)\s*$/, '') : getEnglishName(swapUndo.to)}</span>
+          <button type="button" onClick={undoSwap}>{isHe ? 'בטל' : 'Undo'}</button>
+        </div>
+      )}
 
       {/* Finish early sits beside the set CTA; it needs at least one logged set
           to have anything worth saving. */}
@@ -828,6 +956,56 @@ function Stepper({ label, value, step, onChange }) {
         <span className="ws-step__unit">{label}</span>
       </div>
       <button type="button" className="ws-step__btn" onClick={inc} aria-label={`+ ${label}`}>+</button>
+    </div>
+  );
+}
+
+// Silent looping demo clip, played from the app bundle (no network wait).
+// It always starts on its own — the owner's rule is that nobody should ever
+// have to press play. Capacitor's WebView allows autoplay without a gesture
+// (Bridge.java sets mediaPlaybackRequiresUserGesture=false), and the clip is
+// muted, which every browser allows to autoplay. As a safety net it retries
+// whenever it is ready, when the app returns to the foreground, and on the
+// next touch anywhere if a play() call was ever refused.
+function DemoVideo({ src, label, isHe }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return undefined;
+    v.muted = true; // set the property too: the attribute alone is not enough in some WebViews
+    const kick = () => {
+      if (!v.paused || document.hidden) return;
+      const p = v.play();
+      if (p && p.catch) p.catch(() => document.addEventListener('pointerdown', kick, { once: true }));
+    };
+    kick();
+    v.addEventListener('canplay', kick);
+    v.addEventListener('pause', kick); // e.g. paused by the system — resume
+    document.addEventListener('visibilitychange', kick);
+    return () => {
+      v.removeEventListener('canplay', kick);
+      v.removeEventListener('pause', kick);
+      document.removeEventListener('visibilitychange', kick);
+      document.removeEventListener('pointerdown', kick);
+    };
+  }, [src]);
+
+  return (
+    <div className="ws-demo" role="img" aria-label={isHe ? `הדגמת תרגיל: ${label}` : `Exercise demo: ${label}`}>
+      <video
+        ref={ref}
+        className="ws-demo__video"
+        src={src}
+        muted
+        loop
+        autoPlay
+        playsInline
+        preload="auto"
+        disablePictureInPicture
+        disableRemotePlayback
+        controls={false}
+      />
     </div>
   );
 }

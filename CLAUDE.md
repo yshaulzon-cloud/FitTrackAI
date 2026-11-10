@@ -95,10 +95,10 @@ Express API, CommonJS modules. MongoDB via Mongoose.
 **`server/utils/calculations.js`** — the core engine, all pure functions:
 - `calculateTDEE` / `calculateCalorieTarget` / `calculateMacros` — Mifflin-St Jeor (default) or Katch-McArdle (when body-fat % is known)
 - `generateWorkoutPlan` — builds a weekly split (push/pull/legs/upper-lower) from `profile.goal` + `profile.experience` + `workoutsPerWeek`
-- `estimateNutrition` — 3-pass lookup against `FOOD_DB` (substring → prefix → Levenshtein fuzzy). Falls back to `estimateNutritionAI` (Claude API) when not found, then a generic 350 kcal placeholder
+- `estimateNutrition` — 3-pass lookup against `FOOD_DB` (substring → prefix → Levenshtein fuzzy). When nothing matches, the route falls back to a generic 350 kcal placeholder (`source: 'default'`). There is **no AI/external service** in the app (the Gemini fallback was removed in Nov 2026); the `'ai'` value stays in the `Nutrition.source` enum only so old records still load
 - `FOOD_DB` — large array of Hebrew/English keyed food entries with cal/protein/carbs/fat/fiber
 
-**Nutrition logging flow:** `POST /nutrition/log` receives a free-text Hebrew description → `estimateNutrition()` → Claude API fallback → saves `Nutrition` document → triggers XP check.
+**Nutrition logging flow:** `POST /nutrition/log` receives a free-text Hebrew description → `estimateNutrition()` → generic placeholder if not found → saves `Nutrition` document → triggers XP check.
 
 **XP / Progression:** `server/utils/progression.js` awards XP for meal logs, workout completions, streaks; tracks levels and unlocks.
 
@@ -117,11 +117,12 @@ Local notifications are scheduled via `client/src/lib/notifications.js` — no-o
 Server requires a `.env` in `server/`:
 
 ```
-MONGODB_URI=          # MongoDB Atlas connection string (database: fittrack-ai)
+MONGODB_URI=          # MongoDB Atlas connection string (database: bodysync; Atlas Cluster0, AWS eu-north-1)
 JWT_SECRET=           # Long random string
-ANTHROPIC_API_KEY=    # Used only for AI fallback in estimateNutritionAI()
-EMAIL_USER=           # Gmail address for password-reset emails
-EMAIL_PASS=           # Gmail 16-char app password
+RESEND_API_KEY=       # Password-reset email in production (HTTPS; Render free tier blocks SMTP)
+EMAIL_FROM=           # Sender on the Resend-verified domain
+EMAIL_USER=           # Local-dev only: Gmail address for SMTP fallback
+EMAIL_PASS=           # Local-dev only: Gmail 16-char app password
 CORS_ORIGIN=          # Comma-separated production origins (blank = allow all in dev)
 GOOGLE_CLIENT_ID=     # 674273831957-r79t2lo52fpddlairlldu9gvihkjvf7h.apps.googleusercontent.com
 ```
@@ -136,4 +137,4 @@ Client build requires `VITE_API_URL` set to the production API base URL for non-
 - The app is mobile-first RTL. CSS uses `inset-inline-start/end` (logical properties) for RTL-safe positioning.
 - `api()` from `AuthContext` is the standard way to make authenticated calls from the client — it handles the `Authorization` header and re-throws on non-OK responses.
 - Food entries added to `FOOD_DB` need both Hebrew and English `keys`; order matters — more specific entries must come before generic catch-alls.
-- The Anthropic API (`@anthropic-ai/sdk`) is a server-side-only dependency; never import it in client code.
+- The app uses no AI/LLM service. If one is ever added, keep API keys server-side only, and update `client/public/privacy.html`, `LegalModal.jsx`, and the Play Data safety form first.

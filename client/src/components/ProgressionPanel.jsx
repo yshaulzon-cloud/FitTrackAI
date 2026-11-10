@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLang } from '../context/LanguageContext';
+import { daysWord, streakChip } from '../lib/plural.mjs';
 
 const BADGE_ICONS = {
   first_workout: '👟', workout_10: '🏋️', workout_25: '🔨', workout_50: '⚡', workout_100: '🏆', workout_200: '🫡',
@@ -38,6 +39,11 @@ function StatIcon({ type, color = 'currentColor', size = 17 }) {
   if (type === 'flame')    return <svg {...p}><path d="M12 3c1 3.5 5 5.5 5 9.5a5 5 0 0 1-10 0C7 10 8.5 8.5 9.5 7c.5 1.5 1.3 2.4 2.8 3-.8-2.3-.8-4.7-.3-7z" /></svg>;
   if (type === 'salad')    return <svg {...p}><path d="M12 8c-1.8-1.8-4.5-2-6-.3-2 2.2-1.8 6.5.5 9.8C8.3 20 10.2 21 12 21s3.7-1 5.5-3.5c2.3-3.3 2.5-7.6.5-9.8-1.5-1.7-4.2-1.5-6 .3z" /><path d="M12 8V5.5" /><path d="M12 6c0-1.5 1-2.5 2.5-2.8" /></svg>;
   if (type === 'calendar') return <svg {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>;
+  // Calorie-goal streak: a bullseye with a dart in the middle reads as "you hit
+  // the goal" at a glance, which the apple/dome shapes did not at card size.
+  if (type === 'bullseye') return <svg {...p}><circle cx="11" cy="13" r="8" /><circle cx="11" cy="13" r="4.5" /><circle cx="11" cy="13" r="1" fill={color} /><path d="M11 13l8-8M15.5 4.5h4v4" /></svg>;
+  // Week streak: a calendar with a tick, so it is not just "a calendar".
+  if (type === 'calendarCheck') return <svg {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4M8.5 15.5l2.5 2.5 4.5-4.5" /></svg>;
   return null;
 }
 
@@ -225,7 +231,7 @@ export default function ProgressionPanel({ api, view = 'prog' }) {
         </div>
         {data.currentStreak > 0 && (
           <div className="xp-hero__streak">
-            <StatIcon type="flame" color="var(--streak, #FF9A4D)" size={15} /> {data.currentStreak} {isHe ? 'ימים ברצף' : 'day streak'}
+            <StatIcon type="flame" color="var(--streak, #FF9A4D)" size={20} /> {streakChip(data.currentStreak, isHe)}
           </div>
         )}
       </div>
@@ -235,17 +241,17 @@ export default function ProgressionPanel({ api, view = 'prog' }) {
       {showProg && (
       <div className="streak-grid">
         <div className="streak-card">
-          <div className="streak-icon"><StatIcon type="flame" color="var(--streak, #FF9A4D)" size={28} /></div>
-          <div className="streak-value">{data.currentStreak}<span style={{ fontSize: 14, fontWeight: 400 }}> {t.days}</span></div>
+          <div className="streak-icon" style={{ '--tint': 'var(--streak, #FF9A4D)' }}><StatIcon type="flame" color="var(--tint)" size={34} /></div>
+          <div className="streak-value">{data.currentStreak}<span style={{ fontSize: 14, fontWeight: 400 }}> {daysWord(data.currentStreak, isHe)}</span></div>
           <div className="streak-label">{t.currentStreak}</div>
         </div>
         <div className="streak-card">
-          <div className="streak-icon"><StatIcon type="salad" color="var(--c-carbs, #4D9FFF)" size={28} /></div>
-          <div className="streak-value">{data.calorieStreak}<span style={{ fontSize: 14, fontWeight: 400 }}> {t.days}</span></div>
+          <div className="streak-icon" style={{ '--tint': 'var(--c-carbs, #4D9FFF)' }}><StatIcon type="bullseye" color="var(--tint)" size={34} /></div>
+          <div className="streak-value">{data.calorieStreak}<span style={{ fontSize: 14, fontWeight: 400 }}> {daysWord(data.calorieStreak, isHe)}</span></div>
           <div className="streak-label">{t.longestStreak}</div>
         </div>
         <div className="streak-card">
-          <div className="streak-icon"><StatIcon type="calendar" color="var(--accent, #2FE3C2)" size={28} /></div>
+          <div className="streak-icon" style={{ '--tint': 'var(--accent, #2FE3C2)' }}><StatIcon type="calendarCheck" color="var(--tint)" size={34} /></div>
           <div className="streak-value">{data.weekStreaksCompleted}</div>
           <div className="streak-label">{t.weekStreaks}</div>
         </div>

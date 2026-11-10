@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
+import { daysLabel } from '../lib/plural.mjs';
 
 // Small line-icon set matching the app's nav-icon style (see StIc in
 // Dashboard.jsx / ObIcon in OnboardingFlow.jsx) — used in place of the
@@ -718,8 +719,8 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
         <BalanceChart days={balanceDays} goal={goalDir} isHe={isHe} />
         <div style={{ fontSize: 11, color: 'var(--text-4)', marginTop: 8, fontStyle: 'italic' }}>
           {isHe
-            ? `יעד יומי: ${calorieTarget.toLocaleString()} קלוריות · נתונים מ-${loggedDays.length} ימים שתועדו.`
-            : `Daily target: ${calorieTarget.toLocaleString()} kcal · based on ${loggedDays.length} logged days.`}
+            ? `יעד יומי: ${calorieTarget.toLocaleString()} קלוריות · נתונים מ-${daysLabel(loggedDays.length, true)} שתועדו.`
+            : `Daily target: ${calorieTarget.toLocaleString()} kcal · based on ${daysLabel(loggedDays.length, false)} logged.`}
         </div>
       </div>
 

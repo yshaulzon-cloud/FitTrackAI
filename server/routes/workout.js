@@ -176,7 +176,16 @@ router.post(
               date: w.date,
               sets: doneSets.map(s => ({ reps: s.reps, weight: s.weight, durationSec: s.durationSec })),
               bestWeight: 0,
+              recent: [],
             };
+          }
+          // Up to the 3 latest sessions of this exercise (newest first): the
+          // client's progression suggestion looks at the last two or three.
+          if (performances[ex.name].recent.length < 3) {
+            performances[ex.name].recent.push({
+              date: w.date,
+              sets: doneSets.map(s => ({ reps: s.reps, weight: s.weight })),
+            });
           }
           for (const s of doneSets) {
             if (s.weight > 0 && s.weight > performances[ex.name].bestWeight) {
@@ -221,6 +230,28 @@ router.delete('/:id', auth, async (req, res) => {
   } catch (error) {
     console.error('Delete workout error:', error);
     res.status(500).json({ message: 'Error deleting workout' });
+  }
+});
+
+// GET /workout/list?limit=10&before=<ISO date>
+// Cursor-paged list of the user's workouts, newest first, for the "recent
+// workouts" section. Unlike /history it does no streak maths, so it is cheap
+// to call repeatedly ("load more" passes the date of the last item it has).
+router.get('/list', auth, async (req, res) => {
+  try {
+    const limit = Math.min(30, Math.max(1, parseInt(req.query.limit, 10) || 10));
+    const query = { userId: req.userId };
+    if (req.query.before) {
+      const before = new Date(String(req.query.before));
+      if (Number.isNaN(before.getTime())) return res.status(400).json({ message: 'Invalid cursor' });
+      query.date = { $lt: before };
+    }
+    // One extra row tells us whether there is another page without a count query.
+    const rows = await Workout.find(query).sort({ date: -1 }).limit(limit + 1).lean();
+    res.json({ workouts: rows.slice(0, limit), hasMore: rows.length > limit });
+  } catch (error) {
+    console.error('Workout list error:', error);
+    res.status(500).json({ message: 'שגיאה בטעינת האימונים' });
   }
 });
 

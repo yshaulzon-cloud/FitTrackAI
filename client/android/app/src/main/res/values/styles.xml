@@ -17,6 +17,13 @@
 
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
+        <!-- Android 11 and below: navy under the (transparent) splash artwork. -->
+        <item name="android:background">@drawable/splash_bg</item>
+        <!-- Android 12+: the system draws the splash itself. Without these it
+             paints the launcher icon in a mask on a theme-default (grey/white)
+             disc, which showed up as a box around the logo. A navy background
+             and a transparent-background logo remove it. -->
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
     </style>
 </resources>

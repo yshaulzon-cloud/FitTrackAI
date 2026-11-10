@@ -1,17 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLang } from '../context/LanguageContext';
+import { mealTimes, chronologicalOrder, nextMealIndex } from '../lib/mealTimes.mjs';
+import MealEditor, { MealItemsList } from './MealEditor';
+import { applyMealToMenu, logValuesOf, menuHasUserState } from '../lib/mealEdit.mjs';
 function isNativeShell() {
   try {
     return typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true;
   } catch { return false; }
 }
 
-const MEAL_TYPE_TIMES = {
-  breakfast: '07:30',
-  snack: '10:30',
-  lunch: '13:00',
-  dinner: '19:30',
-};
+// Meal times come from lib/mealTimes.mjs (by slot in the day, so the two
+// snacks of a plan get different hours).
 const MEAL_TYPE_EMOJI = {
   breakfast: '🌅',
   snack: '🥐',
@@ -245,7 +244,7 @@ function LoggedMealRow({ meal, isHe, t, onDelete }) {
   );
 }
 
-export default function NutritionTracker({ targets, todayData, api, onUpdate, showXP }) {
+export default function NutritionTracker({ targets, todayData, api, onUpdate, showXP, dayType }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
 
@@ -269,6 +268,8 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
   const [swappingIdx, setSwappingIdx] = useState(null);
   const [loggingIdx, setLoggingIdx] = useState(null);
   const [expandedMenuIdx, setExpandedMenuIdx] = useState(null);
+  const [editingIdx, setEditingIdx] = useState(null); // menu row being edited at food level
+  const [weeklyOpenKey, setWeeklyOpenKey] = useState(null); // "day-meal" whose foods are shown
   const [history, setHistory] = useState([]);
   const [hydrated, setHydrated] = useState(false);
   // Which daily-menu rows the user has ticked "eaten" today. Kept per
@@ -306,6 +307,9 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify({
         menuOpen, menu, menuCalTarget, menuMode, weeklyMenu, weeklyDayIdx, menuLogged,
       }));
+      // Tell the reminder scheduler: a ticked meal must stop today's reminder
+      // for it (and an un-tick brings it back). See useReminderSync.js.
+      window.dispatchEvent(new Event('areto:menu-logged'));
     } catch { /* storage full / unavailable */ }
   }, [hydrated, menuOpen, menu, menuCalTarget, menuMode, weeklyMenu, weeklyDayIdx, menuLogged]);
 
@@ -350,6 +354,45 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       setMenuLoading(false);
     }
   }
+
+  // Targets changed (weight or goal edited in Settings): show what moved and
+  // rebuild the menu, unless today's menu already has the user's own state in it.
+  const [targetChange, setTargetChange] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('nutrition:targetChange') || 'null'); } catch { return null; }
+  });
+  const [menuKept, setMenuKept] = useState(false);
+  // Applies a pending change once (remembered by its timestamp), whether the
+  // event arrived while this tab was open or the change was saved while it was
+  // unmounted (Settings) and we only see it on the next mount.
+  const applyTargetChange = () => {
+    let tc = null; let appliedAt = null;
+    try {
+      tc = JSON.parse(localStorage.getItem('nutrition:targetChange') || 'null');
+      appliedAt = localStorage.getItem('nutrition:targetChangeApplied');
+    } catch { /* ignore */ }
+    setTargetChange(tc);
+    if (!tc || String(tc.at) === appliedAt) return;
+    try { localStorage.setItem('nutrition:targetChangeApplied', String(tc.at)); } catch { /* ignore */ }
+    const weeklyMeals = Array.isArray(weeklyMenu) ? weeklyMenu.flatMap((d) => d.meals || []) : [];
+    const pseudo = menuMode === 'weekly' ? { meals: weeklyMeals } : menu;
+    if (!pseudo) return; // no menu open: the next one is built with the new target
+    if (menuHasUserState(pseudo, menuLogged, todayKey)) { setMenuKept(true); return; }
+    setMenuKept(false);
+    if (menuMode === 'weekly') fetchWeeklyMenu(); else fetchMenu();
+  };
+  useEffect(() => {
+    if (hydrated) applyTargetChange();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
+  useEffect(() => {
+    window.addEventListener('areto:targets-changed', applyTargetChange);
+    return () => window.removeEventListener('areto:targets-changed', applyTargetChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menu, weeklyMenu, menuLogged, menuMode, todayKey]);
+  const dismissTargetChange = () => {
+    try { localStorage.removeItem('nutrition:targetChange'); } catch { /* ignore */ }
+    setTargetChange(null); setMenuKept(false);
+  };
 
   async function fetchWeeklyMenu() {
     setMenuLoading(true);
@@ -556,7 +599,7 @@ ${content}
       const description = isHe ? meal.he : (meal.en || meal.he);
       const result = await api('/nutrition/log', {
         method: 'POST',
-        body: JSON.stringify({ description }),
+        body: JSON.stringify({ description, nutrition: logValuesOf(meal) }),
       });
       if (showXP && result?.xp) showXP(result.xp);
       // Mark this menu row as eaten so its button flips to "done".
@@ -753,12 +796,11 @@ ${content}
   // Rows in loggedMenuSet are 'done'; the earliest remaining one is 'now';
   // the rest are 'upcoming'. Driven by explicit taps (loggedMenuSet) rather
   // than a raw logged-meal count, so marking a meal actually sticks.
-  let nowIdx = -1;
-  if (menuMeals.length > 0) {
-    for (let i = 0; i < menuMeals.length; i++) {
-      if (!loggedMenuSet.has(i)) { nowIdx = i; break; }
-    }
-  }
+  // -1 when every meal is eaten (the menu view then shows the "done" state
+  // instead of repeating meal 0 as "up next").
+  const nowIdx = menuMeals.length > 0 ? nextMealIndex(menuMeals, loggedMenuSet) : -1;
+  const menuTimes = mealTimes(menuMeals);
+  const weeklyTimes = mealTimes(weeklyDayMeals);
   function menuMealStatus(idx) {
     if (loggedMenuSet.has(idx)) return 'done';
     return idx === nowIdx ? 'now' : 'upcoming';
@@ -818,6 +860,45 @@ ${content}
         </div>
       </div>
 
+      {dayType && (
+        <div style={{ marginTop: 14, display: 'flex', alignItems: 'flex-start', gap: 10, background: dayType.type === 'training' ? 'rgba(47,227,194,.08)' : 'rgba(143,138,247,.08)', border: `1px solid ${dayType.type === 'training' ? 'rgba(47,227,194,.22)' : 'rgba(143,138,247,.22)'}`, borderRadius: 14, padding: '10px 14px' }}>
+          <div style={{ fontSize: 13.5, color: 'var(--text-1)', lineHeight: 1.6 }}>
+            <strong>{dayType.type === 'training' ? (isHe ? 'יום אימון' : 'Training day') : (isHe ? 'יום מנוחה' : 'Rest day')}</strong>
+            <span style={{ color: 'var(--text-3)' }}>
+              {' · '}
+              {dayType.deltaPct === 0
+                ? (isHe ? 'יעד התפריט כרגיל' : 'menu target as usual')
+                : (isHe
+                    ? `תפריט מותאם ${dayType.deltaPct > 0 ? '+' : '−'}${Math.abs(dayType.deltaPct)}% (הממוצע השבועי לא משתנה)`
+                    : `menu ${dayType.deltaPct > 0 ? '+' : '−'}${Math.abs(dayType.deltaPct)}% (weekly average unchanged)`)}
+            </span>
+            {dayType.type === 'rest' && (
+              <div style={{ color: 'var(--text-2)', fontSize: 12.5 }}>
+                {isHe ? 'מנוחה היא חלק מהאימון: השרירים בונים את עצמם בהתאוששות. גם ביום מנוחה, תיעוד ארוחה או שינה שומר על הרצף.' : 'Rest is part of training: muscle is built while you recover. Logging a meal or sleep still keeps your streak.'}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {targetChange && (
+        <div role="status" style={{ marginTop: 14, background: 'rgba(143,138,247,.08)', border: '1px solid rgba(143,138,247,.22)', borderRadius: 14, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1, fontSize: 13.5, color: 'var(--text-1)', lineHeight: 1.6 }}>
+            <strong>{isHe ? 'היעד היומי עודכן' : 'Your daily target was updated'}</strong>
+            <div style={{ color: 'var(--text-2)' }}>
+              {Math.round(targetChange.from.calorieTarget).toLocaleString()} → {Math.round(targetChange.to.calorieTarget).toLocaleString()} {isHe ? 'קק״ל' : 'kcal'}
+              {' · '}{isHe ? 'חלבון' : 'protein'} {Math.round(targetChange.from.protein)} → {Math.round(targetChange.to.protein)}g
+            </div>
+            <div style={{ color: 'var(--text-3)', fontSize: 12.5 }}>
+              {menuKept
+                ? (isHe ? 'התפריט של היום נשמר, כי כבר אכלת ממנו או ערכת אותו. התפריט החדש יתאים ליעד מהפעם הבאה.' : 'Today’s menu was kept because you already ate from it or edited it. New menus use the new target.')
+                : (isHe ? 'התפריט הותאם ליעד החדש.' : 'The menu was rebuilt for the new target.')}
+            </div>
+          </div>
+          <button type="button" onClick={dismissTargetChange} aria-label={isHe ? 'סגור' : 'Dismiss'} style={{ minWidth: 40, minHeight: 40, background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 20, cursor: 'pointer' }}>×</button>
+        </div>
+      )}
+
       {/* Menu controls: daily/weekly switch + PDF export. Both call functions
           the rebuild left in place but stopped rendering. */}
       {menuOpen && (
@@ -869,18 +950,27 @@ ${content}
                       {isHe ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'צהריים', dinner: 'ערב' }[meal.type] || meal.type)
                             : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[meal.type] || meal.type)}
                     </span>
-                    <span style={{ fontSize: 12.5, color: '#7C8798', fontVariantNumeric: 'tabular-nums' }}>{MEAL_TYPE_TIMES[meal.type] || '—'}</span>
+                    <span style={{ fontSize: 12.5, color: '#7C8798', fontVariantNumeric: 'tabular-nums' }}>{weeklyTimes[mi] || '—'}</span>
                   </div>
                   <div style={{ fontSize: 13.5, color: '#93A0B4', marginTop: 5, lineHeight: 1.6 }}>{isHe ? meal.he : (meal.en || meal.he)}</div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                     <span style={{ fontSize: 11, color: '#F5698C', background: 'rgba(245,105,140,.08)', borderRadius: 999, padding: '3px 9px' }}>{meal.protein}g {isHe ? 'חלבון' : 'protein'}</span>
                     <span style={{ fontSize: 11, color: '#7C8798', background: 'var(--fill-faint)', borderRadius: 999, padding: '3px 9px' }}>{meal.calories} {isHe ? 'קק״ל' : 'kcal'}</span>
+                    <span style={{ fontSize: 11, color: '#4D9FFF', background: 'rgba(77,159,255,.08)', borderRadius: 999, padding: '3px 9px' }}>{meal.carbs}g {isHe ? 'פחמ׳' : 'carbs'}</span>
+                    <span style={{ fontSize: 11, color: '#7C8798', background: 'var(--fill-faint)', borderRadius: 999, padding: '3px 9px' }}>{meal.fat}g {isHe ? 'שומן' : 'fat'}</span>
+                    {Array.isArray(meal.items) && meal.items.length > 0 && (
+                      <button type="button" onClick={() => setWeeklyOpenKey(weeklyOpenKey === `${weeklyDayIdx}-${mi}` ? null : `${weeklyDayIdx}-${mi}`)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-3)', fontSize: 11.5, minHeight: 28, padding: '0 4px' }}>
+                        {isHe ? 'פירוט' : 'Foods'}
+                      </button>
+                    )}
                     <button type="button" onClick={() => swapWeeklyMealAt(weeklyDayIdx, mi)} disabled={swappingIdx === `${weeklyDayIdx}-${mi}`}
                       style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#7C8798', fontSize: 12 }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 8h11l-3-3M17 16H6l3 3" /></svg>
                       {isHe ? 'החלף' : 'Swap'}
                     </button>
                   </div>
+                  {weeklyOpenKey === `${weeklyDayIdx}-${mi}` && <MealItemsList meal={meal} isHe={isHe} />}
                 </div>
               ))}
             </div>
@@ -973,7 +1063,7 @@ ${content}
                 <span className="food-result__text">
                   <span className="food-result__name">{r.name}</span>
                   <span className="food-result__macros">
-                    {isHe ? '100 גרם' : '100g'} · {r.cal} {isHe ? 'קק״ל' : 'kcal'} · {r.p}g {isHe ? 'חלבון' : 'protein'}
+                    {isHe ? '100 גרם' : '100g'} · {r.cal} {isHe ? 'קק״ל' : 'kcal'} · {r.p}g {isHe ? 'חלבון' : 'protein'} · {r.c}g {isHe ? 'פחמ׳' : 'carbs'} · {r.f}g {isHe ? 'שומן' : 'fat'}{r.fb != null ? ` · ${r.fb}g ${isHe ? 'סיבים' : 'fibre'}` : ''}
                   </span>
                 </span>
                 <span className="food-result__add" aria-hidden="true"><PlusIcon /></span>
@@ -1044,26 +1134,43 @@ ${content}
         const typeLabel = (type) => isHe
           ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' }[type] || type)
           : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[type] || type);
-        const nextIdx = nowIdx >= 0 ? nowIdx : 0;
-        const next = menuMeals[nextIdx];
-        const eaten = loggedMenuSet.size;
+        const nextIdx = nowIdx;
+        const next = nextIdx >= 0 ? menuMeals[nextIdx] : null;
+        // X of Y counts every meal in the menu (the rest-of-day list below
+        // leaves out the "up next" card, so the header is not a list length).
+        const eaten = menuMeals.filter((_, i) => loggedMenuSet.has(i)).length;
+        const pctDone = (cur, tgt) => (tgt > 0 ? Math.min(100, Math.round((cur / tgt) * 100)) : 0);
         return (
           <>
+            {next ? (
             <div style={{ marginTop: 16, background: 'rgba(47,227,194,.05)', border: '1.5px solid rgba(47,227,194,.35)', borderRadius: 20, padding: '18px 20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: '#04241B', background: '#2FE3C2', borderRadius: 999, padding: '4px 11px' }}>
                   {isHe ? 'הארוחה הבאה' : 'Up next'}
                 </span>
-                <span style={{ fontSize: 13, color: '#7C8798', fontVariantNumeric: 'tabular-nums' }}>{MEAL_TYPE_TIMES[next.type] || '—'}</span>
+                <span style={{ fontSize: 13, color: '#7C8798', fontVariantNumeric: 'tabular-nums' }}>{menuTimes[nextIdx] || '—'}</span>
               </div>
               <div style={{ fontSize: 17, fontWeight: 700, marginTop: 12, color: 'var(--text-1)' }}>{typeLabel(next.type)}</div>
               <div style={{ fontSize: 13.5, color: '#93A0B4', marginTop: 4, lineHeight: 1.6 }}>{isHe ? next.he : (next.en || next.he)}</div>
               <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 11.5, color: '#F5698C', background: 'rgba(245,105,140,.08)', borderRadius: 999, padding: '4px 10px' }}>{next.protein}g {isHe ? 'חלבון' : 'protein'}</span>
                 <span style={{ fontSize: 11.5, color: '#4D9FFF', background: 'rgba(77,159,255,.08)', borderRadius: 999, padding: '4px 10px' }}>{next.carbs}g {isHe ? 'פחמ׳' : 'carbs'}</span>
-                <span style={{ fontSize: 11.5, color: '#FFB648', background: 'rgba(255,182,72,.08)', borderRadius: 999, padding: '4px 10px' }}>{next.calories} {isHe ? 'קק״ל' : 'kcal'}</span>
+                <span style={{ fontSize: 11.5, color: '#FFB648', background: 'rgba(255,182,72,.08)', borderRadius: 999, padding: '4px 10px' }}>{next.fat}g {isHe ? 'שומן' : 'fat'}</span>
+                <span style={{ fontSize: 11.5, color: 'var(--text-3)', background: 'var(--fill-faint)', borderRadius: 999, padding: '4px 10px' }}>{next.calories} {isHe ? 'קק״ל' : 'kcal'}</span>
               </div>
-              <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              {editingIdx === nextIdx ? (
+                <MealEditor
+                  meal={next} api={api} isHe={isHe}
+                  onSave={(m) => { setMenu((prev) => applyMealToMenu(prev, nextIdx, m)); setEditingIdx(null); }}
+                  onCancel={() => setEditingIdx(null)}
+                />
+              ) : (<>
+              <MealItemsList meal={next} isHe={isHe} />
+              <button type="button" onClick={() => setEditingIdx(nextIdx)}
+                style={{ marginTop: 10, minHeight: 40, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: 'var(--accent-text, var(--accent))', fontSize: 13, fontWeight: 600, padding: 0 }}>
+                {isHe ? 'ערוך ארוחה' : 'Edit meal'}{next.edited ? (isHe ? ' · נערכה' : ' · edited') : ''}
+              </button>
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                 <button type="button" onClick={() => logMenuMeal(nextIdx)} disabled={loggingIdx === nextIdx}
                   style={{ flex: 2, background: 'linear-gradient(135deg,#36E8C6,#1EC0A2)', color: '#04241B', fontWeight: 700, border: 'none', borderRadius: 13, padding: 12, fontSize: 14.5, fontFamily: 'inherit', cursor: 'pointer' }}>
                   {loggingIdx === nextIdx ? t.saving : (isHe ? 'סמן שאכלתי' : 'Mark eaten')}
@@ -1074,13 +1181,43 @@ ${content}
                   {swappingIdx === nextIdx ? '…' : (isHe ? 'החלף' : 'Swap')}
                 </button>
               </div>
+              </>)}
             </div>
+            ) : (
+            <div style={{ marginTop: 16, background: 'rgba(47,227,194,.05)', border: '1.5px solid rgba(47,227,194,.35)', borderRadius: 20, padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(47,227,194,.15)', border: '2px solid #2FE3C2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2FE3C2" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+                </span>
+                <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-1)' }}>
+                  {isHe ? 'סיימת את התפריט להיום' : "You've finished today's menu"}
+                </div>
+              </div>
+              {[
+                { label: isHe ? 'קלוריות' : 'Calories', cur: calorieProgress, tgt: calorieTarget, unit: isHe ? 'קק״ל' : 'kcal', color: '#FFB648' },
+                { label: isHe ? 'חלבון' : 'Protein', cur: proteinProgress, tgt: proteinTarget, unit: isHe ? 'ג׳' : 'g', color: '#F5698C' },
+              ].map((r) => (
+                <div key={r.label} style={{ marginTop: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-3)' }}>
+                    <span>{r.label}</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-1)', fontWeight: 600 }}>
+                      {Math.round(r.cur).toLocaleString()} / {Math.round(r.tgt).toLocaleString()} {r.unit}
+                    </span>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 999, background: 'var(--fill-faint)', marginTop: 6, overflow: 'hidden' }}>
+                    <div style={{ width: `${pctDone(r.cur, r.tgt)}%`, height: '100%', background: r.color, borderRadius: 999 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            )}
 
             <div style={{ padding: '20px 0 8px', fontSize: 13.5, color: '#7C8798' }}>
               {isHe ? `שאר היום · ${eaten} מתוך ${menuMeals.length} נאכלו` : `Rest of day · ${eaten} of ${menuMeals.length} eaten`}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              {menuMeals.map((meal, idx) => {
+              {chronologicalOrder(menuMeals).filter((i) => i !== nextIdx).map((idx) => {
+                const meal = menuMeals[idx];
                 const done = loggedMenuSet.has(idx);
                 const isExpanded = expandedMenuIdx === idx;
                 const fullName = isHe ? meal.he : (meal.en || meal.he);
@@ -1112,7 +1249,7 @@ ${content}
                       >
                         {done && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2FE3C2" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>}
                       </span>
-                      <span style={{ fontSize: 12.5, color: '#7C8798', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{MEAL_TYPE_TIMES[meal.type] || '—'}</span>
+                      <span style={{ fontSize: 12.5, color: '#7C8798', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{menuTimes[idx] || '—'}</span>
                       <span style={{ flex: 1, fontSize: 14, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {typeLabel(meal.type)} · {fullName}
                       </span>
@@ -1124,6 +1261,27 @@ ${content}
                         <div style={{ fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.6, padding: '12px 0 4px' }}>
                           {typeLabel(meal.type)} · {fullName}
                         </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                          <span style={{ fontSize: 11.5, color: '#FFB648', background: 'rgba(255,182,72,.1)', borderRadius: 999, padding: '4px 10px' }}>{meal.calories} {isHe ? 'קק״ל' : 'kcal'}</span>
+                          <span style={{ fontSize: 11.5, color: '#F5698C', background: 'rgba(245,105,140,.08)', borderRadius: 999, padding: '4px 10px' }}>{meal.protein}g {isHe ? 'חלבון' : 'protein'}</span>
+                          <span style={{ fontSize: 11.5, color: '#4D9FFF', background: 'rgba(77,159,255,.08)', borderRadius: 999, padding: '4px 10px' }}>{meal.carbs}g {isHe ? 'פחמ׳' : 'carbs'}</span>
+                          <span style={{ fontSize: 11.5, color: 'var(--text-3)', background: 'var(--fill-faint)', borderRadius: 999, padding: '4px 10px' }}>{meal.fat}g {isHe ? 'שומן' : 'fat'}</span>
+                        </div>
+                        {editingIdx === idx ? (
+                          <MealEditor
+                            meal={meal} api={api} isHe={isHe}
+                            onSave={(m) => { setMenu((prev) => applyMealToMenu(prev, idx, m)); setEditingIdx(null); }}
+                            onCancel={() => setEditingIdx(null)}
+                          />
+                        ) : (<>
+                          <MealItemsList meal={meal} isHe={isHe} />
+                          {!done && (
+                            <button type="button" onClick={() => setEditingIdx(idx)}
+                              style={{ marginTop: 8, minHeight: 40, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: 'var(--accent-text, var(--accent))', fontSize: 13, fontWeight: 600, padding: 0 }}>
+                              {isHe ? 'ערוך ארוחה' : 'Edit meal'}{meal.edited ? (isHe ? ' · נערכה' : ' · edited') : ''}
+                            </button>
+                          )}
+                        </>)}
                         <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                           {done ? (
                             <button type="button" onClick={() => unmarkMenuMeal(idx)} disabled={busy}
