@@ -2,7 +2,7 @@
 const { param, query } = require('express-validator');
 const auth = require('../middleware/auth');
 const Nutrition = require('../models/Nutrition');
-const { estimateNutrition, estimateNutritionAI, calculateTDEE, calculateCalorieTarget, calculateMacros, FOOD_DB } = require('../utils/calculations');
+const { estimateNutrition, calculateTDEE, calculateCalorieTarget, calculateMacros, FOOD_DB } = require('../utils/calculations');
 const { checkNutritionGoals, revokeXP, updateStreak, recalcStreak, reconcileStreakForToday } = require('../utils/progression');
 const { startOfUserDay, startOfUserDayOffset } = require('../utils/dates');
 const { withUserLock } = require('../utils/userLock');
@@ -11,7 +11,6 @@ const { getRandomMenu, getWeeklyMenu, swapMeal } = require('../data/mealPlans');
 const { withItems, withItemsForMenu } = require('../utils/mealItems');
 const Workout = require('../models/Workout');
 const { dayTypeFor } = require('../utils/dayType');
-const { tryConsume: aiBudgetOk } = require('../utils/aiBudget');
 
 const router = express.Router();
 
@@ -46,17 +45,8 @@ router.post('/log', auth, async (req, res) => {
 
     let estimated = override || estimateNutrition(description);
 
-    // Not in the local DB — try Gemini for a one-off estimate.
-    // (30 AI lookups per user per hour; past that, the generic estimate below.)
-    if (!estimated && aiBudgetOk(req.userId)) {
-      try {
-        estimated = await estimateNutritionAI(description);
-      } catch (aiErr) {
-        console.error('AI estimate error:', aiErr.message);
-      }
-    }
-
-    // AI also failed — fall back to a generic average-meal estimate.
+    // Not in the local food DB — fall back to a generic average-meal estimate.
+    // (No external service is called; meal text never leaves our server.)
     if (!estimated) {
       estimated = {
         calories: 350, protein: 15, carbs: 40, fat: 12, fiber: 3,
