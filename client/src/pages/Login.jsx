@@ -40,6 +40,44 @@ function ArrowIcon() {
   );
 }
 
+// The three product strengths shown in the login hero. Wording is deliberately
+// not "every exercise": ~44 of the 50 library exercises have a demo clip.
+function heroFeatures(isHe) {
+  const svg = (children) => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {children}
+    </svg>
+  );
+  return [
+    {
+      key: 'combo',
+      // two linked rings = training + nutrition working together
+      icon: svg(<><circle cx="9" cy="12" r="5" /><circle cx="15" cy="12" r="5" /></>),
+      title: isHe ? 'אימון ותזונה במקום אחד' : 'Training + nutrition in one place',
+      desc: isHe
+        ? 'הקלוריות מתאימות את עצמן ליום אימון או ליום מנוחה'
+        : 'Calories adapt to training and rest days',
+    },
+    {
+      key: 'videos',
+      icon: svg(<><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M10.5 9.5v5l4.2-2.5z" /></>),
+      title: isHe ? 'סרטוני הדגמה לתרגילים' : 'Exercise demo videos',
+      desc: isHe
+        ? 'רואים איך מבצעים כל תרגיל, ישירות באימון'
+        : 'See exactly how to perform it, right in your workout',
+    },
+    {
+      key: 'equipment',
+      icon: svg(<><path d="M4 8h14M14 4l4 4-4 4" /><path d="M20 16H6M10 12l-4 4 4 4" /></>),
+      title: isHe ? 'התוכנית מותאמת לציוד שלך' : 'A plan for your equipment',
+      desc: isHe
+        ? 'בית או מכון, עם החלפת תרגיל בלחיצה'
+        : 'Home or gym, with one-tap exercise swaps',
+    },
+  ];
+}
+
 // Minimal "Step N of 2" indicator for the password-reset flow.
 // Two segmented bars (current = teal, future = muted) + a label. `variant`
 // swaps the step titles: 'email' for the code-by-email flow, 'google' for
@@ -500,26 +538,20 @@ export default function Login() {
           </p>
         </div>
 
-        <div className="proof-bar">
-          <div>
-            <div className="proof-stat__value">10,000+</div>
-            <div className="proof-stat__label">
-              {isHe ? 'ספורטאים פעילים' : 'active athletes'}
-            </div>
-          </div>
-          <div className="proof-bar__divider" />
-          <div>
-            <div className="proof-stat__value">4.8★</div>
-            <div className="proof-stat__label">App Store · Play Store</div>
-          </div>
-          <div className="proof-bar__divider" />
-          <div>
-            <div className="proof-stat__value">2.4M</div>
-            <div className="proof-stat__label">
-              {isHe ? 'אימונים הושלמו' : 'workouts logged'}
-            </div>
-          </div>
-        </div>
+        {/* Real product strengths only — no user counts, ratings or workout
+            totals (there is no data behind those). Each claim maps to code:
+            day-type calories, exercise demo clips, equipment-aware swaps. */}
+        <ul className="hero-feats">
+          {heroFeatures(isHe).map((f) => (
+            <li key={f.key} className="hero-feats__item">
+              <div className="hero-feat">
+                <span className="hero-feat__icon" aria-hidden="true">{f.icon}</span>
+                <div className="hero-feat__title">{f.title}</div>
+                <div className="hero-feat__desc">{f.desc}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {/* Audit P19: bottom-sheet for the entire forgot-password flow.

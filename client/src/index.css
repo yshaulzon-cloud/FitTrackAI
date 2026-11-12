@@ -278,8 +278,9 @@
 [data-theme="light"] .badge-item.locked { background: rgba(15, 23, 42, 0.03); }
 [data-theme="light"] .xp-history-item { background: rgba(15, 23, 42, 0.03); }
 [data-theme="light"] .xp-bar-track { background: rgba(15, 23, 42, 0.06); }
-[data-theme="light"] .proof-bar { border-top-color: rgba(15, 23, 42, 0.10); }
-[data-theme="light"] .proof-bar__divider { background: rgba(15, 23, 42, 0.10); }
+[data-theme="light"] .hero-feats { border-top-color: rgba(15, 23, 42, 0.10); }
+[data-theme="light"] .hero-feats__item + .hero-feats__item { border-inline-start-color: rgba(15, 23, 42, 0.10); }
+[data-theme="light"] .hero-feat__icon { background: rgba(13, 148, 136, 0.10); border-color: rgba(13, 148, 136, 0.28); }
 
 /* Toggle switch off-track is invisible white-on-white in light mode */
 [data-theme="light"] .meal-row {
@@ -498,29 +499,59 @@ h1, h2, h3, h4, h5 { font-family: var(--font-display); letter-spacing: -0.01em; 
   font-weight: 300;
 }
 
-.proof-bar {
+/* Product-strengths strip at the bottom of the login hero (replaced the old
+   fake user-count / rating / workout-total "proof bar"). */
+.hero-feats {
   position: relative;
   display: flex;
-  gap: 32px;
-  align-items: center;
-  padding-top: 24px;
+  gap: 24px;
+  align-items: stretch;
+  margin: 0;
+  padding: 24px 0 0;
+  list-style: none;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.proof-bar__divider {
-  width: 1px; height: 36px;
-  background: rgba(255, 255, 255, 0.08);
+.hero-feats__item {
+  flex: 1;
+  min-width: 0;
 }
 
-.proof-stat__value {
-  font-family: var(--font-display);
-  font-size: 24px; font-weight: 700;
+.hero-feats__item + .hero-feats__item {
+  padding-inline-start: 24px;
+  border-inline-start: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.hero-feat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.hero-feat__icon {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  border-radius: 10px;
   color: var(--accent);
+  background: rgba(45, 212, 191, 0.10);
+  border: 1px solid rgba(45, 212, 191, 0.22);
 }
 
-.proof-stat__label {
+.hero-feat__title {
+  font-family: var(--font-display);
+  font-size: 15px; font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-1);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.hero-feat__desc {
   font-size: 13px;
+  line-height: 1.5;
   color: var(--text-3);
+  overflow-wrap: anywhere;
 }
 
 .auth-form-shell {
@@ -3964,8 +3995,8 @@ select:focus-visible {
     /* Push submit button to the bottom of the available space (thumb zone) */
     margin-top: auto;
   }
-  /* Hide the wall of marketing stats — useless above-the-fold, hides the form */
-  .proof-bar { display: none; }
+  /* Hide the marketing strip — useless above-the-fold, hides the form */
+  .hero-feats { display: none; }
   .greeting-bar { flex-direction: column; align-items: flex-start; }
   .nutrition-header { flex-direction: column; align-items: flex-start; }
   .meal-row {
