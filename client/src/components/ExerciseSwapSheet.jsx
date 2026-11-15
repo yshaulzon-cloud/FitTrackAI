@@ -9,9 +9,9 @@ import { getExerciseVideo } from '../lib/exerciseVideos.mjs';
 //
 // onPick(alternative, { permanent }) — `permanent` is only ever true when
 // allowPermanent is set and the user ticked "also in my weekly plan".
-export default function ExerciseSwapSheet({ exerciseName, inSession = [], equipment, allowPermanent = false, isHe, onPick, onClose }) {
+export default function ExerciseSwapSheet({ exerciseName, inSession = [], equipment, location, allowPermanent = false, isHe, onPick, onClose }) {
   const [permanent, setPermanent] = useState(false);
-  const alternatives = getAlternatives(exerciseName, { userEquipment: normalizeUserEquipment(equipment), inSession });
+  const alternatives = getAlternatives(exerciseName, { userEquipment: normalizeUserEquipment(equipment), inSession, location });
   const current = findExercise(exerciseName);
   const base = import.meta.env.BASE_URL;
   const label = (n) => (isHe ? n.replace(/\s*\(.*\)\s*$/, '') : (n.match(/\(([^)]+)\)/) || [, n])[1]);
@@ -30,8 +30,8 @@ export default function ExerciseSwapSheet({ exerciseName, inSession = [], equipm
         {alternatives.length === 0 ? (
           <div className="sw-sheet__empty">
             {isHe
-              ? 'לא נמצאה חלופה שמתאימה לציוד שלך ולא כבר באימון. אפשר לעדכן את הציוד בהגדרות.'
-              : 'No alternative matches your equipment and isn’t already in this workout. You can update your equipment in Settings.'}
+              ? 'לא נמצאה חלופה שמתאימה לציוד שלך ולא כבר באימון. אפשר לעדכן את הציוד בהגדרות ← ציוד.'
+              : 'No alternative matches your equipment and isn’t already in this workout. You can update your equipment in Settings → Equipment.'}
           </div>
         ) : (
           <ul className="sw-list">

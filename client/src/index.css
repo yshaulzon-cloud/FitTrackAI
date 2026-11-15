@@ -352,7 +352,9 @@ html, body {
   background: var(--bg-0);
   color: var(--text-1);
   min-height: 100vh;
-  direction: rtl;
+  /* Text direction comes from <html dir>: index.html ships dir="rtl" (Hebrew) and
+     LanguageContext flips it to ltr for English. A hard-coded direction here would
+     override that and render English right-to-left (punctuation at the wrong end). */
   line-height: 1.5;
   font-size: 16px;
   overflow-x: hidden;

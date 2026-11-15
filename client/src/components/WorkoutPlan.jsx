@@ -5,51 +5,12 @@ import { getExerciseCue } from '../lib/exerciseCues';
 import { summarizeWorkout, exerciseDetail, wasPerformed, compareWithPrevious } from '../lib/workoutHistory.mjs';
 import ExerciseSwapSheet from './ExerciseSwapSheet';
 import { easierVariant, equipmentOk, normalizeUserEquipment } from '../lib/exerciseLibrary.mjs';
+import { toHomeExercises } from '../lib/homeExercises.mjs';
 
 // Muscle group translations
 const muscleGroupMap = {
   'חזה': 'Chest', 'גב': 'Back', 'כתפיים': 'Shoulders', 'זרועות': 'Arms',
   'רגליים': 'Legs', 'תאומים': 'Calves', 'ליבה': 'Core', 'אירובי': 'Cardio', 'כללי': 'General',
-};
-
-// Home exercise alternatives - maps gym exercise to home version(s)
-// alt = second option for exercises that need a bar/equipment
-const homeExerciseMap = {
-  'לחיצת חזה שטוח (Bench Press)': { name: 'שכיבות סמיכה (Push Ups)', reps: '10-20' },
-  'לחיצת חזה משופע דמבלים (Incline DB Press)': { name: 'שכיבות סמיכה רגליים מוגבהות (Decline Push Ups)', reps: '10-15' },
-  'לחיצת חזה שטוח דמבלים (DB Bench Press)': { name: 'שכיבות סמיכה (Push Ups)', reps: '10-20' },
-  'פרפר מכונה (Pec Fly)': { name: 'שכיבות סמיכה רחבות (Wide Push Ups)', reps: '12-15' },
-  'חתירה במוט (Barbell Row)': {
-    name: 'חתירה הפוכה (Inverted Row)', reps: '8-12',
-    alt: { name: 'סופרמן חתירה (Superman Row)', reps: '12-15' },
-  },
-  'חתירה בכבל (Cable Row)': {
-    name: 'חתירה הפוכה (Inverted Row)', reps: '10-15',
-    alt: { name: 'סופרמן חתירה (Superman Row)', reps: '12-15' },
-  },
-  'מתח (Pull Ups)': {
-    name: 'מתח (Pull Ups)', reps: '6-12',
-    alt: { name: 'סופרמן (Superman Pulls)', reps: '12-15' },
-  },
-  'לחיצת כתפיים (Overhead Press)': { name: 'שכיבות סמיכה פייק (Pike Push Ups)', reps: '8-12' },
-  'הרמה צדדית (Lateral Raise)': { name: 'הרמה צדדית עם בקבוקים (Lateral Raise - Bottles)', reps: '12-15' },
-  'הרמה אחורית (Rear Delt Fly)': { name: 'סופרמן (Superman Raises)', reps: '12-15' },
-  'כפיפת מרפק (Bicep Curl)': { name: 'כפיפת מרפק עם בקבוקים (Bicep Curl - Bottles)', reps: '12-15' },
-  'כפיפה בפטיש (Hammer Curl)': { name: 'כפיפה עם בקבוקים (Hammer Curl - Bottles)', reps: '12-15' },
-  'פשיטת מרפק בכבל (Tricep Pushdown)': { name: 'שכיבות סמיכה יהלום (Diamond Push Ups)', reps: '8-15' },
-  'סקוואט (Squat)': { name: 'סקוואט בולגרי (Bulgarian Split Squat)', reps: '10-12' },
-  'דדליפט רומני (Romanian Deadlift)': { name: 'דדליפט על רגל אחת (Single Leg Deadlift)', reps: '10-12' },
-  'דדליפט (Deadlift)': { name: 'דדליפט על רגל אחת (Single Leg Deadlift)', reps: '8-10' },
-  'לחיצת רגליים (Leg Press)': { name: 'סקוואט קפיצה (Jump Squat)', reps: '12-15' },
-  'מכפוף רגל (Leg Curl)': { name: 'גשר ירכיים (Glute Bridge)', reps: '12-15' },
-  'יישור רגל (Leg Extension)': { name: 'סיסי סקוואט (Sissy Squat)', reps: '10-15' },
-  "לאנג'ים (Lunges)": { name: "לאנג'ים (Walking Lunges)", reps: '12-15' },
-  'הרמות עקב (Calf Raise)': { name: 'הרמות עקב על מדרגה (Single Leg Calf Raise)', reps: '15-20' },
-  'הליכה מהירה / אופניים (Zone 2)': { name: 'הליכה מהירה / ריצה קלה (Zone 2 Walk / Jog)' },
-  'אימון Full Body קל או אירובי בינוני': { name: 'אימון HIIT ביתי (Home HIIT Workout)' },
-  'פלאנק (Plank)': { name: 'פלאנק (Plank)' },
-  'כפיפות בטן (Crunches)': { name: 'כפיפות בטן (Crunches)' },
-  'הרמת רגליים (Leg Raise)': { name: 'הרמת רגליים (Leg Raise)' },
 };
 
 // Extract English name from "Hebrew (English)" format
@@ -147,20 +108,6 @@ const MUSCLE_DOT = {
   'חזה': '#F5698C', 'גב': '#4D9FFF', 'כתפיים': '#FFB648', 'זרועות': '#8F8AF7',
   'רגליים': '#2FE3C2', 'תאומים': '#4D9FFF', 'ליבה': '#FFB648', 'אירובי': '#2FE3C2', 'כללי': '#7C8798',
 };
-
-// Convert gym exercises to home alternatives
-function toHomeExercises(exercises) {
-  return exercises.map(ex => {
-    const home = homeExerciseMap[ex.name];
-    if (!home) return ex;
-    const result = { ...ex, name: home.name, reps: home.reps || ex.reps };
-    if (home.alt) {
-      result.altName = home.alt.name;
-      result.altReps = home.alt.reps;
-    }
-    return result;
-  });
-}
 
 export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHistory, showXP, progressionData, dailyStreak = 0, userName, onGoHome }) {
   const { t, lang } = useLang();
@@ -356,7 +303,9 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   const adjExercises0 = getExercisesForDuration(baseExercises0, dayDurations[currentDay?.day] || 60);
 
   // Fetch last-performance data for the current day's exercises so the
-  // (read-only) accordion preview can show real suggested weights.
+  // (read-only) accordion preview can show real suggested weights. Keyed on the
+  // names on screen, so a swap (new exercise) loads its own last performance.
+  const planNamesKey = adjExercises0.map(ex => ex.name).join('|');
   useEffect(() => {
     const names = adjExercises0.map(ex => ex.name);
     if (names.length === 0) { setPerfMap({}); return; }
@@ -371,7 +320,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
       } catch { /* non-critical */ }
     })();
     return () => { cancelled = true; };
-  }, [safeDayIdx, homeMode, dayDurations[currentDay?.day]]); // eslint-disable-line
+  }, [planNamesKey]); // eslint-disable-line
 
   // Workouts logged since this week's Sunday — feeds the "done" state's
   // next-workout card ("2 left this week").
@@ -877,7 +826,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             {/* Swap / easier version */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
               {(() => {
-                const easier = easierVariant(selectedExercise.name);
+                const easier = easierVariant(selectedExercise.name, { location: homeMode ? 'home' : 'gym' });
                 const names = adjExercises0.map((e) => e.name);
                 if (!easier || names.includes(easier.name) || !equipmentOk(easier, normalizeUserEquipment(profile?.equipment))) return null;
                 return (
@@ -914,6 +863,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           exerciseName={swapTarget}
           inSession={adjExercises0.map((e) => e.name)}
           equipment={profile?.equipment}
+          location={homeMode ? 'home' : 'gym'}
           allowPermanent={!homeMode}
           isHe={isHe}
           onPick={(alt, opts) => {

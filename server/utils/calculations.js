@@ -380,8 +380,13 @@ function calculateExerciseCalories(met, weightKg, durationMinutes) {
 }
 
 /**
- * Comprehensive food database based on USDA FoodData Central 2024-2026
- * Values per 100g (cooked/prepared unless noted otherwise)
+ * Food database. Values per 100g (cooked/prepared unless noted otherwise).
+ *
+ * SOURCES ARE MIXED AND MOSTLY UNRECORDED. Entries that were compared with a USDA FoodData Central
+ * record (120 so far, SR Legacy, plus a few manufacturer labels) carry the record number in a
+ * comment and are guarded by utils/usdaCheck.test.js; the audit is docs/nutrition-audit.md
+ * (scripts/usda-verify.js, scripts/food-audit.js). Every other entry has no recorded source: do not
+ * read a section title below as one.
  * Format: { cal, p (protein), c (carbs), f (fat), fb (fiber) }
  *
  * Search order: longer/more specific Hebrew terms first, then English,
@@ -391,7 +396,7 @@ const FOOD_DB = [
   // === Animal Protein (Table 1) ===
   // Poultry
   { keys: ['חזה עוף', 'chicken breast'], cal: 165, p: 31, c: 0, f: 3.6, fb: 0 },
-  { keys: ['חזה הודו', 'turkey breast'], cal: 153, p: 34, c: 0, f: 1.5, fb: 0 },
+  { keys: ['חזה הודו', 'turkey breast', 'סטייק הודו', 'turkey steak'], cal: 153, p: 34, c: 0, f: 1.5, fb: 0 }, // "סטייק הודו" (a turkey breast cutlet) is read as this entry: no separate values
   { keys: ['פרגית', 'ירך עוף', 'chicken thigh'], cal: 209, p: 24, c: 0, f: 12, fb: 0 },
   { keys: ['כנפי עוף', 'chicken wings'], cal: 290, p: 18, c: 0, f: 22, fb: 0 },
   { keys: ['עוף שלם', 'whole chicken'], cal: 215, p: 24, c: 0, f: 13, fb: 0 },
@@ -408,7 +413,7 @@ const FOOD_DB = [
   { keys: ['כבד בקר', 'beef liver'], cal: 175, p: 27, c: 0, f: 4.5, fb: 0 },
   { keys: ['קבב', 'kebab'], cal: 250, p: 18, c: 2, f: 20, fb: 0 },
   { keys: ['המבורגר', 'hamburger', 'burger'], cal: 230, p: 22, c: 1, f: 15, fb: 0 },
-  { keys: ['סטייק', 'steak'], cal: 210, p: 28, c: 0, f: 10, fb: 0 },
+  { keys: ['סטייק', 'steak', 'סטייק בקר', 'beef steak'], cal: 210, p: 28, c: 0, f: 10, fb: 0 },
   { keys: ['בייקון', 'bacon'], cal: 540, p: 37, c: 1.4, f: 42, fb: 0 },
   { keys: ['כבש', 'lamb'], cal: 300, p: 22, c: 0, f: 24, fb: 0 },
   // Fish & Seafood
@@ -418,7 +423,7 @@ const FOOD_DB = [
   { keys: ['דג אמנון', 'tilapia'], cal: 128, p: 26, c: 0, f: 2.7, fb: 0 },
   { keys: ['סיבאס', 'לברק', 'sea bass'], cal: 161, p: 23, c: 0, f: 7, fb: 0 },
   { keys: ['פילה בקלה', 'קוד', 'cod'], cal: 82, p: 18, c: 0, f: 0.7, fb: 0 },
-  { keys: ['שרימפס', 'shrimp'], cal: 99, p: 24, c: 0.2, f: 0.3, fb: 0 },
+  { keys: ['שרימפס', 'shrimp'], cal: 119, p: 22.8, c: 1.5, f: 1.7, fb: 0 }, // USDA FDC 171971, cooked (was 99/24/0.2/0.3)
   { keys: ['סרדינים', 'sardines'], cal: 208, p: 25, c: 0, f: 11, fb: 0 },
   { keys: ['מקרל', 'mackerel'], cal: 260, p: 20, c: 0, f: 20, fb: 0 },
   { keys: ['לוקוס', 'grouper'], cal: 120, p: 24, c: 0, f: 2, fb: 0 },
@@ -427,8 +432,11 @@ const FOOD_DB = [
   { keys: ['דג', 'fish'], cal: 150, p: 24, c: 0, f: 5, fb: 0 },
   // Eggs
   { keys: ['חלבון ביצה', 'egg white'], cal: 52, p: 11, c: 0.7, f: 0.2, fb: 0 },
-  { keys: ['ביצים', 'eggs'], cal: 155, p: 13, c: 1.1, f: 11, fb: 0 },
-  { keys: ['ביצה', 'egg'], cal: 78, p: 6.5, c: 0.6, f: 5.5, fb: 0 },
+  // One entry for the egg, per 100 g like every other food. It used to be two:
+  // "ביצים" 155 per 100 g and "ביצה" 78 per ONE egg — the same food on two bases,
+  // so "ביצה" and "2 ביצים" could not be compared. 78/6.5/0.6/5.5 per egg is exactly
+  // this entry at 50 g (the egg's unit weight is in data/portions.js).
+  { keys: ['ביצים', 'ביצה', 'eggs', 'egg'], cal: 155, p: 13, c: 1.1, f: 11, fb: 0 },
   { keys: ['חביתה', 'omelette', 'omelet'], cal: 154, p: 11, c: 1.6, f: 12, fb: 0 },
   // Dairy
   { keys: ['יוגורט יווני 0%', 'greek yogurt 0'], cal: 59, p: 10, c: 3.6, f: 0.4, fb: 0 },
@@ -448,19 +456,18 @@ const FOOD_DB = [
   { keys: ['לאבנה', 'labneh'], cal: 93, p: 8.5, c: 4, f: 5, fb: 0 },
   { keys: ['פרמזן', 'parmesan'], cal: 430, p: 38, c: 4, f: 28, fb: 0 },
   { keys: ['צ\'דר'], cal: 400, p: 25, c: 1.3, f: 33, fb: 0 },
-  { keys: ['מוצרלה', 'mozzarella'], cal: 280, p: 22, c: 0, f: 20, fb: 0 },
+  { keys: ['מוצרלה', 'mozzarella'], cal: 299, p: 22.2, c: 2.4, f: 22.1, fb: 0 }, // USDA FDC 170845, whole milk (was 280/22/0/20)
   { keys: ['גבינת שמנת פילדלפיה', 'philadelphia cream cheese', 'philadelphia'], cal: 342, p: 5.9, c: 4.1, f: 34.2, fb: 0 },
   { keys: ['גבינת שמנת 30%', 'cream cheese 30'], cal: 340, p: 6, c: 0, f: 34, fb: 0 },
   { keys: ['גבינת שמנת 5%', 'cream cheese 5'], cal: 105, p: 10, c: 0, f: 5, fb: 0 },
-  { keys: ['גבינת שמנת', 'cream cheese'], cal: 340, p: 6, c: 0, f: 34, fb: 0 },
+  { keys: ['גבינת שמנת', 'cream cheese'], cal: 350, p: 6.2, c: 5.5, f: 34.4, fb: 0 }, // USDA FDC 173418 (was 340/6/0/34)
   { keys: ['חלב 3%', 'milk 3%'], cal: 60, p: 3.2, c: 4.7, f: 3, fb: 0 },
   { keys: ['חלב 1%', 'milk 1%'], cal: 42, p: 3.4, c: 5, f: 1, fb: 0 },
   { keys: ['חלב', 'milk'], cal: 60, p: 3.2, c: 4.7, f: 3, fb: 0 },
   { keys: ['קוויאר', 'caviar'], cal: 264, p: 25, c: 4, f: 18, fb: 0 },
   // Protein supplements
   { keys: ['שייק חלבון', 'protein shake'], cal: 120, p: 25, c: 3, f: 1, fb: 0 },
-  { keys: ['חלבון מי גבינה', 'whey'], cal: 120, p: 25, c: 3, f: 1, fb: 0 },
-  { keys: ['קזאין', 'casein'], cal: 120, p: 24, c: 3, f: 1, fb: 0 },
+  { keys: ['קזאין', 'casein'], cal: 343, p: 68.6, c: 8.6, f: 1.4, fb: 2.9 }, // per 100 g, micellar casein powder label, USDA Branded FDC 2412810 (was 120/24/3/1/0 = one 35 g scoop)
 
   // === Plant Protein, Legumes & Grains (Table 2) ===
   { keys: ['סייטן', 'seitan'], cal: 370, p: 75, c: 14, f: 1.9, fb: 0 },
@@ -480,11 +487,11 @@ const FOOD_DB = [
   { keys: ['בורגול', 'bulgur'], cal: 83, p: 3, c: 18.5, f: 0.2, fb: 4 },
   { keys: ['כוסמת', 'buckwheat'], cal: 92, p: 3.4, c: 20, f: 0.6, fb: 3 },
   { keys: ['פסטה עדשים', 'lentil pasta'], cal: 340, p: 25, c: 50, f: 2, fb: 8 },
-  { keys: ['פסטה מלאה', 'whole wheat pasta'], cal: 124, p: 5.3, c: 25, f: 0.5, fb: 4 },
+  { keys: ['פסטה מלאה', 'whole wheat pasta'], cal: 149, p: 6, c: 30.1, f: 1.7, fb: 3.9 }, // cooked, USDA FDC 168910 (was 124/5.3/25/0.5/4)
   { keys: ['פסטה לבנה', 'white pasta'], cal: 158, p: 5.8, c: 31, f: 0.9, fb: 2 },
   { keys: ['פסטה', 'pasta'], cal: 158, p: 5.8, c: 31, f: 0.9, fb: 2 },
   { keys: ['קוסקוס', 'couscous'], cal: 112, p: 3.8, c: 23, f: 0.2, fb: 1 },
-  { keys: ['תפוח אדמה', 'potato'], cal: 93, p: 2.5, c: 21, f: 0.1, fb: 2 },
+  { keys: ['תפוח אדמה', 'תפוחי אדמה', 'potato'], cal: 93, p: 2.5, c: 21, f: 0.1, fb: 2 },
   { keys: ['בטטה', 'sweet potato'], cal: 90, p: 2, c: 21, f: 0.1, fb: 3 },
   { keys: ['שיבולת שועל', 'oatmeal', 'oats'], cal: 380, p: 13, c: 67, f: 7, fb: 10 },
   { keys: ['פיתה', 'pita'], cal: 275, p: 9, c: 56, f: 1.2, fb: 2 },
@@ -505,7 +512,7 @@ const FOOD_DB = [
   { keys: ['מיונז', 'mayo', 'mayonnaise'], cal: 680, p: 1, c: 0.6, f: 75, fb: 0 },
   { keys: ['אבוקדו', 'avocado'], cal: 160, p: 2, c: 8.5, f: 15, fb: 7 },
   { keys: ['טחינה גולמית', 'raw tahini'], cal: 650, p: 18, c: 12, f: 60, fb: 9 },
-  { keys: ['טחינה', 'tahini'], cal: 200, p: 5, c: 0, f: 18, fb: 2 },
+  { keys: ['טחינה', 'tahini'], cal: 592, p: 17.4, c: 21.5, f: 53, fb: 4.7 }, // per 100 g, USDA FDC 168604 (was 200/5/0/18/2 = one ~30 g portion)
   { keys: ['חמאת בוטנים', 'peanut butter'], cal: 588, p: 25, c: 20, f: 50, fb: 6 },
   { keys: ['חמאת שקדים', 'almond butter'], cal: 614, p: 21, c: 19, f: 55, fb: 10 },
   { keys: ['שקדים', 'almonds'], cal: 580, p: 21, c: 22, f: 50, fb: 12 },
@@ -513,14 +520,14 @@ const FOOD_DB = [
   { keys: ['קשיו', 'cashew'], cal: 553, p: 18, c: 30, f: 44, fb: 3 },
   { keys: ['פקאן', 'pecan'], cal: 691, p: 9, c: 14, f: 72, fb: 10 },
   { keys: ['פיסטוק', 'pistachio'], cal: 562, p: 20, c: 27, f: 45, fb: 10 },
-  { keys: ['אגוזי מקדמיה', 'macadamia'], cal: 718, p: 8, c: 0, f: 76, fb: 9 },
-  { keys: ['צנוברים', 'pine nuts'], cal: 673, p: 14, c: 0, f: 68, fb: 4 },
+  { keys: ['אגוזי מקדמיה', 'macadamia'], cal: 718, p: 7.9, c: 13.8, f: 75.8, fb: 8.6 }, // USDA FDC 170178 (was 718/8/0/76/9)
+  { keys: ['צנוברים', 'pine nuts'], cal: 673, p: 13.7, c: 13.1, f: 68.4, fb: 3.7 }, // USDA FDC 170591 (was 673/14/0/68/4)
   { keys: ['אגוזים', 'nuts'], cal: 600, p: 18, c: 18, f: 52, fb: 8 },
   { keys: ['גרעיני דלעת', 'pumpkin seeds'], cal: 559, p: 30, c: 11, f: 49, fb: 6 },
   { keys: ['גרעיני חמנייה', 'sunflower seeds'], cal: 584, p: 21, c: 20, f: 51, fb: 9 },
   { keys: ['זרעי צ\'יה', 'chia seeds', 'צ\'יה'], cal: 486, p: 17, c: 42, f: 31, fb: 34 },
   { keys: ['זרעי פשתן', 'flax seeds', 'פשתן'], cal: 534, p: 18, c: 29, f: 42, fb: 27 },
-  { keys: ['זרעי המפ', 'hemp seeds'], cal: 550, p: 31, c: 0, f: 48, fb: 4 },
+  { keys: ['זרעי המפ', 'hemp seeds'], cal: 553, p: 31.6, c: 8.7, f: 48.8, fb: 4 }, // USDA FDC 170148 (was 550/31/0/48/4)
   { keys: ['זיתים', 'olives'], cal: 115, p: 0.8, c: 6, f: 11, fb: 3 },
   { keys: ['פסטו', 'pesto'], cal: 450, p: 5, c: 8, f: 45, fb: 2 },
 
@@ -529,7 +536,7 @@ const FOOD_DB = [
   { keys: ['עגבנייה', 'עגבניה', 'tomato'], cal: 18, p: 0.9, c: 3.9, f: 0.2, fb: 1 },
   { keys: ['ברוקולי', 'broccoli'], cal: 35, p: 2.4, c: 7, f: 0.4, fb: 3 },
   { keys: ['חסה', 'lettuce'], cal: 15, p: 1.2, c: 2.9, f: 0.2, fb: 1 },
-  { keys: ['גמבה', 'פלפל', 'bell pepper'], cal: 31, p: 1, c: 6, f: 0.3, fb: 2 },
+  { keys: ['גמבה', 'פלפל', 'bell pepper'], cal: 26, p: 1, c: 6, f: 0.3, fb: 2.1 }, // red, raw, USDA FDC 170108 (was 31/1/6/0.3/2)
   { keys: ['גזר', 'carrot'], cal: 41, p: 0.9, c: 9.6, f: 0.2, fb: 3 },
   { keys: ['קישוא', 'zucchini'], cal: 17, p: 1.2, c: 3.1, f: 0.3, fb: 1 },
   { keys: ['כרובית', 'cauliflower'], cal: 25, p: 1.9, c: 5, f: 0.3, fb: 2 },
@@ -548,7 +555,7 @@ const FOOD_DB = [
   { keys: ['סלט', 'salad'], cal: 150, p: 5, c: 15, f: 8, fb: 5 },
 
   // === Fruits (Table 4) ===
-  { keys: ['תפוח עץ', 'תפוח', 'apple'], cal: 52, p: 0.3, c: 14, f: 0.2, fb: 2 },
+  { keys: ['תפוח עץ', 'תפוחי עץ', 'תפוח', 'apple'], cal: 52, p: 0.3, c: 14, f: 0.2, fb: 2 },
   { keys: ['בננה', 'banana'], cal: 89, p: 1.1, c: 23, f: 0.3, fb: 3 },
   { keys: ['תות שדה', 'strawberry', 'strawberries'], cal: 32, p: 0.7, c: 7.7, f: 0.3, fb: 2 },
   { keys: ['ענבים', 'grapes'], cal: 69, p: 0.7, c: 18, f: 0.2, fb: 1 },
@@ -569,7 +576,7 @@ const FOOD_DB = [
   // === Israeli Street Food & Snacks (Table 5) ===
   { keys: ['פלאפל', 'falafel'], cal: 333, p: 13, c: 32, f: 18, fb: 5 },
   { keys: ['חומוס מסעדה', 'restaurant hummus'], cal: 313, p: 11.5, c: 10.5, f: 25, fb: 5 },
-  { keys: ['חומוס', 'hummus'], cal: 170, p: 10, c: 20, f: 6, fb: 6 },
+  { keys: ['חומוס', 'hummus'], cal: 237, p: 7.8, c: 15, f: 17.8, fb: 5.5 }, // commercial, USDA FDC 174289 (was 170/10/20/6/6)
   { keys: ['צ\'יפס', 'chips', 'french fries'], cal: 312, p: 3.4, c: 41, f: 15, fb: 3 },
   { keys: ['בורקס', 'burekas'], cal: 315, p: 6, c: 35, f: 19, fb: 1 },
   { keys: ['ג\'חנון', 'jachnun'], cal: 308, p: 6, c: 38, f: 15, fb: 1 },
@@ -592,7 +599,7 @@ const FOOD_DB = [
   { keys: ['עוגה', 'cake'], cal: 350, p: 5, c: 50, f: 15, fb: 1 },
 
   // === Condiments & Drinks ===
-  { keys: ['קטשופ', 'ketchup'], cal: 112, p: 1.3, c: 27, f: 0.1, fb: 0 },
+  { keys: ['קטשופ', 'ketchup'], cal: 101, p: 1, c: 27.4, f: 0.1, fb: 0.3 }, // USDA FDC 168556 "Catsup" (was 112/1.3/27/0.1/0)
   { keys: ['חרדל', 'mustard'], cal: 66, p: 4, c: 6, f: 4, fb: 3 },
   { keys: ['דבש', 'honey'], cal: 304, p: 0.3, c: 82, f: 0, fb: 0 },
   { keys: ['סילאן', 'date syrup', 'silan'], cal: 280, p: 1, c: 68, f: 0, fb: 0 },
@@ -607,7 +614,7 @@ const FOOD_DB = [
   { keys: ['חלב שיבולת שועל', 'oat milk'], cal: 48, p: 0.8, c: 5.1, f: 2.7, fb: 0 },
   { keys: ['חלב קוקוס', 'coconut milk'], cal: 25, p: 0.2, c: 1, f: 2, fb: 0 },
 
-  // === Ancient Grains, Roots & Starches (USDA/FAO 2024-2026) ===
+  // === Ancient Grains, Roots & Starches (source not recorded) ===
   { keys: ['פוניו', 'fonio'], cal: 338, p: 8, c: 70, f: 3, fb: 9 },
   { keys: ['טף', 'teff'], cal: 367, p: 13, c: 73, f: 2, fb: 9 },
   { keys: ['אמרנט', 'amaranth'], cal: 359, p: 14, c: 65, f: 7, fb: 11 },
@@ -624,7 +631,7 @@ const FOOD_DB = [
   { keys: ['אטריות זכוכית', 'glass noodles'], cal: 120, p: 0, c: 30, f: 0, fb: 0 },
   { keys: ['אורז פרא', 'wild rice'], cal: 150, p: 6, c: 30, f: 0.5, fb: 11 },
   { keys: ['כוסמין', 'spelt'], cal: 128, p: 5.5, c: 26, f: 0.8, fb: 0 },
-  { keys: ['ג\'יקמה', 'jicama'], cal: 38, p: 0.7, c: 9, f: 0.1, fb: 14 },
+  { keys: ['ג\'יקמה', 'jicama'], cal: 38, p: 0.7, c: 8.8, f: 0.1, fb: 4.9 }, // USDA FDC 170073 (was 38/0.7/9/0.1/14)
   { keys: ['לחם שיפון', 'rye bread'], cal: 250, p: 9, c: 48, f: 3, fb: 9 },
   { keys: ['טפיוקה', 'tapioca'], cal: 360, p: 0.5, c: 88, f: 0.3, fb: 9 },
   { keys: ['קמח תירס', 'masa'], cal: 363, p: 8.4, c: 76, f: 1.2, fb: 9 },
@@ -637,7 +644,7 @@ const FOOD_DB = [
   { keys: ['פנקו', 'panko'], cal: 370, p: 12, c: 75, f: 1.5, fb: 0 },
   { keys: ['פירורי לחם', 'breadcrumbs'], cal: 370, p: 12, c: 75, f: 1.5, fb: 0 },
 
-  // === Expanded Proteins (USDA/FAO 2024-2026) ===
+  // === Expanded Proteins (source not recorded) ===
   { keys: ['סקייר', 'skyr'], cal: 65, p: 11, c: 4, f: 0.2, fb: 0 },
   { keys: ['בשר צבי', 'venison'], cal: 103, p: 22, c: 0, f: 2.4, fb: 0 },
   { keys: ['חזה ברווז', 'duck breast'], cal: 165, p: 19, c: 0, f: 9, fb: 0 },
@@ -658,49 +665,49 @@ const FOOD_DB = [
   { keys: ['טופו מעושן', 'smoked tofu'], cal: 140, p: 13, c: 2, f: 9, fb: 0 },
   { keys: ['דג סול', 'sole'], cal: 91, p: 18, c: 0, f: 1.2, fb: 0 },
   { keys: ['צלופח', 'eel'], cal: 184, p: 18, c: 0, f: 12, fb: 0 },
-  { keys: ['סרטן', 'crab'], cal: 155, p: 18, c: 0, f: 1.5, fb: 0 },
+  { keys: ['סרטן', 'crab'], cal: 97, p: 19.4, c: 0, f: 1.5, fb: 0 }, // cooked crab, USDA FDC 174202 (was 155/18/0/1.5: 155 kcal is a crab CAKE, the macros are plain crab)
 
-  // === Expanded Fruits & Vegetables (USDA/FAO 2024-2026) ===
-  { keys: ['פרי הדרקון', 'dragon fruit', 'פיטאיה'], cal: 60, p: 1.2, c: 13, f: 0, fb: 20 },
-  { keys: ['רמבוטן', 'rambutan'], cal: 82, p: 1, c: 21, f: 0.2, fb: 25 },
-  { keys: ['מנגוסטין', 'mangosteen'], cal: 73, p: 0.4, c: 18, f: 0.6, fb: 21 },
-  { keys: ['קרמבולה', 'star fruit', 'carambola'], cal: 31, p: 1, c: 7, f: 0.3, fb: 14 },
-  { keys: ['גויאבה', 'guava'], cal: 68, p: 2.6, c: 14, f: 1, fb: 27 },
-  { keys: ['קיוואנו', 'kiwano'], cal: 44, p: 1.8, c: 8, f: 1.3, fb: 27 },
-  { keys: ['ג\'וג\'ובה', 'jujube'], cal: 79, p: 1.2, c: 20, f: 0.2, fb: 27 },
+  // === Expanded Fruits & Vegetables (source not recorded) ===
+  { keys: ['פרי הדרקון', 'dragon fruit', 'פיטאיה'], cal: 60, p: 1.2, c: 13, f: 0, fb: 3.6 }, // fibre from a fresh dragon fruit label, USDA Branded FDC 2376793 (was 20, impossible); the rest is unverified
+  { keys: ['רמבוטן', 'rambutan'], cal: 82, p: 1, c: 21, f: 0.2, fb: 0.9 }, // Rambutan, canned, syrup pack (FDC 168167): the only SR record, same kcal/macros as this entry; fibre corrected (was fb: 25)
+  { keys: ['מנגוסטין', 'mangosteen'], cal: 73, p: 0.4, c: 18, f: 0.6, fb: 1.8 }, // Mangosteen, canned, syrup pack (FDC 169090): the only SR record, same kcal/macros as this entry; fibre corrected (was fb: 21)
+  { keys: ['קרמבולה', 'star fruit', 'carambola'], cal: 31, p: 1, c: 6.7, f: 0.3, fb: 2.8 }, // USDA FDC 171715 (was 31/1/7/0.3/14)
+  { keys: ['גויאבה', 'guava'], cal: 68, p: 2.6, c: 14.3, f: 1, fb: 5.4 }, // USDA FDC 173044 (was 68/2.6/14/1/27)
+  { keys: ['קיוואנו', 'kiwano'], cal: 44, p: 1.8, c: 7.6, f: 1.3, fb: 0 }, // USDA FDC 167791, fibre not listed there (was 44/1.8/8/1.3/27)
+  { keys: ['ג\'וג\'ובה', 'jujube'], cal: 79, p: 1.2, c: 20.2, f: 0.2, fb: 0 }, // USDA FDC 168151, fibre not listed there (was 79/1.2/20/0.2/27)
   { keys: ['אפרסמון', 'persimmon'], cal: 70, p: 0.6, c: 18, f: 0.2, fb: 0 },
-  { keys: ['אצת נורי', 'nori'], cal: 35, p: 6, c: 5, f: 0.3, fb: 23 },
-  { keys: ['אצת וואקאמה', 'wakame'], cal: 45, p: 3, c: 9, f: 0.6, fb: 24 },
-  { keys: ['בוק צ\'וי', 'bok choy'], cal: 13, p: 1.5, c: 2, f: 0.2, fb: 10 },
+  { keys: ['אצת נורי', 'nori'], cal: 35, p: 5.8, c: 5.1, f: 0.3, fb: 0.3 }, // USDA FDC 168458 (was 35/6/5/0.3/23)
+  { keys: ['אצת וואקאמה', 'wakame'], cal: 45, p: 3, c: 9.1, f: 0.6, fb: 0.5 }, // USDA FDC 170496 (was 45/3/9/0.6/24)
+  { keys: ['בוק צ\'וי', 'bok choy'], cal: 13, p: 1.5, c: 2.2, f: 0.2, fb: 1 }, // USDA FDC 170390 (was 13/1.5/2/0.2/10)
   { keys: ['דייקון', 'daikon'], cal: 18, p: 0.6, c: 4, f: 0.1, fb: 0 },
   { keys: ['ביטר מלון', 'bitter melon'], cal: 17, p: 1, c: 3.7, f: 0.2, fb: 0 },
   { keys: ['במיה', 'okra'], cal: 33, p: 2, c: 7, f: 0.2, fb: 0 },
   { keys: ['שורש לוטוס', 'lotus root'], cal: 74, p: 2.6, c: 17, f: 0.1, fb: 0 },
-  { keys: ['נבטי שעועית', 'bean sprouts'], cal: 31, p: 3, c: 6, f: 0.2, fb: 11 },
+  { keys: ['נבטי שעועית', 'bean sprouts'], cal: 30, p: 3, c: 5.9, f: 0.2, fb: 1.8 }, // USDA FDC 169957 (was 31/3/6/0.2/11)
   { keys: ['לבבות דקל', 'hearts of palm'], cal: 28, p: 2.5, c: 4.6, f: 0.6, fb: 0 },
   { keys: ['ארטישוק ירושלמי', 'jerusalem artichoke'], cal: 73, p: 2, c: 17, f: 0, fb: 0 },
   { keys: ['קולרבי', 'kohlrabi'], cal: 27, p: 1.7, c: 6, f: 0.1, fb: 0 },
   { keys: ['רגלת הגינה', 'purslane'], cal: 16, p: 1.3, c: 3.4, f: 0.1, fb: 0 },
-  { keys: ['קייל', 'kale'], cal: 39, p: 2.6, c: 6, f: 1, fb: 11 },
+  { keys: ['קייל', 'kale'], cal: 35, p: 2.9, c: 4.4, f: 1.5, fb: 4.1 }, // USDA FDC 168421 (was 39/2.6/6/1/11)
   { keys: ['תאנים טריות', 'fresh figs'], cal: 74, p: 0.8, c: 19, f: 0.3, fb: 11 },
   { keys: ['תאנה', 'תאנים', 'fig', 'figs'], cal: 74, p: 0.8, c: 19, f: 0.3, fb: 11 },
-  { keys: ['קומקוואט', 'kumquat'], cal: 71, p: 1.9, c: 16, f: 0.9, fb: 28 },
+  { keys: ['קומקוואט', 'kumquat'], cal: 71, p: 1.9, c: 15.9, f: 0.9, fb: 6.5 }, // USDA FDC 168154 (was 71/1.9/16/0.9/28)
   { keys: ['פסיפלורה', 'passion fruit'], cal: 97, p: 2.2, c: 23, f: 0.7, fb: 0 },
-  { keys: ['סמבוק', 'elderberry'], cal: 73, p: 0.7, c: 18, f: 0.5, fb: 28 },
-  { keys: ['אסאי', 'acai'], cal: 70, p: 2, c: 4, f: 5, fb: 28 },
-  { keys: ['דוריאן', 'durian'], cal: 147, p: 1.5, c: 27, f: 5, fb: 28 },
+  { keys: ['סמבוק', 'elderberry'], cal: 73, p: 0.7, c: 18.4, f: 0.5, fb: 7 }, // USDA FDC 171727 (was 73/0.7/18/0.5/28)
+  { keys: ['אסאי', 'acai'], cal: 70, p: 1, c: 4, f: 5, fb: 3 }, // pure unsweetened puree, per 100 g, label, USDA Branded FDC 2038653 (was 70/2/4/5/28)
+  { keys: ['דוריאן', 'durian'], cal: 147, p: 1.5, c: 27.1, f: 5.3, fb: 3.8 }, // USDA FDC 168192 (was 147/1.5/27/5/28)
   { keys: ['לוקוואט', 'שסק', 'loquat'], cal: 47, p: 0.4, c: 12, f: 0.2, fb: 0 },
-  { keys: ['סברס', 'צבר', 'prickly pear'], cal: 41, p: 0.7, c: 10, f: 0.5, fb: 28 },
+  { keys: ['סברס', 'צבר', 'prickly pear'], cal: 41, p: 0.7, c: 9.6, f: 0.5, fb: 3.6 }, // USDA FDC 167750 (was 41/0.7/10/0.5/28)
   { keys: ['ליצ\'י', 'lychee'], cal: 66, p: 0.8, c: 16, f: 0.4, fb: 0 },
   { keys: ['מנגולד', 'chard'], cal: 19, p: 1.8, c: 3.7, f: 0.2, fb: 0 },
-  { keys: ['שומר', 'fennel'], cal: 31, p: 1.2, c: 7, f: 0.2, fb: 10 },
-  { keys: ['לפת', 'turnip'], cal: 23, p: 0.7, c: 5, f: 0.1, fb: 11 },
+  { keys: ['שומר', 'fennel'], cal: 31, p: 1.2, c: 7.3, f: 0.2, fb: 3.1 }, // USDA FDC 169385 (was 31/1.2/7/0.2/10)
+  { keys: ['לפת', 'turnip'], cal: 28, p: 0.9, c: 6.4, f: 0.1, fb: 1.8 }, // USDA FDC 170465 (was 23/0.7/5/0.1/11)
   { keys: ['שורש פטרוזיליה', 'parsley root'], cal: 55, p: 2.3, c: 12, f: 0.6, fb: 0 },
-  { keys: ['דלעת ערמונים', 'butternut squash'], cal: 40, p: 1, c: 10, f: 0.1, fb: 11 },
+  { keys: ['דלעת ערמונים', 'butternut squash'], cal: 40, p: 0.9, c: 10.5, f: 0.1, fb: 3.2 }, // USDA FDC 169296 (was 40/1/10/0.1/11)
   { keys: ['צלפים', 'capers'], cal: 23, p: 2.4, c: 5, f: 0.9, fb: 0 },
   { keys: ['שום שחור', 'black garlic'], cal: 150, p: 6, c: 30, f: 0, fb: 0 },
 
-  // === Expanded Snacks & Desserts (USDA/FAO 2024-2026) ===
+  // === Expanded Snacks & Desserts (source not recorded) ===
   { keys: ['בקלאווה', 'baklava'], cal: 434, p: 6, c: 62, f: 17, fb: 0 },
   { keys: ['חלווה', 'halva'], cal: 469, p: 12, c: 60, f: 22, fb: 0 },
   { keys: ['רחת לוקום', 'turkish delight'], cal: 389, p: 0, c: 100, f: 0, fb: 0 },
@@ -727,7 +734,7 @@ const FOOD_DB = [
   { keys: ['טופי', 'toffee'], cal: 450, p: 1, c: 85, f: 12, fb: 0 },
   { keys: ['חטיף דגנים', 'cereal bar'], cal: 400, p: 6, c: 70, f: 10, fb: 0 },
 
-  // === Sauces, Spreads & Drinks (USDA/FAO 2024-2026) ===
+  // === Sauces, Spreads & Drinks (source not recorded) ===
   { keys: ['סריראצ\'ה', 'sriracha'], cal: 93, p: 2, c: 19, f: 1, fb: 0 },
   { keys: ['מיסו', 'miso'], cal: 200, p: 12, c: 25, f: 6, fb: 0 },
   { keys: ['צ\'ימיצ\'ורי', 'chimichurri'], cal: 270, p: 1.5, c: 7, f: 27, fb: 0 },
@@ -860,7 +867,7 @@ const FOOD_DB = [
   // === Israeli foods — comprehensive nutrition research (2026) ===
   // Items added from "מחקר תזונתי מקיף של סל המזון הישראלי" (300 foods).
   // Each item below was verified against existing DB to avoid duplicates;
-  // values are Health Ministry ("Tzameret") + USDA per-100g.
+  // (the list names Tzameret and USDA as its sources, but no entry says which; values not verified.)
   // Bakery / standard breads
   { keys: ['לחם אחיד', 'standard bread'], cal: 250, p: 8, c: 48, f: 1.5, fb: 4 },
   { keys: ['חלה מתוקה', 'sweet challah'], cal: 290, p: 9, c: 52, f: 5, fb: 2 },
@@ -1004,7 +1011,7 @@ const FOOD_DB = [
   { keys: ['אווה טאצ\'ינו', 'קצף חלב', 'milk foam latte', 'taccino'], cal: 37, p: 3.4, c: 5, f: 0.1, fb: 0 },
   { keys: ['מאוריה תימנית', 'מאוריה', 'yemeni lahoh', 'lahoh'], cal: 340, p: 7.5, c: 48, f: 13, fb: 2.2 },
 
-  // === Gemini Research 2026 — additional foods ===
+  // === Additional foods from an AI-assisted research list (2026) — source not recorded, not verified ===
   // Chocolate bars & candy
   { keys: ['קינדר סורפריז', 'kinder surprise'], cal: 552, p: 8, c: 52, f: 34, fb: 0 },
   { keys: ['מארס', 'mars bar'], cal: 448, p: 4, c: 69, f: 17, fb: 1 },
@@ -1022,9 +1029,11 @@ const FOOD_DB = [
   { keys: ['קרטיב', 'kartiv'], cal: 80, p: 0, c: 20, f: 0, fb: 0 },
 
   // Baked goods & desserts
-  { keys: ["צ'יזקייק", 'cheesecake'], cal: 401, p: 7, c: 32, f: 28, fb: 1 },
+  // (English key "cheesecake" belongs to "עוגת גבינה" above — a key on two entries made both count;
+  // 280 vs 401 kcal for the two cakes is for the nutrition audit, docs/nutrition-audit.md)
+  { keys: ["צ'יזקייק"], cal: 401, p: 7, c: 32, f: 28, fb: 1 },
   { keys: ['מקרון', 'macaron'], cal: 90, p: 2, c: 13, f: 4, fb: 0 },
-  { keys: ['דונאט', 'donut', 'doughnut'], cal: 400, p: 5, c: 45, f: 22, fb: 1 },
+  { keys: ['דונאט'], cal: 400, p: 5, c: 45, f: 22, fb: 1 }, // "donut"/"doughnut" are keys of "סופגנייה" above
   { keys: ['מלבי', 'malabi'], cal: 120, p: 2, c: 20, f: 3, fb: 0 },
   { keys: ['עוגיות פיצוחיו', 'pistachio cookies'], cal: 500, p: 10, c: 50, f: 30, fb: 5 },
   { keys: ['חמוציות מסוכרות', 'dried cranberries', 'קרנברי'], cal: 308, p: 0.1, c: 82, f: 1, fb: 5 },
@@ -1035,7 +1044,7 @@ const FOOD_DB = [
   { keys: ['פאי מיט', 'meat pie', 'aussie meat pie'], cal: 280, p: 10, c: 25, f: 15, fb: 2 },
   { keys: ['דייפוקו', 'daifuku', "מוצ'י"], cal: 230, p: 4, c: 52, f: 0.5, fb: 2 },
   { keys: ['טאיאקי', 'taiyaki'], cal: 250, p: 5, c: 40, f: 8, fb: 1 },
-  { keys: ["פוקצ'ינה", 'focaccia'], cal: 243, p: 5, c: 33, f: 11, fb: 2 },
+  { keys: ["פוקצ'ינה"], cal: 243, p: 5, c: 33, f: 11, fb: 2 }, // "focaccia" is a key of "פוקאצ'ה" above
   { keys: ['ביסקוויט חיתוך', 'teething biscuit'], cal: 423, p: 9.7, c: 70, f: 10, fb: 3 },
   { keys: ["צ'בטה", 'ciabatta'], cal: 260, p: 9, c: 50, f: 2, fb: 2 },
 
@@ -1044,7 +1053,7 @@ const FOOD_DB = [
   { keys: ['יופלה', 'yoplait'], cal: 95, p: 3.5, c: 14, f: 2.5, fb: 0 },
   { keys: ['דניאלה', 'daniela yogurt'], cal: 115, p: 5, c: 15, f: 4, fb: 0 },
   { keys: ['אשל', 'eshel'], cal: 60, p: 3, c: 4.5, f: 4.5, fb: 0 },
-  { keys: ['פילדלפיה', 'philadelphia cream cheese'], cal: 342, p: 6, c: 4, f: 34, fb: 0 },
+  { keys: ['פילדלפיה'], cal: 342, p: 6, c: 4, f: 34, fb: 0 }, // the English key is on "גבינת שמנת פילדלפיה" above
   { keys: ['הגן דאז', 'haagen dazs'], cal: 270, p: 4, c: 22, f: 18, fb: 0 },
   { keys: ['גורגונזולה', 'gorgonzola'], cal: 314, p: 21, c: 0.4, f: 26, fb: 0 },
   { keys: ['פקורינו', 'pecorino', 'pecorino romano'], cal: 387, p: 26, c: 0, f: 32, fb: 0 },
@@ -1139,7 +1148,7 @@ const FOOD_DB = [
   { keys: ['מופונגו', 'mofongo'], cal: 300, p: 6, c: 30, f: 18, fb: 4 },
   { keys: ['פסטליטוס', 'pastelitos'], cal: 320, p: 10, c: 35, f: 15, fb: 2 },
   { keys: ['וונטון', 'wonton'], cal: 300, p: 8, c: 35, f: 14, fb: 2 },
-  { keys: ['צלעות חזיר BBQ', 'pork ribs bbq'], cal: 350, p: 15, c: 20, f: 23, fb: 0 },
+  { keys: ['צלעות חזיר bbq', 'pork ribs bbq'],cal: 350, p: 15, c: 20, f: 23, fb: 0 },
   { keys: ['פרנקפורטר', 'frankfurter', 'hot dog sausage'], cal: 290, p: 12, c: 2, f: 26, fb: 0 },
   { keys: ['פתוש', 'fattoush'], cal: 90, p: 2, c: 10, f: 5, fb: 2 },
   { keys: ['שיש טאוק', 'shish tawook'], cal: 160, p: 22, c: 2, f: 6, fb: 0 },
@@ -1160,15 +1169,15 @@ const FOOD_DB = [
 
   // Supplements
   { keys: ['קריאטין', 'creatine monohydrate'], cal: 0, p: 0, c: 0, f: 0, fb: 0 },
-  { keys: ['HMB', 'beta-hmb supplement'], cal: 0, p: 0, c: 0, f: 0, fb: 0 },
+  { keys: ['hmb', 'beta-hmb supplement'],cal: 0, p: 0, c: 0, f: 0, fb: 0 },
   { keys: ['בטא אלנין', 'beta alanine'], cal: 0, p: 0, c: 0, f: 0, fb: 0 },
   { keys: ['אשווגנדה', 'ashwagandha'], cal: 270, p: 3.9, c: 46.9, f: 0.3, fb: 30 },
   { keys: ['ספירולינה', 'spirulina'], cal: 290, p: 57, c: 24, f: 7, fb: 3.6 },
-  { keys: ['L-קרניטין', 'l-carnitine', 'carnitine supplement'], cal: 0, p: 0, c: 0, f: 0, fb: 0 },
+  { keys: ['l-קרניטין', 'l-carnitine', 'carnitine supplement'],cal: 0, p: 0, c: 0, f: 0, fb: 0 },
   { keys: ['מגנזיום ציטראט', 'magnesium citrate'], cal: 0, p: 0, c: 0, f: 0, fb: 0 },
   { keys: ['קולוסטרום', 'colostrum'], cal: 400, p: 80, c: 10, f: 5, fb: 0 },
   { keys: ['בטא גלוקאן', 'beta glucan'], cal: 380, p: 4, c: 90, f: 0, fb: 80 },
-  { keys: ['ויטמין D', 'vitamin d', 'vitamin d3'], cal: 8, p: 0, c: 0, f: 1, fb: 0 },
+  { keys: ['ויטמין d', 'vitamin d', 'vitamin d3'],cal: 8, p: 0, c: 0, f: 1, fb: 0 },
 
   // Miscellaneous
   { keys: ['צימוקים זהובים', 'golden raisins', 'sultanas'], cal: 302, p: 3.4, c: 79.5, f: 0.5, fb: 3.3 },
@@ -1176,160 +1185,39 @@ const FOOD_DB = [
   { keys: ['אורביט', 'orbit gum'], cal: 180, p: 0, c: 73, f: 0, fb: 0 },
   { keys: ['טריידנט', 'trident gum'], cal: 170, p: 0, c: 70, f: 0, fb: 0 },
 
+  // === Plain drinks (0–1 kcal) ===
+  // Reference: USDA FoodData Central, SR Legacy (records confirmed in docs/nutrition-audit.md):
+  //   173647  "Beverages, water, tap, drinking"                           0 kcal
+  //   174842  "Beverages, carbonated, club soda"                          0 kcal
+  //   173227  "Beverages, tea, black, brewed, prepared with tap water"    1 kcal / 100 g
+  //   171890  "Beverages, coffee, brewed, prepared with tap water"        2 kcal / 100 g (entry below: 1)
+  // Sweetened or milky versions are separate entries (cola, latte, flavored water…).
+  { keys: ['מים', 'מי ברז', 'water'], cal: 0, p: 0, c: 0, f: 0, fb: 0 },
+  { keys: ['סודה', 'מים מוגזים', 'club soda', 'soda water', 'sparkling water', 'seltzer'], cal: 0, p: 0, c: 0, f: 0, fb: 0 },
+  { keys: ['תה', 'tea'], cal: 1, p: 0, c: 0.3, f: 0, fb: 0 }, // "תה ירוק" / "green tea" already exist above
+  { keys: ['קפה שחור', 'קפה', 'קפה נמס', 'black coffee', 'coffee', 'instant coffee'], cal: 1, p: 0.1, c: 0, f: 0, fb: 0 },
+
   // === Generic / catch-all (last resort) ===
   { keys: ['עוף', 'chicken'], cal: 200, p: 25, c: 0, f: 10, fb: 0 },
   { keys: ['בשר', 'meat', 'beef'], cal: 250, p: 26, c: 0, f: 15, fb: 0 },
   { keys: ['גבינה', 'cheese'], cal: 300, p: 20, c: 2, f: 24, fb: 0 },
-  { keys: ['חלבון', 'protein'], cal: 120, p: 25, c: 3, f: 1, fb: 0 },
-  { keys: ['גרנולה', 'granola'], cal: 200, p: 5, c: 30, f: 8, fb: 3 },
+  { keys: ['חלבון', 'protein', 'אבקת חלבון', 'protein powder', 'חלבון מי גבינה', 'whey', 'whey protein'], cal: 352, p: 78.1, c: 6.3, f: 1.6, fb: 3.1 }, // per 100 g, USDA FDC 173180 whey-based powder (was 120/25/3/1 = one ~30 g scoop)
+  { keys: ['גרנולה', 'granola'], cal: 489, p: 13.7, c: 53.9, f: 24.3, fb: 8.9 }, // per 100 g, USDA FDC 171646 homemade granola (was 200/5/30/8/3 = one ~40 g portion)
 ];
 
 /**
- * Estimate nutrition from food description using comprehensive USDA 2024-2026 database
- * Searches for the most specific match first (longer Hebrew terms before shorter ones)
- * Falls back to fuzzy matching for typos when no exact match is found
+ * Estimate nutrition from a free-text meal ("200 גרם חזה עוף + 2 פרוסות לחם").
+ * Which foods it names and how much of each — whole words only, quantities and
+ * household measures taken into account, nothing guessed from a food's spelling.
+ * The reading itself lives in utils/foodText.js (shared with the suggested menus);
+ * the measures (egg = 50 g, tablespoon of tahini = 15 g…) in data/portions.js.
+ * Returns null when no food is recognised.
  */
-
-// Levenshtein distance for fuzzy matching
-function levenshtein(a, b) {
-  const m = a.length, n = b.length;
-  if (m === 0) return n;
-  if (n === 0) return m;
-  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      dp[i][j] = a[i - 1] === b[j - 1]
-        ? dp[i - 1][j - 1]
-        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-    }
-  }
-  return dp[m][n];
-}
-
-function itemToMatch(item) {
-  const englishKey = item.keys.find((key) => /^[a-zA-Z0-9 %'\-\/().]+$/.test(key));
-  return {
-    calories: Math.round(item.cal),
-    protein: Math.round(item.p),
-    carbs: Math.round(item.c),
-    fat: Math.round(item.f),
-    fiber: Math.round(item.fb || 0),
-    englishName: englishKey || null,
-  };
-}
+const { createEstimator } = require('./foodText');
+const estimator = createEstimator(FOOD_DB, require('../data/portions'));
 
 function estimateNutrition(description) {
-  const text = description.toLowerCase();
-  const rawMatches = [];
-
-  // 1. Exact substring matching - collect with matched key length for specificity
-  for (const item of FOOD_DB) {
-    let longestMatchedKey = 0;
-    for (const key of item.keys) {
-      if (text.includes(key) && key.length > longestMatchedKey) {
-        longestMatchedKey = key.length;
-      }
-    }
-    if (longestMatchedKey > 0) {
-      rawMatches.push({ item, keyLen: longestMatchedKey, matchedKeys: item.keys.filter(k => text.includes(k)) });
-    }
-  }
-
-  // Filter out less specific matches: if item A's matched key is a substring of item B's matched key,
-  // remove item A (the generic one). E.g. "במבה" should be removed when "במבה פרו" matched.
-  const matches = [];
-  for (const m of rawMatches) {
-    const isSubsumed = rawMatches.some(other =>
-      other !== m &&
-      other.keyLen > m.keyLen &&
-      m.matchedKeys.some(mk => other.matchedKeys.some(ok => ok.includes(mk)))
-    );
-    if (!isSubsumed) {
-      matches.push(itemToMatch(m.item));
-    }
-  }
-
-  // 2. Prefix matching fallback - input is start of a key (partial word)
-  if (matches.length === 0) {
-    const words = text.split(/[\s,،.;:!?+&\-\/]+/).filter(w => w.length >= 2);
-    let bestPrefix = null;
-    let bestPrefixLen = 0;
-
-    for (const item of FOOD_DB) {
-      for (const key of item.keys) {
-        for (const word of words) {
-          // Word is a prefix of key, and at least 3 chars to avoid false positives
-          if (word.length >= 3 && key.startsWith(word) && word.length > bestPrefixLen) {
-            bestPrefixLen = word.length;
-            bestPrefix = item;
-          }
-        }
-      }
-    }
-
-    if (bestPrefix) {
-      matches.push(itemToMatch(bestPrefix));
-    }
-  }
-
-  // 3. Fuzzy matching fallback - typo tolerance
-  if (matches.length === 0) {
-    const words = text.split(/[\s,،.;:!?+&\-\/]+/).filter(w => w.length >= 2);
-    let bestMatch = null;
-    let bestDist = Infinity;
-
-    for (const item of FOOD_DB) {
-      for (const key of item.keys) {
-        // For each input word, check distance to each key
-        for (const word of words) {
-          const dist = levenshtein(word, key);
-          // Allow max distance based on word length: 1 for short words, 2 for longer
-          const maxDist = key.length <= 4 ? 1 : 2;
-          if (dist <= maxDist && dist < bestDist) {
-            bestDist = dist;
-            bestMatch = item;
-          }
-        }
-        // Also check the full input text against multi-word keys
-        if (key.includes(' ')) {
-          const dist = levenshtein(text.trim(), key);
-          const maxDist = key.length <= 6 ? 1 : 2;
-          if (dist <= maxDist && dist < bestDist) {
-            bestDist = dist;
-            bestMatch = item;
-          }
-        }
-      }
-    }
-
-    if (bestMatch) {
-      matches.push(itemToMatch(bestMatch));
-    }
-  }
-
-  if (matches.length === 0) return null;
-
-  // If only one match, return it directly
-  if (matches.length === 1) {
-    return { ...matches[0], source: 'database' };
-  }
-
-  // Multiple matches: sum all values
-  const combined = {
-    calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0,
-    source: 'database',
-    englishName: matches.map(m => m.englishName).filter(Boolean).join(' + '),
-  };
-  for (const m of matches) {
-    combined.calories += m.calories;
-    combined.protein += m.protein;
-    combined.carbs += m.carbs;
-    combined.fat += m.fat;
-    combined.fiber += m.fiber;
-  }
-  return combined;
+  return estimator.estimate(description);
 }
 
 /**
@@ -1712,6 +1600,7 @@ module.exports = {
   getHealthyWeightRange,
   generateBMIAnalysis,
   estimateNutrition,
+  estimator,
   FOOD_DB,
   generateWorkoutPlan,
   getSleepRecommendation,

@@ -1,7 +1,7 @@
 // Run with:  node --test src/lib/workoutAdapt.test.mjs   (from client/)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseRepRange, weightStep, recommend, markTooHard, tooHardAtFor, isAdaptEnabled, setAdaptEnabled, explain } from './workoutAdapt.mjs';
+import { parseRepRange, weightStep, recommend, markTooHard, restoreTooHard, tooHardAtFor, isAdaptEnabled, setAdaptEnabled, explain } from './workoutAdapt.mjs';
 
 const sess = (date, ...sets) => ({ date, sets: sets.map(([reps, weight]) => ({ reps, weight })) });
 const mem = () => { const m = {}; return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); } }; };
@@ -84,4 +84,23 @@ test('every reason code has a Hebrew and an English sentence', () => {
     assert.ok(explain(rec, true).length > 5);
     assert.ok(explain(rec, false).length > 5);
   }
+});
+
+test('restoreTooHard: undoing an "easier version" swap puts the flag back (or removes it)', () => {
+  const st = mem();
+  // no flag before → marking then restoring removes it
+  const before = tooHardAtFor('Squat', st);
+  markTooHard('Squat', st, new Date('2026-11-03T00:00:00Z'));
+  restoreTooHard('Squat', before, st);
+  assert.equal(tooHardAtFor('Squat', st), null);
+  // an older flag before → restoring brings the OLD date back, not the new one
+  markTooHard('Row', st, new Date('2026-10-01T00:00:00Z'));
+  const old = tooHardAtFor('Row', st);
+  markTooHard('Row', st, new Date('2026-11-03T00:00:00Z'));
+  restoreTooHard('Row', old, st);
+  assert.equal(tooHardAtFor('Row', st), '2026-10-01T00:00:00.000Z');
+  // other exercises are untouched
+  markTooHard('Curl', st, new Date('2026-11-02T00:00:00Z'));
+  restoreTooHard('Row', null, st);
+  assert.equal(tooHardAtFor('Curl', st), '2026-11-02T00:00:00.000Z');
 });

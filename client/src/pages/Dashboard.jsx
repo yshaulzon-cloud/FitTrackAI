@@ -10,6 +10,9 @@ import { useAccessibility } from '../context/AccessibilityContext';
 import WorkoutPlan from '../components/WorkoutPlan';
 import NutritionTracker from '../components/NutritionTracker';
 import { isAdaptEnabled, setAdaptEnabled } from '../lib/workoutAdapt.mjs';
+import { EQUIPMENT_OPTIONS, GYM_LABEL, toggleEquipment, toggleGymKit, isGymKitOn } from '../lib/equipmentPick.mjs';
+import { normalizeUserEquipment } from '../lib/exerciseLibrary.mjs';
+import { todaysNutrition, hasTargets } from '../lib/dayTarget.mjs';
 import Progress from '../components/Progress';
 import BMICard from '../components/BMICard';
 import AdminPanel from '../components/AdminPanel';
@@ -133,20 +136,26 @@ export default function Dashboard() {
 
   async function loadData() {
     try {
-      const [profile, nutrition, workouts, progression, dayInfo] = await Promise.all([
+      // Each call stands on its own: one that fails (say the profile) must not
+      // blank the others, and what is still on screen from an earlier load stays.
+      // A missing profile means a missing target — the screens then say "target not
+      // loaded" instead of showing an invented number.
+      const names = ['profile', 'today nutrition', 'workout history', 'progression', 'day type'];
+      const results = await Promise.allSettled([
         api('/user/profile'),
         api('/nutrition/today'),
         api('/workout/history'),
-        api('/progression/status').catch(() => null),
-        api('/nutrition/day-type').catch(() => null),
+        api('/progression/status'),
+        api('/nutrition/day-type'),
       ]);
-      setProfileData(profile);
-      setTodayNutrition(nutrition);
-      setWorkoutHistory(workouts);
-      setProgressionData(progression);
-      setDayType(dayInfo);
-      reconcileStreak(progression?.currentStreak);
-      syncTimezone(profile?.profile?.timezone);
+      results.forEach((r, i) => { if (r.status === 'rejected') console.error(`Error loading ${names[i]}:`, r.reason); });
+      const [profile, nutrition, workouts, progression, dayInfo] = results.map((r) => (r.status === 'fulfilled' ? r.value : null));
+      if (profile) setProfileData(profile);
+      if (nutrition) setTodayNutrition(nutrition);
+      if (workouts) setWorkoutHistory(workouts);
+      if (progression) { setProgressionData(progression); reconcileStreak(progression.currentStreak); }
+      if (dayInfo) setDayType(dayInfo);
+      if (profile) syncTimezone(profile.profile?.timezone);
     } catch (err) {
       console.error('Error loading data:', err);
     } finally {
@@ -201,6 +210,10 @@ export default function Dashboard() {
   }
 
   const nutrition = profileData?.nutrition;
+  // Everything about "today" (ring, bars, menu, progress) uses today's target —
+  // the base shifted for a training / rest day. Settings keeps the plain `nutrition`
+  // because that is what the user edits.
+  const dayNutrition = todaysNutrition(nutrition);
   const goalLabel = goalLabels[profileData?.profile?.goal] || '';
 
   return (
@@ -243,7 +256,7 @@ export default function Dashboard() {
         {activeTab === 'overview' && (
           <OverviewTab userName={profileData?.name}
             profile={profileData?.profile}
-            nutrition={nutrition}
+            nutrition={dayNutrition}
             todayNutrition={todayNutrition}
             workoutHistory={workoutHistory}
             goalLabel={goalLabel}
@@ -273,7 +286,7 @@ export default function Dashboard() {
 
         <div style={{ display: activeTab === 'nutrition' ? 'block' : 'none' }}>
           <NutritionTracker
-            targets={nutrition}
+            targets={dayNutrition}
             todayData={todayNutrition}
             api={api}
             onUpdate={loadData}
@@ -286,7 +299,8 @@ export default function Dashboard() {
           <BMICard
             bmiAnalysis={profileData?.bmiAnalysis}
             profile={profileData?.profile}
-            calorieTarget={nutrition?.calorieTarget}
+            calorieTarget={dayNutrition?.calorieTarget}
+            baseCalorieTarget={dayNutrition?.baseCalorieTarget}
             api={api}
             onUpdate={loadData}
           />
@@ -328,12 +342,13 @@ export default function Dashboard() {
                 <BMICard
                   bmiAnalysis={profileData?.bmiAnalysis}
                   profile={profileData?.profile}
-                  calorieTarget={nutrition?.calorieTarget}
+                  calorieTarget={dayNutrition?.calorieTarget}
+                  baseCalorieTarget={dayNutrition?.baseCalorieTarget}
                   api={api}
                   onUpdate={loadData}
                 />
                 <Progress
-                  nutrition={nutrition}
+                  nutrition={dayNutrition}
                   todayNutrition={todayNutrition}
                   workoutHistory={workoutHistory}
                   profile={profileData?.profile}
@@ -560,7 +575,7 @@ function HeroMacroBar({ label, current, target, color }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 5 }}>
         <span style={{ color: '#93A0B4' }}>{label}</span>
-        <span style={{ color: '#B9C4D2', fontWeight: 500 }}>{Math.round(current)}/{target}g</span>
+        <span style={{ color: '#B9C4D2', fontWeight: 500 }}>{target > 0 ? `${Math.round(current)}/${target}g` : `${Math.round(current)}g`}</span>
       </div>
       <div style={{ height: 5, borderRadius: 3, background: 'var(--border-faint)' }}>
         <div style={{ width: `${pct}%`, height: 5, borderRadius: 3, background: color, transition: 'width .6s ease' }} />
@@ -646,13 +661,16 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
   const [showBodyPrompt, setShowBodyPrompt] = useState(() => shouldShowBodyPrompt());
 
   const calorieProgress = todayNutrition?.totalCalories || 0;
-  const calorieTarget = nutrition?.calorieTarget || 2000;
+  // Targets are the server's numbers or nothing: no invented 2000 / 150 / 250 / 65.
+  // 0 here means "unknown" — the screens below say so instead of showing it.
+  const targetKnown = hasTargets(nutrition);
+  const calorieTarget = targetKnown ? nutrition.calorieTarget : 0;
   const proteinProgress = todayNutrition?.totalProtein || 0;
-  const proteinTarget = nutrition?.macros?.protein || 150;
+  const proteinTarget = targetKnown ? (nutrition.macros?.protein || 0) : 0;
   const carbsProgress = todayNutrition?.totalCarbs || 0;
-  const carbsTarget = nutrition?.macros?.carbs || 250;
+  const carbsTarget = targetKnown ? (nutrition.macros?.carbs || 0) : 0;
   const fatProgress = todayNutrition?.totalFat || 0;
-  const fatTarget = nutrition?.macros?.fat || 65;
+  const fatTarget = targetKnown ? (nutrition.macros?.fat || 0) : 0;
 
   const calorieRemaining = Math.max(0, calorieTarget - calorieProgress);
   const caloriePct = calorieTarget > 0 ? Math.min(1, calorieProgress / calorieTarget) : 0;
@@ -682,7 +700,9 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
   const proteinRemaining = Math.max(0, proteinTarget - proteinProgress);
   let nextTitle, nextSub, nextAction;
   if (!hasLoggedToday) {
-    nextTitle = isHe ? `התחל את היום — ${calorieTarget.toLocaleString()} קלוריות ביעד` : `Start your day — ${calorieTarget.toLocaleString()} kcal target`;
+    nextTitle = !targetKnown
+      ? (isHe ? 'התחל את היום' : 'Start your day')
+      : (isHe ? `התחל את היום — ${calorieTarget.toLocaleString()} קלוריות ביעד` : `Start your day — ${calorieTarget.toLocaleString()} kcal target`);
     nextSub = isHe ? 'רשום את הארוחה הראשונה כדי להתחיל לעקוב.' : 'Log your first meal to start tracking.';
     nextAction = () => setActiveTab('nutrition');
   } else if (proteinRemaining > 30) {
@@ -736,7 +756,9 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>{isHe ? 'רשום ארוחה ראשונה' : 'Log your first meal'}</div>
-              <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 2 }}>{isHe ? `היעד שלך: ${calorieTarget.toLocaleString()} קלוריות ליום` : `Your target: ${calorieTarget.toLocaleString()} kcal/day`}</div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 2 }}>{!targetKnown
+                ? (isHe ? 'היעד לא נטען' : 'Target not loaded')
+                : (isHe ? `היעד שלך: ${calorieTarget.toLocaleString()} קלוריות ליום` : `Your target: ${calorieTarget.toLocaleString()} kcal/day`)}</div>
             </div>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={isHe ? 'M14 6l-6 6 6 6' : 'M10 6l6 6-6 6'} /></svg>
           </button>
@@ -811,7 +833,9 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
                 {Math.round(calorieProgress).toLocaleString()}
               </div>
               <div style={{ fontSize: 11, color: '#7C8798', marginTop: 4 }}>
-                {isHe ? `מתוך ${calorieTarget.toLocaleString()} קק״ל` : `of ${calorieTarget.toLocaleString()} kcal`}
+                {!targetKnown
+                  ? (isHe ? 'יעד לא נטען' : 'target not loaded')
+                  : (isHe ? `מתוך ${calorieTarget.toLocaleString()} קק״ל` : `of ${calorieTarget.toLocaleString()} kcal`)}
               </div>
             </div>
           </div>
@@ -899,6 +923,7 @@ function StIc({ type, color = '#fff', size = 18 }) {
   if (type === 'mail')    return <svg {...p}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>;
   if (type === 'bell')    return <svg {...p}><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7M10.5 20a2 2 0 0 0 3 0"/></svg>;
   if (type === 'display') return <svg {...p}><path d="M20 14A8.5 8.5 0 1 1 10 4a7 7 0 0 0 10 10z"/></svg>;
+  if (type === 'globe')   return <svg {...p}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 4 5.7 4 9s-1.4 6.4-4 9c-2.6-2.6-4-5.7-4-9s1.4-6.4 4-9z"/></svg>;
   if (type === 'sliders') return <svg {...p}><path d="M5 8h8M17 8h2M5 16h2M11 16h8"/><circle cx="15" cy="8" r="2.2"/><circle cx="9" cy="16" r="2.2"/></svg>;
   if (type === 'lock')    return <svg {...p}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>;
   if (type === 'shield')  return <svg {...p}><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>;
@@ -939,6 +964,10 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
   // Account editable fields
   const [name, setName] = useState(userName || '');
   const [age, setAge]   = useState(profile?.age || '');
+
+  // Equipment (Settings → Equipment). Old profiles may hold the coarse legacy
+  // values, so go through the same normalisation the swap sheet uses.
+  const [equipment, setEquipment] = useState(() => normalizeUserEquipment(profile?.equipment));
 
   // ── Notification preferences ──────────────────────────────────────
   // Preferences live in localStorage (notifConfig.mjs owns the keys). What is
@@ -1096,6 +1125,18 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     } finally { setLoading(false); }
   }
 
+  async function handleSaveEquipment() {
+    if (!equipment.length) return;
+    setLoading(true);
+    try {
+      await api('/user/profile', { method: 'PUT', body: JSON.stringify({ equipment }) });
+      onUpdate();
+      flashToast(isHe ? 'הציוד נשמר ✓' : 'Equipment saved ✓');
+    } catch (err) {
+      flashToast(err.message || (isHe ? 'שגיאה בשמירה' : 'Save failed'));
+    } finally { setLoading(false); }
+  }
+
   async function handleSaveAccount() {
     const payload = {};
     if (name.trim() && name.trim() !== (userName || '')) payload.name = name.trim();
@@ -1140,8 +1181,10 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     home:     isHe ? 'הגדרות'          : 'Settings',
     body:     isHe ? 'נתוני גוף'       : 'Body Data',
     goal:     isHe ? 'מטרת אימון'      : 'Training Goal',
+    equipment: isHe ? 'ציוד'           : 'Equipment',
     notif:    isHe ? 'התראות'           : 'Notifications',
     display:  isHe ? 'תצוגה'           : 'Display',
+    language: isHe ? 'שפה'             : 'Language',
     access:   isHe ? 'נגישות'          : 'Accessibility',
     account:  isHe ? 'חשבון'           : 'Account',
     security: isHe ? 'אבטחה'           : 'Security',
@@ -1153,6 +1196,8 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     { screen: 'body',     label: isHe ? 'מגדר'          : 'Gender' },
     { screen: 'goal',     label: isHe ? 'ירידה במשקל'   : 'Cut' },
     { screen: 'goal',     label: isHe ? 'עלייה במסה'    : 'Bulk' },
+    { screen: 'equipment', label: isHe ? 'ציוד זמין'     : 'Available equipment' },
+    { screen: 'equipment', label: isHe ? 'חדר כושר'      : 'Gym' },
     { screen: 'notif',    label: isHe ? 'תזכורת אימון'  : 'Workout reminder' },
     { screen: 'notif',    label: isHe ? 'ארוחת בוקר'    : 'Breakfast reminder' },
     { screen: 'notif',    label: isHe ? 'ארוחת צהריים'  : 'Lunch reminder' },
@@ -1161,7 +1206,6 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     { screen: 'notif',    label: isHe ? 'התראת רצף'     : 'Streak alert' },
     { screen: 'notif',    label: isHe ? 'סיכום שבועי'   : 'Weekly recap' },
     { screen: 'notif',    label: isHe ? 'שעת התראה'     : 'Reminder time' },
-    { screen: 'display',  label: isHe ? 'שפה'           : 'Language' },
     { screen: 'display',  label: isHe ? 'ערכת צבעים'    : 'Theme' },
     { screen: 'access',   label: isHe ? 'גודל טקסט'     : 'Text size' },
     { screen: 'account',  label: isHe ? 'שם פרטי'       : 'Name' },
@@ -1183,11 +1227,15 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
       value: weight && height ? (isHe ? `${weight} ק״ג · ${height}` : `${weight} kg · ${height}`) : null },
     { id: 'goal',     icon: 'target',  label: isHe ? 'מטרת אימון'     : 'Training Goal',  sub: isHe ? 'חיתוך, בנייה, שמירה'     : 'Cut, bulk, maintain',
       value: goalLabels[goal] || null },
+    { id: 'equipment', icon: 'dumbbell', label: isHe ? 'ציוד'          : 'Equipment',      sub: isHe ? 'מה זמין לך, להחלפת תרגילים' : 'What you have, for exercise swaps',
+      value: equipment.length ? (isHe ? `${equipment.length} נבחרו` : `${equipment.length} selected`) : null },
     { id: 'account',  icon: 'mail',    label: isHe ? 'חשבון'           : 'Account',        sub: isHe ? 'שם וגיל'                 : 'Name and age' },
     { id: 'notif',    icon: 'bell',    label: isHe ? 'התראות'          : 'Notifications',  sub: isHe ? 'תזכורות יומיות'          : 'Daily reminders',
       value: enabledNotifs ? (isHe ? `${enabledNotifs} פעילות` : `${enabledNotifs} on`) : (isHe ? 'כבוי' : 'Off') },
-    { id: 'display',  icon: 'display', label: isHe ? 'תצוגה'          : 'Display',        sub: isHe ? 'שפה וערכת צבעים'         : 'Language and theme',
+    { id: 'display',  icon: 'display', label: isHe ? 'תצוגה'          : 'Display',        sub: isHe ? 'ערכת צבעים'                : 'Theme',
       value: theme === 'dark' ? (isHe ? 'כהה' : 'Dark') : (isHe ? 'בהיר' : 'Light') },
+    { id: 'language', icon: 'globe',   label: isHe ? 'שפה'             : 'Language',       sub: 'עברית / English',
+      value: lang === 'he' ? 'עברית' : 'English' },
     { id: 'access',   icon: 'sliders', label: isHe ? 'נגישות'          : 'Accessibility',  sub: isHe ? 'גודל טקסט, ניגודיות'    : 'Text size, contrast' },
     { id: 'security', icon: 'lock',    label: isHe ? 'אבטחה'           : 'Security',       sub: isHe ? 'סיסמה ואימות'            : 'Password and auth' },
     { id: 'privacy',  icon: 'shield',  label: isHe ? 'פרטיות ונתונים'  : 'Privacy & Data', sub: isHe ? 'ייצוא, איפוס, מחיקה'    : 'Export, reset, delete' },
@@ -1195,8 +1243,8 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
 
   // The prototype groups the eight sections under three headers.
   const navGroups = [
-    { label: isHe ? 'פרופיל'          : 'Profile',            ids: ['body', 'goal', 'account'] },
-    { label: isHe ? 'העדפות'          : 'Preferences',        ids: ['notif', 'display', 'access'] },
+    { label: isHe ? 'פרופיל'          : 'Profile',            ids: ['body', 'goal', 'equipment', 'account'] },
+    { label: isHe ? 'העדפות'          : 'Preferences',        ids: ['notif', 'display', 'language', 'access'] },
     { label: isHe ? 'פרטיות ואבטחה'   : 'Privacy & Security', ids: ['security', 'privacy'] },
   ];
 
@@ -1459,6 +1507,49 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
         </div>
       )}
 
+      {/* ── Equipment ─────────────────────────────────────────── */}
+      {screen === 'equipment' && (
+        <div className="st2-screen">
+          <p className="st2-section-desc">
+            {isHe
+              ? 'סמן מה יש לך זמין. החלפות התרגילים יוצעו לפי הציוד הזה. התוכנית השבועית עצמה לא משתנה.'
+              : 'Tick what you have. Exercise swaps are matched to this equipment. Your weekly plan itself does not change.'}
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div
+              role="button" tabIndex={0} aria-pressed={isGymKitOn(equipment)}
+              onClick={() => setEquipment((prev) => toggleGymKit(prev))}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEquipment((prev) => toggleGymKit(prev)); } }}
+              style={chipStyle(isGymKitOn(equipment))}
+            >
+              {isGymKitOn(equipment) ? '✓ ' : ''}{isHe ? GYM_LABEL.he : GYM_LABEL.en}
+            </div>
+            {EQUIPMENT_OPTIONS.map((eq) => {
+              const on = equipment.includes(eq.value);
+              return (
+                <div
+                  key={eq.value}
+                  role="button" tabIndex={0} aria-pressed={on}
+                  onClick={() => setEquipment((prev) => toggleEquipment(prev, eq.value))}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEquipment((prev) => toggleEquipment(prev, eq.value)); } }}
+                  style={chipStyle(on)}
+                >
+                  {on ? '✓ ' : ''}{isHe ? eq.he : eq.en}
+                </div>
+              );
+            })}
+          </div>
+          <div className="st2-section-desc" style={{ marginTop: 14 }}>
+            {equipment.length > 0
+              ? (isHe ? `נבחרו ${equipment.length}` : `${equipment.length} selected`)
+              : (isHe ? 'בחר לפחות פריט אחד, או "בלי ציוד"' : 'Pick at least one, or "No equipment"')}
+          </div>
+          <button className="btn btn-primary st2-save-btn" disabled={loading || equipment.length === 0} onClick={handleSaveEquipment}>
+            {loading ? t.saving : t.saveChanges}
+          </button>
+        </div>
+      )}
+
       {/* ── Goal ─────────────────────────────────────────────── */}
       {screen === 'goal' && (
         <div className="st2-screen">
@@ -1542,8 +1633,8 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
         </div>
       )}
 
-      {/* ── Display ──────────────────────────────────────────── */}
-      {screen === 'display' && (
+      {/* ── Language ─────────────────────────────────────────── */}
+      {screen === 'language' && (
         <div className="st2-screen">
           <label className="st2-label">{t.language}</label>
           <div className="st2-chip-row">
@@ -1551,7 +1642,13 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
               <div key={l.value} onClick={() => setLanguage(l.value)} style={chipStyle(lang === l.value)}>{l.label}</div>
             ))}
           </div>
-          <label className="st2-label" style={{ marginTop: 20 }}>{isHe ? 'ערכת צבעים' : 'Theme'}</label>
+        </div>
+      )}
+
+      {/* ── Display ──────────────────────────────────────────── */}
+      {screen === 'display' && (
+        <div className="st2-screen">
+          <label className="st2-label">{isHe ? 'ערכת צבעים' : 'Theme'}</label>
           <div className="st2-chip-row">
             <div onClick={() => setTheme('dark')} style={chipStyle(theme === 'dark')}>{isHe ? 'כהה' : 'Dark'}</div>
             <div onClick={() => setTheme('light')} style={chipStyle(theme === 'light')}>{isHe ? 'בהיר' : 'Light'}</div>

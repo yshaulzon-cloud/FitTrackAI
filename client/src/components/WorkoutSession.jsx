@@ -4,7 +4,7 @@ import { getExerciseCue } from '../lib/exerciseCues';
 import { getExerciseVideo, getExerciseVideoSlug } from '../lib/exerciseVideos.mjs';
 import VIDEO_EDGES from '../lib/exerciseVideoEdges.json';
 import ExerciseSwapSheet from './ExerciseSwapSheet';
-import { recommend, explain, isAdaptEnabled, markTooHard, tooHardAtFor } from '../lib/workoutAdapt.mjs';
+import { recommend, explain, isAdaptEnabled, markTooHard, restoreTooHard, tooHardAtFor } from '../lib/workoutAdapt.mjs';
 import { easierVariant, equipmentOk, normalizeUserEquipment } from '../lib/exerciseLibrary.mjs';
 
 const videoFor = (name) => getExerciseVideo(name, import.meta.env.BASE_URL);
@@ -225,6 +225,9 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
     return () => clearTimeout(tm);
   }, [workTimer]); // eslint-disable-line
 
+  // The work timer belongs to one set of one exercise — never carry it over.
+  useEffect(() => { setWorkTimer(null); }, [curIdx]);
+
   // ── Fetch last performance once, prefill empty weights/reps ──
   useEffect(() => {
     (async () => {
@@ -271,6 +274,12 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
     const nowDone = !set.done;
     updateSet(setIdx, { done: nowDone });
     if (nowDone && !autoFromTimer) navigator.vibrate?.(40);
+    // A ticked set means the swap can no longer be undone (undo would erase it)
+    // and the undo bar must not sit on top of the rest timer that starts below.
+    if (nowDone) setSwapUndo(null);
+    // A timed set that is ticked by hand must not keep counting down: when it
+    // expired it would tick (or untick!) set N of whatever exercise is current.
+    if (nowDone) setWorkTimer(null);
     if (nowDone) {
       // Start rest — unless this was the very last set of the last exercise.
       const isLastExercise = curIdx === exs.length - 1;
@@ -289,6 +298,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
     setExs(prev => prev.map((e, i) => i !== curIdx ? e : { ...e, sets: e.sets.map(s => ({ ...s, done: true })) }));
     if (wasAllDone) return;
     navigator.vibrate?.(40);
+    setSwapUndo(null); // same reason as completeSet: no undo once sets are ticked
     const isLastExercise = curIdx === exs.length - 1;
     if (!isLastExercise) {
       const secs = restSecondsFor(ex);
@@ -324,9 +334,12 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
     const reps = timed ? '45-60 שניות' : (prevEx.mode === 'time' ? '12-15' : prevEx.targetReps);
     const fresh = initExercises([{ name: alt.name, sets: prevEx.sets.length, reps, muscleGroup: alt.muscle }], location)[0];
     setExs((prev) => prev.map((e, i) => (i === idx ? fresh : e)));
-    // Choosing the easier version is the "too hard" signal for the exercise it replaced.
+    setWorkTimer(null);
+    // Choosing the easier version is the "too hard" signal for the exercise it
+    // replaced; keep the old flag so Undo can put it back.
+    const flag = alt.isEasier ? { name: prevEx.name, was: tooHardAtFor(prevEx.name) } : null;
     if (alt.isEasier) markTooHard(prevEx.name);
-    setSwapUndo({ idx, prev: prevEx, to: alt.name, permanent });
+    setSwapUndo({ idx, prev: prevEx, to: alt.name, permanent, flag });
     setSwapOpen(false);
     if (permanent && onPermanentSwap) onPermanentSwap(prevEx.name, alt);
     loadPerfFor(alt.name, idx);
@@ -334,7 +347,8 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
 
   function undoSwap() {
     if (!swapUndo) return;
-    const { idx, prev, to, permanent } = swapUndo;
+    const { idx, prev, to, permanent, flag } = swapUndo;
+    if (flag) restoreTooHard(flag.name, flag.was);
     setExs((cur0) => cur0.map((e, i) => (i === idx ? prev : e)));
     setSwapUndo(null);
     if (permanent && onPermanentSwap) onPermanentSwap(to, { name: prev.name, muscle: prev.muscleGroup });
@@ -378,13 +392,27 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
   }
 
   // Swipe left/right to move between exercises.
-  function onTouchStart(e) { touchXRef.current = e.touches[0].clientX; }
+  // A swipe only counts when it is clearly horizontal (so vertical scrolling of
+  // the set list never changes exercise) and does not start on a field or button
+  // (so editing weight / reps or dragging a control never changes exercise).
+  function onTouchStart(e) {
+    if (e.touches.length !== 1 || e.target.closest?.('input, textarea, select, button, video, [role="slider"]')) {
+      touchXRef.current = null;
+      return;
+    }
+    touchXRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
   function onTouchEnd(e) {
-    if (touchXRef.current == null) return;
-    const dx = e.changedTouches[0].clientX - touchXRef.current;
+    const start = touchXRef.current;
     touchXRef.current = null;
-    if (dx < -60) setCurIdx(i => Math.min(exs.length - 1, i + 1));
-    else if (dx > 60) setCurIdx(i => Math.max(0, i - 1));
+    if (!start || rest || transition || confirmExit) return;
+    const dx = e.changedTouches[0].clientX - start.x;
+    const dy = e.changedTouches[0].clientY - start.y;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+    // dx < 0 is a swipe toward the physical left = next exercise (same in RTL:
+    // the swipe gesture is physical, like a carousel)
+    if (dx < 0) setCurIdx(i => Math.min(exs.length - 1, i + 1));
+    else setCurIdx(i => Math.max(0, i - 1));
   }
 
   const addSet = useCallback(() => {
@@ -410,7 +438,8 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
       const payload = {
         dayName,
         location,
-        durationMinutes: Math.max(1, Math.round(elapsed / 60)),
+        // The server accepts 1–480; a session left open longer would be rejected forever.
+        durationMinutes: Math.min(480, Math.max(1, Math.round(elapsed / 60))),
         exercises: exs.map(ex => ({
           name: ex.name,
           muscleGroup: ex.muscleGroup,
@@ -655,7 +684,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
       )}
 
       {/* Exercise card: demo clip, the prescription, then the set rows */}
-      <div className="ws-live__card" key={curIdx}>
+      <div className="ws-live__card" key={curIdx} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {videoFor(cur.name) ? (
           <div className="ws-live__video" style={backdropFor(cur.name)}>
             <DemoVideo src={videoFor(cur.name)} label={primaryName} isHe={isHe} />
@@ -691,7 +720,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
 
           {/* Swap / easier version — before the first set of this exercise is ticked */}
           {!cur.sets.some((st) => st.done) && (() => {
-            const easier = easierVariant(cur.name);
+            const easier = easierVariant(cur.name, { location });
             const names = exs.map((e) => e.name);
             const showEasier = easier && !names.includes(easier.name) && equipmentOk(easier, normalizeUserEquipment(userEquipment));
             return (
@@ -916,13 +945,15 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
           exerciseName={cur.name}
           inSession={exs.map((e) => e.name)}
           equipment={userEquipment}
+          location={location}
           allowPermanent={!!onPermanentSwap}
           isHe={isHe}
           onPick={(alt, opts) => doSwap(alt, opts)}
           onClose={() => setSwapOpen(false)}
         />
       )}
-      {swapUndo && (
+      {/* Never over the rest timer / transition sheet (the undo bar sits above them in z-order). */}
+      {swapUndo && !rest && !transition && (
         <div className="ws-undo" role="status">
           <span>{isHe ? 'הוחלף ל' : 'Swapped to '}{isHe ? getEnglishName(swapUndo.to) === swapUndo.to ? swapUndo.to : swapUndo.to.replace(/\s*\(.*\)\s*$/, '') : getEnglishName(swapUndo.to)}</span>
           <button type="button" onClick={undoSwap}>{isHe ? 'בטל' : 'Undo'}</button>

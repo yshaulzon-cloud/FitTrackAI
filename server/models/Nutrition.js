@@ -16,7 +16,10 @@ const nutritionSchema = new mongoose.Schema(
         carbs: { type: Number, default: 0 },
         fat: { type: Number, default: 0 },
         fiber: { type: Number, default: 0 },
-        source: { type: String, enum: ['database', 'ai', 'default'], default: 'database' },
+        // 'database' = read by the food engine or taken from a menu; 'manual' = the
+        // user typed the numbers themselves (the food was not found). 'ai' / 'default'
+        // are only found on old records — nothing writes them any more.
+        source: { type: String, enum: ['database', 'manual', 'ai', 'default'], default: 'database' },
         englishName: { type: String, default: null },
         time: { type: Date, default: Date.now },
       },
@@ -26,6 +29,25 @@ const nutritionSchema = new mongoose.Schema(
     totalCarbs: { type: Number, default: 0 },
     totalFat: { type: Number, default: 0 },
     totalFiber: { type: Number, default: 0 },
+    // The day's target as it stood when meals were last logged (training / rest
+    // adjusted). Lets history compare a past day with the target that applied
+    // THEN rather than today's, so changing weight or goal doesn't rewrite it.
+    // null = a day logged before snapshots existed (history falls back to the
+    // current target).
+    targetSnapshot: {
+      type: new mongoose.Schema(
+        {
+          calories: Number,
+          protein: Number,
+          carbs: Number,
+          fat: Number,
+          baseCalories: Number,
+          dayType: String, // 'training' | 'rest'
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
   },
   { timestamps: true }
 );

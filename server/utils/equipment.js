@@ -31,4 +31,12 @@ function normalizeEquipment(list) {
   return EQUIPMENT.filter((v) => out.has(v));
 }
 
-module.exports = { EQUIPMENT, LEGACY_MAP, LEGACY_VALUES, normalizeEquipment };
+// Settings → Equipment replaces the whole list. Same cleaning as normalizeEquipment,
+// but an empty result is rejected (null): the user must own something, or say "none".
+function parseEquipmentUpdate(list) {
+  if (!Array.isArray(list)) return null;
+  const out = normalizeEquipment(list);
+  return out.length ? out : null;
+}
+
+module.exports = { EQUIPMENT, LEGACY_MAP, LEGACY_VALUES, normalizeEquipment, parseEquipmentUpdate };

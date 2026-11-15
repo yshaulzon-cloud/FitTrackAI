@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { normalizeEquipment, EQUIPMENT } = require('./equipment');
+const { normalizeEquipment, parseEquipmentUpdate, EQUIPMENT } = require('./equipment');
 
 test('passes through current values', () => {
   assert.deepEqual(normalizeEquipment(['dumbbells', 'trx']), ['dumbbells', 'trx']);
@@ -38,4 +38,17 @@ test('tolerates non-arrays', () => {
 test('every real kit value survives a round trip', () => {
   const kit = EQUIPMENT.filter((v) => v !== 'none');
   assert.deepEqual(normalizeEquipment(kit), kit);
+});
+
+test('parseEquipmentUpdate: cleans like normalizeEquipment and keeps EQUIPMENT order', () => {
+  assert.deepEqual(parseEquipmentUpdate(['trx', 'dumbbells', 'nonsense']), ['dumbbells', 'trx']);
+  assert.deepEqual(parseEquipmentUpdate(['none']), ['none']);
+  assert.deepEqual(parseEquipmentUpdate(['none', 'bands']), ['bands']);
+});
+
+test('parseEquipmentUpdate: rejects empty, unknown-only and non-array input', () => {
+  assert.equal(parseEquipmentUpdate([]), null);
+  assert.equal(parseEquipmentUpdate(['nonsense']), null);
+  assert.equal(parseEquipmentUpdate(undefined), null);
+  assert.equal(parseEquipmentUpdate('dumbbells'), null);
 });

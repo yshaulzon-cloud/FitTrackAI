@@ -13,7 +13,7 @@ const read = (rel) => fs.readFileSync(path.join(here, rel), 'utf8');
 // Every "Hebrew (English)" exercise name the app can put in a session.
 function allExerciseNames() {
   const names = new Set();
-  for (const src of [read('../../../server/utils/calculations.js'), read('../components/WorkoutPlan.jsx')]) {
+  for (const src of [read('../../../server/utils/calculations.js'), read('../components/WorkoutPlan.jsx'), read('./homeExercises.mjs')]) {
     for (const m of src.matchAll(/name:\s*(['"])(.+?\(.+?\))\1/g)) names.add(m[2]);
   }
   return [...names];

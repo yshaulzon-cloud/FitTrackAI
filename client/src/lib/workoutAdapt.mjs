@@ -99,6 +99,15 @@ export function markTooHard(name, storage = globalThis.localStorage, now = new D
     storage.setItem(FLAGS_KEY, JSON.stringify(all));
   } catch { /* ignore */ }
 }
+// Put a "too hard" flag back to what it was (Undo of an "easier version" swap):
+// a previous ISO date restores it, null removes it.
+export function restoreTooHard(name, previous, storage = globalThis.localStorage) {
+  try {
+    const all = JSON.parse(storage.getItem(FLAGS_KEY) || '{}');
+    if (previous) all[name] = previous; else delete all[name];
+    storage.setItem(FLAGS_KEY, JSON.stringify(all));
+  } catch { /* ignore */ }
+}
 export function tooHardAtFor(name, storage = globalThis.localStorage) {
   try { return JSON.parse(storage.getItem(FLAGS_KEY) || '{}')[name] || null; } catch { return null; }
 }

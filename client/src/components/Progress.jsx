@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
+import { historyTargetFor, adherencePct, hasTargets } from '../lib/dayTarget.mjs';
 
 // Same small line-icon set as BMICard.jsx/ProgressionPanel.jsx — used for the
 // personal-records list, which used to render flame/dumbbell/clock emoji.
@@ -23,8 +24,10 @@ function CalorieLineArea({ days, calorieTarget, isHe }) {
   const N = Math.max(1, days.length);
   const lastIdx = N - 1;
   const values = days.map(d => d.value || 0);
-  const minV = Math.min(...values, calorieTarget) - 200;
-  const maxV = Math.max(...values, calorieTarget) + 200;
+  const hasTarget = calorieTarget > 0; // unknown target: no line, rather than one at an invented number
+  const bounds = hasTarget ? [...values, calorieTarget] : values;
+  const minV = Math.min(...bounds) - 200;
+  const maxV = Math.max(...bounds) + 200;
   const span = Math.max(1, maxV - minV);
 
   // Use N-1 (not hardcoded 6) so the chart scales to the active range.
@@ -35,7 +38,7 @@ function CalorieLineArea({ days, calorieTarget, isHe }) {
     (i === 0 ? 'M' : 'L') + xFor(i).toFixed(1) + ' ' + yFor(v).toFixed(1)
   ).join(' ');
   const areaPath = `${linePath} L ${xFor(lastIdx).toFixed(1)} ${(H - PAD_B).toFixed(1)} L ${xFor(0).toFixed(1)} ${(H - PAD_B).toFixed(1)} Z`;
-  const targetY = yFor(calorieTarget);
+  const targetY = hasTarget ? yFor(calorieTarget) : 0;
 
   // Cap visible labels so 30d/90d don't overlap — show every kth.
   const maxLabels = 7;
@@ -49,11 +52,15 @@ function CalorieLineArea({ days, calorieTarget, isHe }) {
           <stop offset="100%" stopColor="#FFB648" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <line x1={PAD_L} y1={targetY} x2={W - PAD_R} y2={targetY}
-            stroke="rgba(125,125,125,0.30)" strokeDasharray="4 4" strokeWidth="1" />
-      <text x={W - PAD_R - 4} y={targetY - 4} textAnchor="end" fontFamily="Heebo" fontSize="10" fontWeight="700" fill="#93A0B4">
-        {isHe ? `יעד · ${calorieTarget}` : `target · ${calorieTarget}`}
-      </text>
+      {hasTarget && (
+        <>
+          <line x1={PAD_L} y1={targetY} x2={W - PAD_R} y2={targetY}
+                stroke="rgba(125,125,125,0.30)" strokeDasharray="4 4" strokeWidth="1" />
+          <text x={W - PAD_R - 4} y={targetY - 4} textAnchor="end" fontFamily="Heebo" fontSize="10" fontWeight="700" fill="#93A0B4">
+            {isHe ? `יעד · ${calorieTarget}` : `target · ${calorieTarget}`}
+          </text>
+        </>
+      )}
       <path d={areaPath} fill="url(#calFill)" />
       <path d={linePath} fill="none" stroke="#FFB648" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       {values.map((v, i) => (
@@ -126,7 +133,10 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
   const isHe = lang === 'he';
 
   const workouts = workoutHistory?.workouts || [];
-  const calorieTarget = nutrition?.calorieTarget || 2000;
+  const calorieTarget = hasTargets(nutrition) ? nutrition.calorieTarget : 0; // today's target (training / rest adjusted); 0 = not loaded
+  // Past days are judged by the target stored with them; a day logged before
+  // that existed falls back to the plain base target.
+  const baseTarget = nutrition?.baseCalorieTarget || calorieTarget;
   const todayCalories = todayNutrition?.totalCalories || 0;
 
   // ─── Real data fetched from server ─────────────────────────
@@ -199,32 +209,37 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
 
       const isLatest = i === bucketsCount - 1;
       let total = 0;
+      let targetTotal = 0; // the targets of the same days, to judge them fairly
       let count = 0;
       if (isLatest && range === 7) {
         // Match the legacy 7-day flow exactly: latest bucket = today's live value
         total = todayCalories;
+        targetTotal = calorieTarget;
         count = 1;
       } else {
         nutritionHistory.forEach(l => {
           const ld = new Date(l.date);
           if (ld >= bucketStart && ld < next) {
             total += l.totalCalories || 0;
+            targetTotal += historyTargetFor(l, baseTarget);
             count += 1;
           }
         });
         // Fold today's live value into the latest bucket for ranges > 7
         if (isLatest && todayCalories > 0) {
           total += todayCalories;
+          targetTotal += calorieTarget;
           count += 1;
         }
       }
       const value = count > 0 ? Math.round(total / count) : 0;
+      const target = count > 0 ? Math.round(targetTotal / count) : calorieTarget;
       const label = range === 7
         ? dayLabels[bucketEnd.getDay()]
         : `${bucketEnd.getDate()}/${bucketEnd.getMonth() + 1}`;
-      return { label, value };
+      return { label, value, target };
     });
-  }, [nutritionHistory, todayCalories, range, bucketsCount, daysPerBucket]); // eslint-disable-line
+  }, [nutritionHistory, todayCalories, calorieTarget, baseTarget, range, bucketsCount, daysPerBucket]); // eslint-disable-line
 
   // 7-day sleep entries (real data)
   const last7Sleep = useMemo(() => {
@@ -265,9 +280,13 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
   const avgCalories = loggedDays.length
     ? Math.round(loggedDays.reduce((s, d) => s + d.value, 0) / loggedDays.length)
     : 0;
-  const calorieAdherence = avgCalories > 0
-    ? Math.round((1 - Math.abs(avgCalories - calorieTarget) / calorieTarget) * 100)
-    : 0;
+  // The target line and the adherence compare with the targets of the days shown,
+  // not one flat number (training and rest days differ; so do past targets).
+  const judged = loggedDays.filter(d => d.target > 0); // a day with no known target can't be judged
+  const chartTarget = judged.length
+    ? Math.round(judged.reduce((s, d) => s + d.target, 0) / judged.length)
+    : calorieTarget;
+  const calorieAdherence = adherencePct(loggedDays.map(d => ({ consumed: d.value, target: d.target })));
 
   const sleepDays = last7Sleep.filter(d => d.hours > 0);
   const avgSleep = sleepDays.length
@@ -524,12 +543,12 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
           <div className="chart-card__meta" style={{ color: 'var(--c-cal)' }}>
             {avgCalories > 0
               ? (isHe
-                  ? `ממוצע ${avgCalories.toLocaleString()} (יעד ${calorieTarget.toLocaleString()})`
-                  : `avg ${avgCalories.toLocaleString()} (target ${calorieTarget.toLocaleString()})`)
+                  ? `ממוצע ${avgCalories.toLocaleString()}${chartTarget > 0 ? ` (יעד ${chartTarget.toLocaleString()})` : ' (יעד לא נטען)'}`
+                  : `avg ${avgCalories.toLocaleString()}${chartTarget > 0 ? ` (target ${chartTarget.toLocaleString()})` : ' (target not loaded)'}`)
               : (isHe ? 'אין נתונים' : 'no data yet')}
           </div>
         </div>
-        <CalorieLineArea days={last7Calories} calorieTarget={calorieTarget} isHe={isHe} />
+        <CalorieLineArea days={last7Calories} calorieTarget={chartTarget} isHe={isHe} />
       </div>
 
       {/* ─── Week records (real metrics from workout log) ───── */}

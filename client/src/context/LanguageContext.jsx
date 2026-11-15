@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
 const LanguageContext = createContext(null);
 
@@ -147,7 +147,6 @@ const translations = {
     added: 'נוסף:',
     caloriesWord: 'קלוריות',
     proteinGrams: 'גרם חלבון',
-    aiEstimate: '(הערכת AI)',
     errorSaving: 'שגיאה בשמירת הארוחה',
     carbsShort: 'פחמ\'',
 
@@ -596,7 +595,6 @@ const translations = {
     added: 'Added:',
     caloriesWord: 'calories',
     proteinGrams: 'g protein',
-    aiEstimate: '(AI estimate)',
     errorSaving: 'Error saving meal',
     carbsShort: 'carbs',
 
@@ -902,15 +900,41 @@ const translations = {
   },
 };
 
+// The ONE localStorage key for the UI language. Everything that needs the
+// language outside React (ErrorBoundary, AuthContext error messages, the
+// first-run language step) reads it through these helpers.
+export const LANG_KEY = 'lang';
+
+// 'he' | 'en' when the user (or the first-run step) already chose, else null.
+export function readSavedLang() {
+  try {
+    const v = localStorage.getItem(LANG_KEY);
+    return v === 'he' || v === 'en' ? v : null;
+  } catch { return null; }
+}
+
+// Best guess for first run: a Hebrew device → 'he', anything else → 'en'.
+export function detectDeviceLang() {
+  const tag = (typeof navigator !== 'undefined' && (navigator.languages?.[0] || navigator.language)) || 'he';
+  const base = String(tag).toLowerCase();
+  return base.startsWith('he') || base.startsWith('iw') ? 'he' : 'en';
+}
+
 export function LanguageProvider({ children }) {
-  const [lang, setLang] = useState(() => localStorage.getItem('lang') || 'he');
+  const [lang, setLang] = useState(() => readSavedLang() || 'he');
 
   function setLanguage(l) {
     setLang(l);
-    localStorage.setItem('lang', l);
-    document.documentElement.dir = l === 'he' ? 'rtl' : 'ltr';
-    document.documentElement.lang = l;
+    try { localStorage.setItem(LANG_KEY, l); } catch { /* storage unavailable */ }
   }
+
+  // index.html is hard-coded lang="he" dir="rtl". Keep <html> in step with the
+  // language on first render too, not only after the user switches it —
+  // otherwise a saved English choice reopens as an RTL document.
+  useEffect(() => {
+    document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const t = translations[lang];
 

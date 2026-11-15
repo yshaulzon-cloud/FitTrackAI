@@ -30,14 +30,14 @@ export const EXERCISES = [
   x('push-ups', 'שכיבות סמיכה (Push Ups)', 'חזה', 'push-h', ['none'], 2, 'incline-push-ups'),
   x('decline-push-ups', 'שכיבות סמיכה רגליים מוגבהות (Decline Push Ups)', 'חזה', 'push-h', ['none'], 3, 'push-ups'),
   x('wide-push-ups', 'שכיבות סמיכה רחבות (Wide Push Ups)', 'חזה', 'push-h', ['none'], 2, 'incline-push-ups'),
-  x('incline-push-ups', 'שכיבות סמיכה בשיפוע (Incline Push Ups)', 'חזה', 'push-h', ['none'], 1, 'knee-push-ups', false),
-  x('knee-push-ups', 'שכיבות סמיכה על הברכיים (Knee Push Ups)', 'חזה', 'push-h', ['none'], 1, null, false),
+  x('incline-push-ups', 'שכיבות סמיכה בשיפוע (Incline Push Ups)', 'חזה', 'push-h', ['none'], 1, 'knee-push-ups'),
+  x('knee-push-ups', 'שכיבות סמיכה על הברכיים (Knee Push Ups)', 'חזה', 'push-h', ['none'], 1, null, true),
   // back
   x('barbell-row', 'חתירה במוט (Barbell Row)', 'גב', 'pull-h', ['barbell'], 2),
   x('cable-row', 'חתירה בכבל (Cable Row)', 'גב', 'pull-h', ['machines'], 1),
   x('pull-ups', 'מתח (Pull Ups)', 'גב', 'pull-v', ['pullup_bar'], 3, 'assisted-pull-ups'),
-  x('assisted-pull-ups', 'מתח בסיוע גומייה (Assisted Pull Ups)', 'גב', 'pull-v', ['pullup_bar', 'bands'], 2, 'lat-pulldown', false),
-  x('lat-pulldown', 'משיכת פולי עליון (Lat Pulldown)', 'גב', 'pull-v', ['machines'], 1, null, false),
+  x('assisted-pull-ups', 'מתח בסיוע גומייה (Assisted Pull Ups)', 'גב', 'pull-v', ['pullup_bar', 'bands'], 2, 'lat-pulldown', true),
+  x('lat-pulldown', 'משיכת פולי עליון (Lat Pulldown)', 'גב', 'pull-v', ['machines'], 1, null, true),
   x('inverted-row', 'חתירה הפוכה (Inverted Row)', 'גב', 'pull-h', ['none'], 2, 'superman-row'),
   x('superman-row', 'סופרמן חתירה (Superman Row)', 'גב', 'pull-h', ['none'], 1),
   x('superman-pulls', 'סופרמן (Superman Pulls)', 'גב', 'pull-v', ['none'], 1),
@@ -47,6 +47,7 @@ export const EXERCISES = [
   x('lateral-raise', 'הרמה צדדית (Lateral Raise)', 'כתפיים', 'lateral', ['dumbbells'], 1),
   x('lateral-raise-bottles', 'הרמה צדדית עם בקבוקים (Lateral Raise - Bottles)', 'כתפיים', 'lateral', ['none'], 1),
   x('rear-delt-fly', 'הרמה אחורית (Rear Delt Fly)', 'כתפיים', 'rear-delt', ['dumbbells'], 1),
+  x('rear-delt-fly-bottles', 'הרמה אחורית עם בקבוקים (Rear Delt Fly - Bottles)', 'כתפיים', 'rear-delt', ['none'], 1),
   x('superman-raises', 'סופרמן (Superman Raises)', 'כתפיים', 'rear-delt', ['none'], 1),
   // arms
   x('bicep-curl', 'כפיפת מרפק (Bicep Curl)', 'זרועות', 'curl', ['dumbbells'], 1),
@@ -58,7 +59,7 @@ export const EXERCISES = [
   // legs
   x('squat', 'סקוואט (Squat)', 'רגליים', 'squat', ['barbell'], 2),
   x('bulgarian-split-squat', 'סקוואט בולגרי (Bulgarian Split Squat)', 'רגליים', 'lunge', ['none'], 3, 'supported-split-squat'),
-  x('supported-split-squat', 'סקוואט פיצול עם תמיכה (Supported Split Squat)', 'רגליים', 'lunge', ['none'], 1, null, false),
+  x('supported-split-squat', 'סקוואט פיצול עם תמיכה (Supported Split Squat)', 'רגליים', 'lunge', ['none'], 1, null, true),
   x('jump-squat', 'סקוואט קפיצה (Jump Squat)', 'רגליים', 'squat', ['none'], 3, 'squat'),
   x('leg-press', 'לחיצת רגליים (Leg Press)', 'רגליים', 'squat', ['machines'], 1),
   x('lunges', "לאנג'ים (Lunges)", 'רגליים', 'lunge', ['none'], 2),
@@ -66,7 +67,7 @@ export const EXERCISES = [
   x('romanian-deadlift', 'דדליפט רומני (Romanian Deadlift)', 'רגליים', 'hinge', ['barbell'], 2),
   x('deadlift', 'דדליפט (Deadlift)', 'רגליים', 'hinge', ['barbell'], 2),
   x('single-leg-deadlift', 'דדליפט על רגל אחת (Single Leg Deadlift)', 'רגליים', 'hinge', ['none'], 3, 'staggered-deadlift'),
-  x('staggered-deadlift', 'דדליפט בעמידה מדורגת (Staggered Stance Deadlift)', 'רגליים', 'hinge', ['none'], 1, null, false),
+  x('staggered-deadlift', 'דדליפט בעמידה מדורגת (Staggered Stance Deadlift)', 'רגליים', 'hinge', ['none'], 1, null, true),
   x('leg-curl', 'מכפוף רגל (Leg Curl)', 'רגליים', 'leg-curl', ['machines'], 1),
   x('glute-bridge', 'גשר ירכיים (Glute Bridge)', 'רגליים', 'leg-curl', ['none'], 1),
   x('leg-extension', 'יישור רגל (Leg Extension)', 'רגליים', 'leg-ext', ['machines'], 1),
@@ -76,7 +77,7 @@ export const EXERCISES = [
   x('single-leg-calf-raise', 'הרמות עקב על מדרגה (Single Leg Calf Raise)', 'תאומים', 'calf', ['none'], 3, 'calf-raise'),
   // core
   x('plank', 'פלאנק (Plank)', 'ליבה', 'core-hold', ['none'], 2, 'knee-plank'),
-  x('knee-plank', 'פלאנק על הברכיים (Knee Plank)', 'ליבה', 'core-hold', ['none'], 1, null, false),
+  x('knee-plank', 'פלאנק על הברכיים (Knee Plank)', 'ליבה', 'core-hold', ['none'], 1, null, true),
   x('crunches', 'כפיפות בטן (Crunches)', 'ליבה', 'core-flex', ['none'], 1),
   x('leg-raise', 'הרמת רגליים (Leg Raise)', 'ליבה', 'core-flex', ['none'], 2),
 ];
@@ -101,25 +102,36 @@ export function equipmentOk(exercise, userEquipment) {
   return exercise.equipment.every((e) => e === 'none' || own.has(e));
 }
 
-export function easierVariant(name) {
+// Gym-only kit: a home workout never offers an exercise that needs it.
+const GYM_ONLY_EQUIPMENT = ['machines', 'barbell'];
+export function homeOk(exercise) {
+  return !exercise.equipment.some((e) => GYM_ONLY_EQUIPMENT.includes(e));
+}
+
+// `location: 'home'` hides an easier version that needs gym kit (e.g. Assisted
+// Pull Ups → Lat Pulldown machine).
+export function easierVariant(name, { location } = {}) {
   const ex = findExercise(name);
-  return ex?.easier ? getExerciseById(ex.easier) : null;
+  const easier = ex?.easier ? getExerciseById(ex.easier) : null;
+  if (easier && location === 'home' && !homeOk(easier)) return null;
+  return easier;
 }
 
 // Up to `limit` alternatives for `current`, best first.
 //   must: same muscle group, not already in the session, kit available, and not
-//         the exercise itself.
+//         the exercise itself. At home (`location: 'home'`) also: no machine or
+//         barbell exercise.
 //   rank: easier version of a hard exercise first; then same movement pattern,
 //         then similar difficulty, then having a demo clip.
 // `inSession` is the list of names already in today's workout.
-export function getAlternatives(currentName, { userEquipment, inSession = [], limit = 6 } = {}) {
+export function getAlternatives(currentName, { userEquipment, inSession = [], limit = 6, location } = {}) {
   const current = findExercise(currentName);
   if (!current) return [];
   const taken = new Set(inSession.map((n) => findExercise(n)?.id).filter(Boolean));
   taken.add(current.id);
   const easier = current.easier;
   const scored = EXERCISES
-    .filter((e) => e.muscle === current.muscle && !taken.has(e.id) && equipmentOk(e, userEquipment))
+    .filter((e) => e.muscle === current.muscle && !taken.has(e.id) && equipmentOk(e, userEquipment) && (location !== 'home' || homeOk(e)))
     .map((e) => {
       let score = 0;
       if (e.id === easier) score += 100;

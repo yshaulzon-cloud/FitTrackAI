@@ -20,8 +20,24 @@ test('quantityOf: explicit grams, counts with a unit weight, fractions, default'
   assert.deepStrictEqual(quantityOf('200 מ"ל חלב'), { grams: 200, guessed: false });
   assert.deepStrictEqual(quantityOf('2 ביצים קשות'), { grams: 100, guessed: true });
   assert.deepStrictEqual(quantityOf('פרוסת לחם מלא'), { grams: 30, guessed: true });
-  assert.deepStrictEqual(quantityOf('חצי כוס אורז'), { grams: 120, guessed: true });
+  // a cup is the weight of a cup OF THAT FOOD (cooked rice 158 g), not a flat 240 g
+  assert.deepStrictEqual(quantityOf('חצי כוס אורז'), { grams: 79, guessed: true });
   assert.deepStrictEqual(quantityOf('סלט ירקות'), { grams: 100, guessed: true });
+});
+
+test('quantityOf: a count of something with a known piece weight is not lost (F9)', () => {
+  assert.deepStrictEqual(quantityOf('10 שקדים'), { grams: 12, guessed: true });   // 10 × 1.2 g
+  assert.deepStrictEqual(quantityOf('15 שקדים'), { grams: 18, guessed: true });
+  assert.deepStrictEqual(quantityOf('2 תפוחי עץ'), { grams: 360, guessed: true });  // 2 × 180 g
+  assert.deepStrictEqual(quantityOf('2 קוביות שוקולד'), { grams: 10, guessed: true }); // 2 × 5 g
+  assert.deepStrictEqual(quantityOf('פרוסת גבינה צהובה'), { grams: 28, guessed: true });
+  assert.deepStrictEqual(quantityOf('3 כפות חומוס'), { grams: 45, guessed: true });
+});
+
+test('quantityOf: a food with no measure data is flagged as a guess, never given a made-up weight', () => {
+  const r = quantityOf('חופן אגוזים'); // a handful: 30 g, flagged
+  assert.deepStrictEqual(r, { grams: 30, guessed: true });
+  assert.deepStrictEqual(quantityOf('סטייק בקר'), { grams: 100, guessed: true });
 });
 
 test('matchFood prefers the most specific key', () => {

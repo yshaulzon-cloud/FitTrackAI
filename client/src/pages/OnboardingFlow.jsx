@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useLang } from '../context/LanguageContext';
+import { useLang, readSavedLang, detectDeviceLang } from '../context/LanguageContext';
 import { useLegal } from '../context/LegalContext';
 import { requestNotificationPermission } from '../lib/notifications';
+import { EQUIPMENT_OPTIONS, GYM_LABEL, toggleEquipment as pickEquipment, toggleGymKit, isGymKitOn } from '../lib/equipmentPick.mjs';
 
 // ─────────────────────────────────────────────────────────────────────
 // Single-flow onboarding: value prop → one question per screen → plan
@@ -23,20 +24,9 @@ import { requestNotificationPermission } from '../lib/notifications';
 const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
 const INTRO_FLAG = 'areto:intro-seen';
 
-const STEPS = ['valueprop', 'goal', 'experience', 'equipment', 'frequency', 'body', 'planreveal', 'signup', 'notif', 'success'];
+// 'language' is prepended only on a first run (no saved language) — see hasLangStep.
+const BASE_STEPS = ['valueprop', 'goal', 'experience', 'equipment', 'frequency', 'body', 'planreveal', 'signup', 'notif', 'success'];
 const QUESTION_STEPS = ['goal', 'experience', 'equipment', 'frequency', 'body'];
-
-// Mirrors EQUIPMENT in server/utils/equipment.js — keep the two in step.
-const EQUIPMENT_OPTIONS = [
-  { value: 'dumbbells',  he: 'משקולות יד',    en: 'Dumbbells' },
-  { value: 'barbell',    he: 'מוט ומשקולות',  en: 'Barbell & plates' },
-  { value: 'machines',   he: 'מכונות',        en: 'Machines' },
-  { value: 'bands',      he: 'גומיות',        en: 'Resistance bands' },
-  { value: 'trx',        he: 'TRX',           en: 'TRX' },
-  { value: 'pullup_bar', he: 'מתח ומקבילים',  en: 'Pull-up & dip bars' },
-  { value: 'kettlebell', he: 'קטלבל',         en: 'Kettlebell' },
-  { value: 'none',       he: 'בלי ציוד',      en: 'No equipment' },
-];
 
 // What the chosen frequency buys you, in the plan generator's own terms
 // (see generateWorkoutPlan in server/utils/calculations.js).
@@ -139,7 +129,7 @@ async function safeJson(res) {
 }
 
 export default function OnboardingFlow() {
-  const { t, lang } = useLang();
+  const { t, lang, setLanguage } = useLang();
   const isHe = lang === 'he';
   const { user, register, loginWithGoogle, api, updateUser } = useAuth();
   // Guards the "already-authenticated" effect below from also firing (and
@@ -150,6 +140,11 @@ export default function OnboardingFlow() {
   const { openTerms, openPrivacy } = useLegal();
   const navigate = useNavigate();
 
+  // Decided once per mount: picking a language saves it, and the step list must
+  // not shrink under the user mid-flow.
+  const [hasLangStep] = useState(() => readSavedLang() === null);
+  const STEPS = hasLangStep ? ['language', ...BASE_STEPS] : BASE_STEPS;
+  const [langChoice, setLangChoice] = useState(() => readSavedLang() || detectDeviceLang());
   const [stepIdx, setStepIdx] = useState(0);
   const [vpSlide, setVpSlide] = useState(0);
 
@@ -190,15 +185,9 @@ export default function OnboardingFlow() {
   // pick stays reversible and the frequency insight has time to be read.
   function selectGoal(g) { setGoal(g); }
   function selectExperience(e) { setExperience(e); }
-  // "No equipment" and an actual kit are contradictory, so they evict each
-  // other here rather than letting normalizeEquipment() silently drop one.
-  function toggleEquipment(e) {
-    setEquipment((prev) => {
-      if (prev.includes(e)) return prev.filter((x) => x !== e);
-      if (e === 'none') return ['none'];
-      return [...prev.filter((x) => x !== 'none'), e];
-    });
-  }
+  // Rules (none vs. kit eviction, the "Gym" shortcut chip) live in lib/equipmentPick.mjs.
+  function toggleEquipment(e) { setEquipment((prev) => pickEquipment(prev, e)); }
+  function toggleGym() { setEquipment((prev) => toggleGymKit(prev)); }
   function selectFrequency(n) { setFrequency(n); }
 
   // ── Plan Reveal: fetch a real (not faked) day-1 preview ──────────────
@@ -354,7 +343,7 @@ export default function OnboardingFlow() {
           <div>
             <div className="ob-head">
               <span className="ob-step-label">{stepLabel}</span>
-              {stepIdx > 1 && (
+              {questionIdx > 0 && (
                 <button type="button" className="ob-back" onClick={back} aria-label={isHe ? 'חזרה' : 'Back'}>
                   <ObArrow isHe={isHe} />
                 </button>
@@ -364,6 +353,40 @@ export default function OnboardingFlow() {
               {QUESTION_STEPS.map((s, i) => (
                 <div key={s} className={`ob-bar${i <= questionIdx ? ' ob-bar--on' : ''}`} />
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ LANGUAGE (first run only) ═══ */}
+        {key === 'language' && (
+          <div className="wizard-step">
+            <h1 className="ob-title">{'בחר שפה / Choose language'}</h1>
+            <p className="ob-sub">{isHe ? 'אפשר לשנות בהגדרות בכל רגע.' : 'You can change it anytime in Settings.'}</p>
+            <div className="ob-body">
+              {[
+                { value: 'he', mark: 'א', label: 'עברית' },
+                { value: 'en', mark: 'A', label: 'English' },
+              ].map((l) => (
+                <button
+                  key={l.value}
+                  type="button"
+                  className={`ob-opt${langChoice === l.value ? ' ob-opt--on' : ''}`}
+                  onClick={() => { setLangChoice(l.value); setLanguage(l.value); }}
+                >
+                  <span className="ob-opt__icon" style={{ background: 'color-mix(in srgb, var(--accent) 11%, transparent)', color: 'var(--accent)', fontWeight: 800, fontSize: 20 }}>
+                    {l.mark}
+                  </span>
+                  <span className="ob-opt__text">
+                    <span className="ob-opt__label">{l.label}</span>
+                  </span>
+                  <span className="ob-opt__radio">{langChoice === l.value && <ObCheck />}</span>
+                </button>
+              ))}
+            </div>
+            <div className="ob-cta">
+              <button type="button" className="ob-btn" onClick={() => { setLanguage(langChoice); next(); }}>
+                {langChoice === 'he' ? 'המשך' : 'Continue'}
+              </button>
             </div>
           </div>
         )}
@@ -452,6 +475,21 @@ export default function OnboardingFlow() {
             <p className="ob-sub">{isHe ? 'אפשר לבחור כמה. התרגילים יותאמו למה שיש.' : 'Pick as many as apply. Exercises adapt to what you have.'}</p>
             <div className="ob-body">
               <div className="ob-pills">
+                {/* "Gym" shortcut: selects every real kit chip. Its state is derived, never sent. */}
+                <button
+                  type="button"
+                  className={`ob-pill${isGymKitOn(equipment) ? ' ob-pill--on' : ''}`}
+                  onClick={toggleGym}
+                  aria-pressed={isGymKitOn(equipment)}
+                >
+                  {isHe ? GYM_LABEL.he : GYM_LABEL.en}
+                  {isGymKitOn(equipment) && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
+                         strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12.5l4.5 4.5L19 7" />
+                    </svg>
+                  )}
+                </button>
                 {EQUIPMENT_OPTIONS.map((eq) => {
                   const on = equipment.includes(eq.value);
                   return (

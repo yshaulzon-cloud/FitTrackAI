@@ -54,6 +54,11 @@ const progressionSchema = new mongoose.Schema(
       calorieGoalMet: { type: Boolean, default: false },
       proteinGoalMet: { type: Boolean, default: false },
       sleepGoalMet: { type: Boolean, default: false },
+      // What the calorie-goal streak was before today's award, so deleting the
+      // meal that earned it can give the streak back exactly (null = unknown,
+      // e.g. an award made before these fields existed).
+      calorieStreakBefore: { type: Number, default: null },
+      lastCalorieGoalDateBefore: { type: Date, default: null },
     },
 
     // Lifetime workout count — a dedicated counter (like totalSleepLogs)

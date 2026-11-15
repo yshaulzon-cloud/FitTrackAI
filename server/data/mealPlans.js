@@ -6,7 +6,7 @@ const mealPlans = {
   // 1000-1500 kcal range (cut/deficit)
   '1000-1500': [
     {
-      id: 1, totalCalories: 1200, totalProtein: 95, totalCarbs: 110, totalFat: 40,
+      id: 1, totalCalories: 1200, totalProtein: 132, totalCarbs: 54, totalFat: 45,
       meals: [
         { type: 'breakfast', he: '2 ביצים קשות + ירקות חתוכים + פרוסת לחם מלא', en: '2 hard-boiled eggs + chopped vegetables + whole wheat bread slice', calories: 280, protein: 18, carbs: 22, fat: 14 },
         { type: 'snack', he: 'קוטג׳ 5% + 10 שקדים', en: 'Cottage cheese 5% + 10 almonds', calories: 180, protein: 20, carbs: 8, fat: 8 },
@@ -16,17 +16,17 @@ const mealPlans = {
       ],
     },
     {
-      id: 2, totalCalories: 1300, totalProtein: 100, totalCarbs: 120, totalFat: 42,
+      id: 2, totalCalories: 1330, totalProtein: 115, totalCarbs: 114, totalFat: 44,
       meals: [
         { type: 'breakfast', he: 'שקשוקה (2 ביצים) + פרוסת לחם מלא', en: 'Shakshuka (2 eggs) + whole wheat bread slice', calories: 310, protein: 18, carbs: 28, fat: 14 },
         { type: 'snack', he: 'יוגורט יווני + כף דבש', en: 'Greek yogurt + honey', calories: 160, protein: 15, carbs: 18, fat: 4 },
         { type: 'lunch', he: '150 גרם טונה בקופסה + אורז מלא (חצי כוס) + סלט', en: '150g canned tuna + brown rice (half cup) + salad', calories: 350, protein: 32, carbs: 35, fat: 8 },
-        { type: 'snack', he: 'חטיף חלבון', en: 'Protein bar', calories: 180, protein: 20, carbs: 18, fat: 6 },
+        { type: 'snack', he: 'חטיף חלבון', en: 'Protein bar', calories: 210, protein: 20, carbs: 18, fat: 6 }, // kcal was 180; the macros give 206
         { type: 'dinner', he: '120 גרם סטייק הודו + ירקות מוקפצים', en: '120g turkey steak + stir-fried vegetables', calories: 300, protein: 30, carbs: 15, fat: 12 },
       ],
     },
     {
-      id: 3, totalCalories: 1100, totalProtein: 90, totalCarbs: 95, totalFat: 38,
+      id: 3, totalCalories: 1100, totalProtein: 96, totalCarbs: 73, totalFat: 48,
       meals: [
         { type: 'breakfast', he: 'אומלט 3 חלבונים + 1 ביצה שלמה + ירקות', en: '3 egg whites + 1 whole egg omelette + vegetables', calories: 200, protein: 22, carbs: 5, fat: 10 },
         { type: 'snack', he: 'תפוח + 2 כפות חמאת בוטנים', en: 'Apple + 2 tbsp peanut butter', calories: 250, protein: 8, carbs: 28, fat: 14 },
@@ -36,7 +36,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 4, totalCalories: 1400, totalProtein: 105, totalCarbs: 130, totalFat: 45,
+      id: 4, totalCalories: 1300, totalProtein: 114, totalCarbs: 118, totalFat: 41,
       meals: [
         { type: 'breakfast', he: 'שיבולת שועל + חלבון + בננה + קינמון', en: 'Oatmeal + protein powder + banana + cinnamon', calories: 350, protein: 28, carbs: 48, fat: 6 },
         { type: 'snack', he: 'גזר + חומוס (3 כפות)', en: 'Carrots + hummus (3 tbsp)', calories: 150, protein: 5, carbs: 18, fat: 7 },
@@ -46,7 +46,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 5, totalCalories: 1250, totalProtein: 98, totalCarbs: 105, totalFat: 40,
+      id: 5, totalCalories: 1180, totalProtein: 110, totalCarbs: 89, totalFat: 42,
       meals: [
         { type: 'breakfast', he: 'טוסט גבינה צהובה 5% + עגבנייה + מלפפון', en: 'Low-fat cheese toast + tomato + cucumber', calories: 240, protein: 16, carbs: 24, fat: 8 },
         { type: 'snack', he: 'שייק חלבון + כף שיבולת שועל', en: 'Protein shake + tbsp oats', calories: 170, protein: 26, carbs: 12, fat: 2 },
@@ -56,7 +56,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 6, totalCalories: 1350, totalProtein: 102, totalCarbs: 118, totalFat: 42,
+      id: 6, totalCalories: 1240, totalProtein: 102, totalCarbs: 100, totalFat: 46,
       meals: [
         { type: 'breakfast', he: 'לביבות קישואים (2) + ביצה + לבן', en: 'Zucchini fritters (2) + egg + labneh', calories: 280, protein: 16, carbs: 20, fat: 14 },
         { type: 'snack', he: 'פודינג צ׳יה עם חלב שקדים', en: 'Chia pudding with almond milk', calories: 160, protein: 6, carbs: 16, fat: 8 },
@@ -66,7 +66,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 7, totalCalories: 1150, totalProtein: 92, totalCarbs: 90, totalFat: 40,
+      id: 7, totalCalories: 1070, totalProtein: 94, totalCarbs: 82, totalFat: 38,
       meals: [
         { type: 'breakfast', he: 'גבינה לבנה 5% + ירקות + פרוסת לחם שיפון', en: 'White cheese 5% + vegetables + rye bread slice', calories: 220, protein: 16, carbs: 22, fat: 6 },
         { type: 'snack', he: 'חצי אבוקדו + לימון ומלח', en: 'Half avocado + lemon and salt', calories: 120, protein: 2, carbs: 6, fat: 10 },
@@ -76,7 +76,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 8, totalCalories: 1450, totalProtein: 108, totalCarbs: 125, totalFat: 48,
+      id: 8, totalCalories: 1420, totalProtein: 113, totalCarbs: 100, totalFat: 60,
       meals: [
         { type: 'breakfast', he: 'פנקייק חלבון (2) + פירות יער', en: 'Protein pancakes (2) + berries', calories: 300, protein: 24, carbs: 32, fat: 8 },
         { type: 'snack', he: 'יוגורט יווני 0% + גרנולה (2 כפות)', en: 'Greek yogurt 0% + granola (2 tbsp)', calories: 180, protein: 16, carbs: 20, fat: 4 },
@@ -90,7 +90,7 @@ const mealPlans = {
   // 1500-2500 kcal range (balanced/maintenance)
   '1500-2500': [
     {
-      id: 71, totalCalories: 2000, totalProtein: 150, totalCarbs: 200, totalFat: 65,
+      id: 71, totalCalories: 2050, totalProtein: 156, totalCarbs: 185, totalFat: 74,
       meals: [
         { type: 'breakfast', he: '3 ביצים + 2 פרוסות לחם מלא + אבוקדו + ירקות', en: '3 eggs + 2 whole wheat bread slices + avocado + vegetables', calories: 480, protein: 24, carbs: 38, fat: 26 },
         { type: 'snack', he: 'שייק חלבון + בננה + כף חמאת בוטנים', en: 'Protein shake + banana + tbsp peanut butter', calories: 320, protein: 30, carbs: 35, fat: 10 },
@@ -100,7 +100,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 72, totalCalories: 1800, totalProtein: 140, totalCarbs: 185, totalFat: 55,
+      id: 72, totalCalories: 1800, totalProtein: 134, totalCarbs: 190, totalFat: 56,
       meals: [
         { type: 'breakfast', he: 'שיבולת שועל + חלבון + בננה + אגוזים', en: 'Oatmeal + protein + banana + nuts', calories: 400, protein: 30, carbs: 50, fat: 10 },
         { type: 'snack', he: 'לחם מלא + חומוס + ירקות', en: 'Whole wheat bread + hummus + vegetables', calories: 250, protein: 10, carbs: 32, fat: 10 },
@@ -110,7 +110,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 73, totalCalories: 2200, totalProtein: 165, totalCarbs: 220, totalFat: 70,
+      id: 73, totalCalories: 2170, totalProtein: 160, totalCarbs: 198, totalFat: 72,
       meals: [
         { type: 'breakfast', he: 'טוסט אבוקדו + 2 ביצים + גבינה צהובה', en: 'Avocado toast + 2 eggs + cheese', calories: 450, protein: 24, carbs: 32, fat: 24 },
         { type: 'snack', he: 'שייק חלבון + שיבולת שועל + חמאת שקדים', en: 'Protein shake + oats + almond butter', calories: 380, protein: 32, carbs: 38, fat: 12 },
@@ -120,7 +120,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 74, totalCalories: 1600, totalProtein: 125, totalCarbs: 160, totalFat: 48,
+      id: 74, totalCalories: 1570, totalProtein: 131, totalCarbs: 127, totalFat: 56,
       meals: [
         { type: 'breakfast', he: 'שקשוקה (3 ביצים) + לחם מלא', en: 'Shakshuka (3 eggs) + whole wheat bread', calories: 380, protein: 22, carbs: 30, fat: 18 },
         { type: 'snack', he: 'חטיף חלבון + תפוח', en: 'Protein bar + apple', calories: 260, protein: 22, carbs: 32, fat: 6 },
@@ -130,7 +130,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 75, totalCalories: 1900, totalProtein: 145, totalCarbs: 195, totalFat: 58,
+      id: 75, totalCalories: 1880, totalProtein: 150, totalCarbs: 190, totalFat: 58,
       meals: [
         { type: 'breakfast', he: 'גרנולה + יוגורט יווני + פירות + דבש', en: 'Granola + Greek yogurt + fruits + honey', calories: 380, protein: 22, carbs: 48, fat: 12 },
         { type: 'snack', he: 'טונה בקופסה + קרקרים מלאים', en: 'Canned tuna + whole grain crackers', calories: 240, protein: 24, carbs: 20, fat: 8 },
@@ -140,7 +140,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 76, totalCalories: 2100, totalProtein: 155, totalCarbs: 210, totalFat: 65,
+      id: 76, totalCalories: 2060, totalProtein: 140, totalCarbs: 197, totalFat: 72,
       meals: [
         { type: 'breakfast', he: 'חביתה (3 ביצים) + גבינה + ירקות + 2 פרוסות לחם', en: 'Omelette (3 eggs) + cheese + vegetables + 2 bread slices', calories: 450, protein: 28, carbs: 34, fat: 22 },
         { type: 'snack', he: 'קוטג׳ 5% + גרנולה + דבש', en: 'Cottage cheese 5% + granola + honey', calories: 280, protein: 22, carbs: 34, fat: 6 },
@@ -150,7 +150,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 77, totalCalories: 2400, totalProtein: 170, totalCarbs: 245, totalFat: 72,
+      id: 77, totalCalories: 2390, totalProtein: 165, totalCarbs: 252, totalFat: 74,
       meals: [
         { type: 'breakfast', he: 'פנקייק חלבון (3) + סירופ מייפל + פירות יער + אגוז', en: 'Protein pancakes (3) + maple syrup + berries + nuts', calories: 480, protein: 32, carbs: 55, fat: 14 },
         { type: 'snack', he: 'לחם מלא + חמאת בוטנים + בננה', en: 'Whole wheat bread + peanut butter + banana', calories: 380, protein: 14, carbs: 48, fat: 16 },
@@ -160,7 +160,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 78, totalCalories: 2300, totalProtein: 160, totalCarbs: 235, totalFat: 70,
+      id: 78, totalCalories: 2200, totalProtein: 160, totalCarbs: 215, totalFat: 72,
       meals: [
         { type: 'breakfast', he: 'שיבולת שועל + חלב + חלבון + תמרים + שקדים', en: 'Oatmeal + milk + protein + dates + almonds', calories: 450, protein: 30, carbs: 55, fat: 12 },
         { type: 'snack', he: 'סנדוויץ׳ טונה + ירקות', en: 'Tuna sandwich + vegetables', calories: 350, protein: 28, carbs: 32, fat: 12 },
@@ -174,7 +174,7 @@ const mealPlans = {
   // 2500-3500 kcal range (active/lean bulk)
   '2500-3500': [
     {
-      id: 141, totalCalories: 2800, totalProtein: 190, totalCarbs: 300, totalFat: 85,
+      id: 141, totalCalories: 2790, totalProtein: 188, totalCarbs: 279, totalFat: 96,
       meals: [
         { type: 'breakfast', he: '4 ביצים + 3 פרוסות לחם מלא + אבוקדו + גבינה', en: '4 eggs + 3 whole wheat bread slices + avocado + cheese', calories: 620, protein: 34, carbs: 48, fat: 32 },
         { type: 'snack', he: 'שייק חלבון + בננה + שיבולת שועל + חמאת בוטנים', en: 'Protein shake + banana + oats + peanut butter', calories: 450, protein: 36, carbs: 50, fat: 14 },
@@ -184,7 +184,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 142, totalCalories: 3000, totalProtein: 200, totalCarbs: 320, totalFat: 90,
+      id: 142, totalCalories: 2810, totalProtein: 198, totalCarbs: 276, totalFat: 90,
       meals: [
         { type: 'breakfast', he: 'שיבולת שועל + 2 ביצים + חלב + בננה + חמאת שקדים + דבש', en: 'Oatmeal + 2 eggs + milk + banana + almond butter + honey', calories: 580, protein: 32, carbs: 68, fat: 20 },
         { type: 'snack', he: 'סנדוויץ׳ חזה עוף + גבינה + ירקות', en: 'Chicken breast sandwich + cheese + vegetables', calories: 450, protein: 36, carbs: 38, fat: 16 },
@@ -194,7 +194,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 143, totalCalories: 2600, totalProtein: 180, totalCarbs: 275, totalFat: 78,
+      id: 143, totalCalories: 2330, totalProtein: 171, totalCarbs: 242, totalFat: 72,
       meals: [
         { type: 'breakfast', he: 'פנקייק חלבון (3) + פירות + סירופ + אגוזים', en: 'Protein pancakes (3) + fruits + syrup + nuts', calories: 500, protein: 32, carbs: 58, fat: 16 },
         { type: 'snack', he: 'יוגורט יווני + גרנולה + דבש + שקדים', en: 'Greek yogurt + granola + honey + almonds', calories: 350, protein: 24, carbs: 40, fat: 12 },
@@ -204,17 +204,17 @@ const mealPlans = {
       ],
     },
     {
-      id: 144, totalCalories: 3200, totalProtein: 210, totalCarbs: 340, totalFat: 95,
+      id: 144, totalCalories: 3020, totalProtein: 206, totalCarbs: 280, totalFat: 112,
       meals: [
         { type: 'breakfast', he: 'חביתה 4 ביצים + אבוקדו + 3 פרוסות לחם + גבינה צהובה', en: '4 egg omelette + avocado + 3 bread slices + yellow cheese', calories: 680, protein: 36, carbs: 48, fat: 36 },
         { type: 'snack', he: 'שייק: חלב + חלבון + בננה + שיבולת שועל + חמאת שקדים', en: 'Shake: milk + protein + banana + oats + almond butter', calories: 520, protein: 38, carbs: 58, fat: 16 },
-        { type: 'lunch', he: '280 גרם חזה עוף + אורז (2 כוסות) + סלט + חומוס', en: '280g chicken breast + rice (2 cups) + salad + hummus', calories: 780, protein: 55, carbs: 82, fat: 16 },
+        { type: 'lunch', he: '280 גרם חזה עוף + אורז (2 כוסות) + סלט + חומוס', en: '280g chicken breast + rice (2 cups) + salad + hummus', calories: 690, protein: 55, carbs: 82, fat: 16 }, // kcal was 780; the macros give 692
         { type: 'snack', he: 'סנדוויץ׳ טונה + אבוקדו + גבינה', en: 'Tuna sandwich + avocado + cheese', calories: 480, protein: 32, carbs: 34, fat: 22 },
         { type: 'dinner', he: '220 גרם סטייק בקר + פסטה + ירקות + שמן זית', en: '220g beef steak + pasta + vegetables + olive oil', calories: 650, protein: 45, carbs: 58, fat: 22 },
       ],
     },
     {
-      id: 145, totalCalories: 3400, totalProtein: 220, totalCarbs: 360, totalFat: 100,
+      id: 145, totalCalories: 3230, totalProtein: 227, totalCarbs: 317, totalFat: 104,
       meals: [
         { type: 'breakfast', he: 'שיבולת שועל גדולה + 3 ביצים + חלב + בננה + תמרים', en: 'Large oatmeal + 3 eggs + milk + banana + dates', calories: 650, protein: 36, carbs: 75, fat: 20 },
         { type: 'snack', he: 'סנדוויץ׳ חזה הודו + אבוקדו + גבינה + ירקות', en: 'Turkey breast sandwich + avocado + cheese + vegetables', calories: 520, protein: 38, carbs: 42, fat: 22 },
@@ -224,7 +224,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 146, totalCalories: 2700, totalProtein: 185, totalCarbs: 285, totalFat: 80,
+      id: 146, totalCalories: 2470, totalProtein: 173, totalCarbs: 237, totalFat: 86,
       meals: [
         { type: 'breakfast', he: 'טוסט כפול + 3 ביצים + אבוקדו + עגבנייה', en: 'Double toast + 3 eggs + avocado + tomato', calories: 520, protein: 26, carbs: 42, fat: 28 },
         { type: 'snack', he: 'קוטג׳ 5% + פירות + גרנולה + אגוזים', en: 'Cottage cheese 5% + fruits + granola + nuts', calories: 380, protein: 26, carbs: 42, fat: 12 },
@@ -238,7 +238,7 @@ const mealPlans = {
   // 3500-4500 kcal range (mass gaining)
   '3500-4500': [
     {
-      id: 211, totalCalories: 3800, totalProtein: 240, totalCarbs: 420, totalFat: 110,
+      id: 211, totalCalories: 3670, totalProtein: 242, totalCarbs: 341, totalFat: 132,
       meals: [
         { type: 'breakfast', he: '5 ביצים + 4 פרוסות לחם + אבוקדו + גבינה + חלב', en: '5 eggs + 4 bread slices + avocado + cheese + milk', calories: 820, protein: 44, carbs: 62, fat: 42 },
         { type: 'snack', he: 'שייק: חלב + 2 סקופ חלבון + בננה + שיבולת שועל + חמאת בוטנים', en: 'Shake: milk + 2 scoops protein + banana + oats + peanut butter', calories: 620, protein: 50, carbs: 65, fat: 18 },
@@ -248,7 +248,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 212, totalCalories: 4000, totalProtein: 250, totalCarbs: 440, totalFat: 115,
+      id: 212, totalCalories: 3810, totalProtein: 248, totalCarbs: 383, totalFat: 124,
       meals: [
         { type: 'breakfast', he: 'שיבולת שועל גדולה + 4 ביצים + חלב + בננה + תמרים + שקדים', en: 'Large oatmeal + 4 eggs + milk + banana + dates + almonds', calories: 780, protein: 42, carbs: 85, fat: 28 },
         { type: 'snack', he: 'סנדוויץ׳ חזה עוף כפול + גבינה + אבוקדו', en: 'Double chicken breast sandwich + cheese + avocado', calories: 650, protein: 48, carbs: 48, fat: 28 },
@@ -258,7 +258,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 213, totalCalories: 3600, totalProtein: 230, totalCarbs: 395, totalFat: 105,
+      id: 213, totalCalories: 3100, totalProtein: 202, totalCarbs: 308, totalFat: 108,
       meals: [
         { type: 'breakfast', he: 'חביתה 4 ביצים + 3 פרוסות לחם + אבוקדו + גבינה + מיץ', en: '4 egg omelette + 3 bread slices + avocado + cheese + juice', calories: 720, protein: 36, carbs: 58, fat: 36 },
         { type: 'snack', he: 'קוטג׳ + גרנולה + פירות + אגוזים + דבש', en: 'Cottage cheese + granola + fruits + nuts + honey', calories: 450, protein: 28, carbs: 52, fat: 16 },
@@ -268,7 +268,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 214, totalCalories: 4200, totalProtein: 260, totalCarbs: 460, totalFat: 120,
+      id: 214, totalCalories: 4010, totalProtein: 260, totalCarbs: 395, totalFat: 134,
       meals: [
         { type: 'breakfast', he: 'פנקייק חלבון (4) + בננה + סירופ + ביצים (3) בצד', en: 'Protein pancakes (4) + banana + syrup + 3 eggs on the side', calories: 780, protein: 48, carbs: 78, fat: 24 },
         { type: 'snack', he: 'שייק גיינר: חלב + 2 סקופ חלבון + שיבולת שועל + בננה + חמאת בוטנים', en: 'Gainer shake: milk + 2 scoops protein + oats + banana + peanut butter', calories: 700, protein: 52, carbs: 75, fat: 22 },
@@ -278,7 +278,7 @@ const mealPlans = {
       ],
     },
     {
-      id: 215, totalCalories: 4400, totalProtein: 270, totalCarbs: 480, totalFat: 125,
+      id: 215, totalCalories: 4200, totalProtein: 272, totalCarbs: 415, totalFat: 138,
       meals: [
         { type: 'breakfast', he: 'שיבולת שועל ענקית + 4 ביצים + חלב + בננה + תמרים + אגוזים + דבש', en: 'Giant oatmeal + 4 eggs + milk + banana + dates + nuts + honey', calories: 880, protein: 46, carbs: 95, fat: 32 },
         { type: 'snack', he: 'סנדוויץ׳ חזה הודו כפול + גבינה + אבוקדו + חומוס', en: 'Double turkey breast sandwich + cheese + avocado + hummus', calories: 720, protein: 52, carbs: 58, fat: 30 },
@@ -292,17 +292,17 @@ const mealPlans = {
   // 4500-6000 kcal range (elite athletes)
   '4500-6000': [
     {
-      id: 281, totalCalories: 5000, totalProtein: 300, totalCarbs: 560, totalFat: 140,
+      id: 281, totalCalories: 4930, totalProtein: 322, totalCarbs: 470, totalFat: 174,
       meals: [
         { type: 'breakfast', he: '6 ביצים + 4 פרוסות לחם + אבוקדו + גבינה + חלב + מיץ', en: '6 eggs + 4 bread slices + avocado + cheese + milk + juice', calories: 1050, protein: 54, carbs: 85, fat: 50 },
         { type: 'snack', he: 'שייק גיינר: חלב + 3 סקופ חלבון + 2 בננות + שיבולת שועל + חמאת בוטנים', en: 'Gainer shake: milk + 3 scoops protein + 2 bananas + oats + peanut butter', calories: 900, protein: 70, carbs: 95, fat: 24 },
-        { type: 'lunch', he: '400 גרם עוף + אורז (3 כוסות) + חומוס + סלט + שמן זית + לחם', en: '400g chicken + rice (3 cups) + hummus + salad + olive oil + bread', calories: 1200, protein: 72, carbs: 130, fat: 30 },
+        { type: 'lunch', he: '400 גרם עוף + אורז (3 כוסות) + חומוס + סלט + שמן זית + לחם', en: '400g chicken + rice (3 cups) + hummus + salad + olive oil + bread', calories: 1080, protein: 72, carbs: 130, fat: 30 }, // kcal was 1200; the macros give 1078
         { type: 'snack', he: 'סנדוויץ׳ כפול טונה + ביצים + אבוקדו + גבינה + שייק חלבון', en: 'Double tuna sandwich + eggs + avocado + cheese + protein shake', calories: 900, protein: 68, carbs: 60, fat: 38 },
         { type: 'dinner', he: '350 גרם סטייק + בטטה גדולה + אורז + ירקות + טחינה + לחם', en: '350g steak + large sweet potato + rice + vegetables + tahini + bread', calories: 1000, protein: 58, carbs: 100, fat: 32 },
       ],
     },
     {
-      id: 282, totalCalories: 4800, totalProtein: 290, totalCarbs: 530, totalFat: 135,
+      id: 282, totalCalories: 4610, totalProtein: 286, totalCarbs: 467, totalFat: 146,
       meals: [
         { type: 'breakfast', he: 'שיבולת שועל ענקית + 5 ביצים + חלב + 2 בננות + אגוזים + דבש', en: 'Giant oatmeal + 5 eggs + milk + 2 bananas + nuts + honey', calories: 980, protein: 50, carbs: 105, fat: 36 },
         { type: 'snack', he: 'סנדוויץ׳ כפול חזה עוף + גבינה + אבוקדו + חומוס', en: 'Double chicken breast sandwich + cheese + avocado + hummus', calories: 780, protein: 56, carbs: 62, fat: 32 },
@@ -312,13 +312,13 @@ const mealPlans = {
       ],
     },
     {
-      id: 283, totalCalories: 5500, totalProtein: 320, totalCarbs: 600, totalFat: 155,
+      id: 283, totalCalories: 5220, totalProtein: 332, totalCarbs: 537, totalFat: 176,
       meals: [
         { type: 'breakfast', he: 'פנקייק חלבון (5) + 4 ביצים + סירופ + בננה + חלב + מיץ', en: 'Protein pancakes (5) + 4 eggs + syrup + banana + milk + juice', calories: 1100, protein: 62, carbs: 110, fat: 38 },
         { type: 'snack', he: 'שייק גיינר ענק + סנדוויץ׳ חמאת בוטנים + בננה', en: 'Giant gainer shake + peanut butter sandwich + banana', calories: 950, protein: 60, carbs: 105, fat: 30 },
-        { type: 'lunch', he: '450 גרם עוף + אורז (4 כוסות) + חומוס + סלט + שמן זית + לחם + טחינה', en: '450g chicken + rice (4 cups) + hummus + salad + olive oil + bread + tahini', calories: 1400, protein: 80, carbs: 150, fat: 36 },
+        { type: 'lunch', he: '450 גרם עוף + אורז (4 כוסות) + חומוס + סלט + שמן זית + לחם + טחינה', en: '450g chicken + rice (4 cups) + hummus + salad + olive oil + bread + tahini', calories: 1240, protein: 80, carbs: 150, fat: 36 }, // kcal was 1400; the macros give 1244
         { type: 'snack', he: 'סנדוויץ׳ כפול + ביצים + גבינה + אבוקדו + שייק חלבון', en: 'Double sandwich + eggs + cheese + avocado + protein shake', calories: 1000, protein: 70, carbs: 72, fat: 40 },
-        { type: 'dinner', he: '400 גרם בקר + פסטה גדולה + ירקות + שמן זית + לחם', en: '400g beef + large pasta + vegetables + olive oil + bread', calories: 1050, protein: 60, carbs: 100, fat: 32 },
+        { type: 'dinner', he: '400 גרם בקר + פסטה גדולה + ירקות + שמן זית + לחם', en: '400g beef + large pasta + vegetables + olive oil + bread', calories: 930, protein: 60, carbs: 100, fat: 32 }, // kcal was 1050; the macros give 928
       ],
     },
   ],
@@ -333,49 +333,68 @@ function getCalorieRange(target) {
   return '4500-6000';
 }
 
-// Get a menu within ±200 kcal of the user's target, ranked by protein closeness.
-// proteinTarget is optional — if omitted, picks randomly within the calorie window.
+// A plan's totals are always the sum of its meals. The numbers typed in the data
+// file once drifted away from the meals (25 of 30 menus were off in calories, up
+// to 500 kcal), so nothing downstream reads the typed totals any more.
+function withTotals(plan) {
+  const sum = (k) => plan.meals.reduce((a, m) => a + (m[k] || 0), 0);
+  return { ...plan, totalCalories: sum('calories'), totalProtein: sum('protein'), totalCarbs: sum('carbs'), totalFat: sum('fat') };
+}
+
+// Get a menu within ±200 kcal of the day's target. Inside that window the menus
+// are ranked by how close they come to ALL the targets — calories, protein, carbs
+// and fat — and one of the best five is picked at random for day-to-day variety.
+//   proteinTarget / macroTargets ({ carbs, fat }) are optional.
+// The result says how far it is: `gapKcal` = |menu total − target|, and
+// `approximate: true` when no menu fits the window and this is only the closest.
 const CALORIE_WINDOW = 200;
 
-function getRandomMenu(calorieTarget, excludeId = null, proteinTarget = null) {
-  const allPlans = Object.values(mealPlans).flat();
+function getRandomMenu(calorieTarget, excludeId = null, proteinTarget = null, macroTargets = null) {
+  const allPlans = Object.values(mealPlans).flat().map(withTotals);
   const pool = excludeId ? allPlans.filter(p => p.id !== excludeId) : allPlans;
   if (pool.length === 0) return null;
 
-  // Hard constraint: only menus within ±200 kcal of the target.
-  let candidates = pool.filter(p =>
-    Math.abs(p.totalCalories - calorieTarget) <= CALORIE_WINDOW
-  );
+  const describe = (plan, approximate) => ({
+    ...plan,
+    range: getCalorieRange(plan.totalCalories),
+    approximate,
+    gapKcal: Math.abs(plan.totalCalories - calorieTarget),
+  });
 
-  // Fallback: if no menu fits the strict window (e.g. target sits in a gap
-  // between buckets), pick the closest one by calories so the user still gets
-  // a suggestion instead of an error.
+  // Hard constraint: only menus within ±200 kcal of the target.
+  const candidates = pool.filter(p => Math.abs(p.totalCalories - calorieTarget) <= CALORIE_WINDOW);
+
+  // Fallback: no menu fits the window (the target sits in a gap, or above every
+  // menu). Return the closest by calories, marked approximate, so the user still
+  // gets a suggestion — and is told it is not a fit.
   if (candidates.length === 0) {
     const closest = pool
       .map(p => ({ plan: p, calDiff: Math.abs(p.totalCalories - calorieTarget) }))
       .sort((a, b) => a.calDiff - b.calDiff)[0];
-    return { ...closest.plan, range: getCalorieRange(closest.plan.totalCalories) };
+    return describe(closest.plan, true);
   }
 
-  // Within the calorie window, prefer menus closest to the protein target.
-  // Pick randomly among the top 5 to keep variety day-to-day.
+  // Relative distance from each target; protein and calories weigh double.
+  const rel = (actual, target) => (target > 0 ? Math.abs(actual - target) / target : 0);
   const ranked = candidates.map(plan => {
-    const protDiff = proteinTarget
-      ? Math.abs(plan.totalProtein - proteinTarget) / proteinTarget
-      : 0;
-    return { plan, score: protDiff };
+    let score = 2 * rel(plan.totalCalories, calorieTarget) + 2 * rel(plan.totalProtein, proteinTarget);
+    if (macroTargets) score += rel(plan.totalCarbs, macroTargets.carbs) + rel(plan.totalFat, macroTargets.fat);
+    return { plan, score };
   });
   ranked.sort((a, b) => a.score - b.score);
 
   const topN = Math.min(5, ranked.length);
   const idx = Math.floor(Math.random() * topN);
-  const winner = ranked[idx].plan;
-  return { ...winner, range: getCalorieRange(winner.totalCalories) };
+  return describe(ranked[idx].plan, false);
 }
 
 // Find an alternative meal of the same type with similar calories.
 // Tolerance is ±15% of current calories (with a 50 kcal floor for tiny snacks).
-function swapMeal(type, currentCalories, excludeText = null) {
+// With `ctx = { dayTotal, target }` (the day's current total and its target) the
+// swap also respects the day's budget: a replacement that would push the day over
+// 110% of the target is not offered while any other fits, and among the rest the
+// ones that leave the day closest to the target come first.
+function swapMeal(type, currentCalories, excludeText = null, ctx = null) {
   const allOfType = [];
   for (const range of Object.values(mealPlans)) {
     for (const plan of range) {
@@ -401,16 +420,38 @@ function swapMeal(type, currentCalories, excludeText = null) {
   }
   if (pool.length === 0) return null;
 
+  if (ctx && Number.isFinite(ctx.dayTotal) && Number.isFinite(ctx.target) && ctx.target > 0) {
+    const resulting = (m) => ctx.dayTotal - currentCalories + m.calories;
+    const limit = ctx.target * 1.10;
+    let usable = pool.filter(m => resulting(m) <= limit);
+    if (usable.length === 0) {
+      // Nothing near the current meal fits the budget: look at every meal of this
+      // type that does, the lightest change first.
+      usable = allOfType
+        .filter(m => m.he !== excludeText && resulting(m) <= limit)
+        .sort((a, b) => Math.abs(a.calories - currentCalories) - Math.abs(b.calories - currentCalories))
+        .slice(0, 5);
+    }
+    if (usable.length === 0) usable = pool; // every option overshoots: take the ones nearest the target
+    usable = [...usable].sort((a, b) => Math.abs(resulting(a) - ctx.target) - Math.abs(resulting(b) - ctx.target));
+    const top = usable.slice(0, 3);
+    return top[Math.floor(Math.random() * top.length)];
+  }
+
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
 // Build a 7-day menu by picking a fresh daily menu for each day, excluding
 // the previous day's plan id so two consecutive days don't repeat.
-function getWeeklyMenu(calorieTarget, proteinTarget = null) {
+// `calorieTarget` / `proteinTarget` / `macroTargets` ({ carbs, fat }) may each be
+// one value for all seven days or an array with one per day (training and rest
+// days differ).
+function getWeeklyMenu(calorieTarget, proteinTarget = null, macroTargets = null) {
   const days = [];
   let prevId = null;
+  const forDay = (v, i) => (Array.isArray(v) ? v[i] : v);
   for (let i = 0; i < 7; i++) {
-    const dayMenu = getRandomMenu(calorieTarget, prevId, proteinTarget);
+    const dayMenu = getRandomMenu(forDay(calorieTarget, i), prevId, forDay(proteinTarget, i), forDay(macroTargets, i));
     if (!dayMenu) continue;
     days.push(dayMenu);
     prevId = dayMenu.id;
