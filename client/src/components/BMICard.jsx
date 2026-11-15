@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
+import { daysLabel } from '../lib/plural.mjs';
+import { historyTargetFor } from '../lib/dayTarget.mjs';
 
 // Small line-icon set matching the app's nav-icon style (see StIc in
 // Dashboard.jsx / ObIcon in OnboardingFlow.jsx) — used in place of the
@@ -356,7 +358,7 @@ function BalanceChart({ days, goal, isHe }) {
   );
 }
 
-export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTargetProp, api, onUpdate, heroOnly = false }) {
+export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTargetProp, baseCalorieTarget, api, onUpdate, heroOnly = false }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
   const [applying, setApplying] = useState(false);
@@ -486,7 +488,7 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
   const dayLabelsEn = ['S','M','T','W','T','F','S'];
   const dayLabels = isHe ? dayLabelsHe : dayLabelsEn;
 
-  const calorieTarget = calorieTargetProp || 2000;
+  const calorieTarget = calorieTargetProp > 0 ? calorieTargetProp : 0; // 0 = not loaded; no invented 2000
 
   const balanceDays = useMemo(() => {
     return Array.from({ length: 14 }, (_, i) => {
@@ -499,17 +501,21 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
         const ld = new Date(l.date);
         return ld >= d && ld < next;
       });
-      const hasData = !!log && (log.totalCalories || 0) > 0;
       const consumed = log?.totalCalories || 0;
+      // Each past day against the target that applied THEN (stored with the day);
+      // today against the live one. Days from before snapshots use the plain base.
+      const dayTarget = i === 13 ? calorieTarget : historyTargetFor(log, baseCalorieTarget || calorieTarget);
+      // A day with no known target can't be judged: shown as "no data", not as a surplus of everything.
+      const hasData = !!log && consumed > 0 && dayTarget > 0;
       return {
         label: dayLabels[d.getDay()],
-        balance: hasData ? Math.round(consumed - calorieTarget) : 0,
+        balance: hasData ? Math.round(consumed - dayTarget) : 0,
         hasData,
         isToday: i === 13,
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nutritionHistory, calorieTarget, isHe]);
+  }, [nutritionHistory, calorieTarget, baseCalorieTarget, isHe]);
 
   // ─── Journey to goal (start → now → target) ─────────────────
   // initialWeightDelta is the gap that existed when stats were first computed.
@@ -718,8 +724,8 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
         <BalanceChart days={balanceDays} goal={goalDir} isHe={isHe} />
         <div style={{ fontSize: 11, color: 'var(--text-4)', marginTop: 8, fontStyle: 'italic' }}>
           {isHe
-            ? `יעד יומי: ${calorieTarget.toLocaleString()} קלוריות · נתונים מ-${loggedDays.length} ימים שתועדו.`
-            : `Daily target: ${calorieTarget.toLocaleString()} kcal · based on ${loggedDays.length} logged days.`}
+            ? `${calorieTarget > 0 ? `יעד יומי: ${calorieTarget.toLocaleString()} קלוריות` : 'היעד לא נטען'} · נתונים מ-${daysLabel(loggedDays.length, true)} שתועדו.`
+            : `${calorieTarget > 0 ? `Daily target: ${calorieTarget.toLocaleString()} kcal` : 'Target not loaded'} · based on ${daysLabel(loggedDays.length, false)} logged.`}
         </div>
       </div>
 

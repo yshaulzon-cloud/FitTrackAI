@@ -17,53 +17,34 @@
 //      (largest-remainder rounding: the sums are exactly equal, never off by 1).
 // An item is `estimated: true` when the food is not in FOOD_DB (no nutrition basis); `quantityGuessed` marks a quantity
 // that was not written in the menu line. The UI marks estimated items with "~".
-const { FOOD_DB } = require('./calculations');
+const { estimator } = require('./calculations');
 
 const MACROS = ['calories', 'protein', 'carbs', 'fat'];
 
-// Typical weight of one unit, grams. Only used when a count is written with no
-// explicit weight ("2 ביצים", "פרוסת לחם", "תפוח").
-const UNIT_GRAMS = [
-  [/ביצ(?:ה|ים|ת)|\begg/i, 50],
-  [/פרוסת?\s*לחם|פרוסה|bread slice|slice/i, 30],
-  [/תפוח(?![֐-׿])|apple/i, 180], // (?![א-ת]) instead of \b: \b ignores Hebrew letters
-  [/בננה|banana/i, 120],
-  [/אבוקדו|avocado/i, 150],
-  [/כף(?![֐-׿])|כפות|tbsp|tablespoon/i, 15],
-  [/כפית|tsp|teaspoon/i, 5],
-  [/כוס|cup/i, 240],
-  [/פיתה|pita/i, 90],
-  [/קופסה|can\b|canned/i, 150],
-];
+// Foods and quantities are read by the same engine as the meal log (utils/foodText.js),
+// so "10 שקדים", "חצי כוס אורז" and "2 ביצים" mean the same grams here as there: a count
+// uses that food's piece weight, a cup or tablespoon the weight of THAT food's cup or
+// tablespoon (data/portions.js), and an amount nobody wrote is flagged as a guess.
 
-const NUM_WORDS = { חצי: 0.5, half: 0.5, רבע: 0.25, quarter: 0.25 };
-
-function quantityOf(text) {
-  const t = text.toLowerCase();
-  // explicit weight / volume
-  let m = t.match(/(\d+(?:[.,]\d+)?)\s*(?:גרם|ג׳|גר׳|ג'|g\b|gr\b|gram)/);
-  if (m) return { grams: parseFloat(m[1].replace(',', '.')), guessed: false };
-  m = t.match(/(\d+(?:[.,]\d+)?)\s*(?:מ"ל|מ״ל|מל\b|ml\b)/);
-  if (m) return { grams: parseFloat(m[1].replace(',', '.')), guessed: false };
-  // a count (or a fraction word) × a typical unit
-  let count = null;
-  m = t.match(/(?:^|\s)(\d+(?:[.,]\d+)?)\s/);
-  if (m) count = parseFloat(m[1].replace(',', '.'));
-  for (const [w, v] of Object.entries(NUM_WORDS)) if (new RegExp(`(?:^|\\s)${w}(?:\\s|$)`).test(t)) count = v;
-  for (const [re, g] of UNIT_GRAMS) if (re.test(t)) return { grams: Math.round((count ?? 1) * g), guessed: true };
-  return { grams: 100, guessed: true };
+// A menu line can name several foods ("סלט ירקות עם כף שמן זית"); the item stands for the
+// most specific one (the longest name), with that food's own quantity.
+function analyse(text) {
+  const { foods } = estimator.parse(String(text || ''));
+  if (!foods.length) return null;
+  return foods.reduce((best, f) => (f.name.length > best.name.length ? f : best), foods[0]);
 }
 
-// The FOOD_DB entry whose longest key is contained in the text (most specific wins).
+// → { grams, guessed } — guessed unless the text states a weight or volume itself.
+function quantityOf(text) {
+  const f = analyse(text);
+  if (!f) return { grams: 100, guessed: true };
+  return { grams: Math.round(f.grams), guessed: f.basis !== 'written' };
+}
+
+// The FOOD_DB entry the text is about (null when it names no food).
 function matchFood(text) {
-  const t = text.toLowerCase();
-  let best = null; let bestLen = 0;
-  for (const item of FOOD_DB) {
-    for (const key of item.keys) {
-      if (key.length > bestLen && t.includes(key.toLowerCase())) { best = item; bestLen = key.length; }
-    }
-  }
-  return best;
+  const f = analyse(text);
+  return f ? f.entry : null;
 }
 
 const per = (food, grams) => ({
@@ -95,8 +76,11 @@ function parseMealItems(meal) {
   const enParts = splitComponents(meal.en);
   const useEn = enParts.length === heParts.length;
   const raw = heParts.map((he, i) => {
-    const food = matchFood(he) || (useEn ? matchFood(enParts[i]) : null);
-    const q = quantityOf(he);
+    // The Hebrew line first; its English twin only if the Hebrew names no food.
+    // Food and quantity come from the same reading, so they always agree.
+    const found = analyse(he) || (useEn ? analyse(enParts[i]) : null);
+    const food = found ? found.entry : null;
+    const q = found ? { grams: Math.round(found.grams), guessed: found.basis !== 'written' } : { grams: 100, guessed: true };
     const nutrition = food ? per(food, q.grams) : { calories: 0, protein: 0, carbs: 0, fat: 0 };
     return { he, en: useEn ? enParts[i] : he, grams: q.grams, estimated: !food, quantityGuessed: q.guessed, nutrition };
   });

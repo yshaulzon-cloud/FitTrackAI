@@ -349,7 +349,22 @@ async function revokeXP(userId, eventType, tz) {
   // Reset daily flag if applicable
   const today = startOfUserDay(tz);
   if (prog.dailyFlags.date && startOfUserDay(tz, new Date(prog.dailyFlags.date)).getTime() === today.getTime()) {
-    if (eventType === 'calorie_goal') prog.dailyFlags.calorieGoalMet = false;
+    if (eventType === 'calorie_goal') {
+      prog.dailyFlags.calorieGoalMet = false;
+      // Give back the streak this award advanced (the early return above means
+      // the award really was made today).
+      const before = prog.dailyFlags.calorieStreakBefore;
+      if (Number.isFinite(before)) {
+        prog.calorieStreak = before;
+        prog.lastCalorieGoalDate = prog.dailyFlags.lastCalorieGoalDateBefore || null;
+      } else {
+        // Awarded before the "before" values were recorded: step back one day.
+        prog.calorieStreak = Math.max(0, (prog.calorieStreak || 0) - 1);
+        prog.lastCalorieGoalDate = prog.calorieStreak > 0 ? startOfUserDayOffset(tz, -1, today) : null;
+      }
+      prog.dailyFlags.calorieStreakBefore = null;
+      prog.dailyFlags.lastCalorieGoalDateBefore = null;
+    }
     if (eventType === 'protein_goal') prog.dailyFlags.proteinGoalMet = false;
   }
 
@@ -472,6 +487,10 @@ async function checkNutritionGoals(userId, todayNutrition, targets, tz) {
     if (ratio >= 0.9 && ratio <= 1.1) {
       prog.dailyFlags.calorieGoalMet = true;
       prog.everHitCalorieGoal = true;
+      // Remember the streak as it was, so revokeXP can restore it if the meal
+      // that earned this is deleted.
+      prog.dailyFlags.calorieStreakBefore = prog.calorieStreak || 0;
+      prog.dailyFlags.lastCalorieGoalDateBefore = prog.lastCalorieGoalDate || null;
 
       // Calorie-goal streak: consecutive days the target was hit. Separate
       // from currentStreak (general activity) — a user can work out every

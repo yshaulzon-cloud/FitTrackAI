@@ -9,17 +9,30 @@ const Nutrition = require('../models/Nutrition');
 const Workout = require('../models/Workout');
 const Sleep = require('../models/Sleep');
 const Progression = require('../models/Progression');
-const { EQUIPMENT, LEGACY_VALUES, normalizeEquipment } = require('../utils/equipment');
+const { EQUIPMENT, LEGACY_VALUES, normalizeEquipment, parseEquipmentUpdate } = require('../utils/equipment');
 const { applyPlanSwaps, recordSwap, MAX_SWAPS } = require('../utils/planSwaps');
 const { computeTargets, describeTargetChange } = require('../utils/targetChange');
+const { dailyTargetsForUser, getDailyTargets } = require('../utils/targets');
 const {
-  calculateTDEE,
-  calculateCalorieTarget,
-  calculateMacros,
   calculateWeeklyWeightTarget,
   generateWorkoutPlan,
   generateBMIAnalysis,
 } = require('../utils/calculations');
+
+// The `nutrition` block of the profile responses. `calorieTarget` / `macros`
+// stay the PLAIN base (what Settings edits and shows); `today` is the target for
+// the user's local day (training / rest) that the ring, bar, menus and XP use.
+function nutritionPayload(t, weeklyWeightTarget) {
+  return {
+    tdee: t.tdee,
+    ree: t.ree,
+    formulaUsed: t.formulaUsed,
+    calorieTarget: t.base.calories,
+    macros: t.base.macros,
+    weeklyWeightTarget,
+    today: { calorieTarget: t.today.calories, macros: t.today.macros, dayType: t.dayType },
+  };
+}
 
 // The generated plan with the user's permanent exercise swaps applied.
 function planFor(profile) {
@@ -55,20 +68,7 @@ router.get('/profile', auth, async (req, res) => {
     };
 
     if (user.onboardingComplete && user.profile) {
-      const { tdee, ree, formulaUsed } = calculateTDEE(user.profile);
-      const calorieTarget = calculateCalorieTarget(
-        tdee,
-        user.profile.goal,
-        user.profile.weight,
-        user.profile.bodyFatPercentage
-      );
-      const macros = calculateMacros(
-        user.profile.weight,
-        calorieTarget,
-        user.profile.goal,
-        user.profile.experience,
-        user.profile.bodyFatPercentage
-      );
+      const t = await dailyTargetsForUser(user);
       const workoutPlan = planFor(user.profile);
       const weeklyWeightTarget = calculateWeeklyWeightTarget(
         user.profile.weight,
@@ -77,7 +77,7 @@ router.get('/profile', auth, async (req, res) => {
       );
 
       const bmiAnalysis = generateBMIAnalysis(user.profile);
-      response.nutrition = { tdee, ree, formulaUsed, calorieTarget, macros, weeklyWeightTarget };
+      response.nutrition = nutritionPayload(t, weeklyWeightTarget);
       response.workoutPlan = workoutPlan;
       response.bmiAnalysis = bmiAnalysis;
     }
@@ -147,16 +147,14 @@ router.post(
         { new: true }
       );
 
-      const { tdee, ree, formulaUsed } = calculateTDEE(user.profile);
-      const calorieTarget = calculateCalorieTarget(tdee, goal, weight, bodyFatPercentage);
-      const macros = calculateMacros(weight, calorieTarget, goal, experience, bodyFatPercentage);
+      const t = getDailyTargets({ profile: user.profile }); // a brand-new profile: nothing logged yet
       const workoutPlan = planFor(user.profile);
       const weeklyWeightTarget = calculateWeeklyWeightTarget(weight, goal, experience);
 
       const bmiAnalysis = generateBMIAnalysis(user.profile);
       res.json({
         profile: user.profile,
-        nutrition: { tdee, ree, formulaUsed, calorieTarget, macros, weeklyWeightTarget },
+        nutrition: nutritionPayload(t, weeklyWeightTarget),
         workoutPlan,
         bmiAnalysis,
       });
@@ -206,7 +204,7 @@ router.post(
   }
 );
 
-// PUT /user/profile - update weight, height, goal, name, age
+// PUT /user/profile - update weight, height, goal, name, age, equipment
 router.put(
   '/profile',
   auth,
@@ -220,6 +218,8 @@ router.put(
     body('age').optional().isInt({ min: 13, max: 120 }).withMessage('גיל לא תקין'),
     body('bodyFatPercentage').optional().isFloat({ min: 3, max: 60 }).withMessage('אחוז שומן לא תקין'),
     body('timezone').optional({ checkFalsy: true }).isString().isLength({ max: 64 }),
+    body('equipment').optional().isArray({ max: EQUIPMENT.length }).withMessage('ציוד לא תקין'),
+    body('equipment.*').optional().isIn([...EQUIPMENT, ...LEGACY_VALUES]).withMessage('ציוד לא תקין'),
   ],
   async (req, res) => {
     try {
@@ -228,7 +228,13 @@ router.put(
         return res.status(400).json({ message: errors.array()[0].msg });
       }
 
-      const { weight, height, goal, workoutsPerWeek, gender, name, age, bodyFatPercentage, timezone } = req.body;
+      const { weight, height, goal, workoutsPerWeek, gender, name, age, bodyFatPercentage, timezone, equipment } = req.body;
+      // Settings → Equipment: replaces the whole list; an empty one is refused.
+      let equipmentUpdate;
+      if (equipment !== undefined) {
+        equipmentUpdate = parseEquipmentUpdate(equipment);
+        if (!equipmentUpdate) return res.status(400).json({ message: 'בחר לפחות פריט ציוד אחד' });
+      }
       const user = req.user;
 
       // Detect a goal direction change so we can reset the journey baseline.
@@ -245,6 +251,7 @@ router.put(
       if (age !== undefined) user.profile.age = age;
       if (bodyFatPercentage !== undefined) user.profile.bodyFatPercentage = bodyFatPercentage;
       if (timezone && String(timezone).trim()) user.profile.timezone = String(timezone).trim();
+      if (equipmentUpdate) user.profile.equipment = equipmentUpdate;
       if (name !== undefined) user.name = name;
 
       await user.save();
@@ -259,14 +266,7 @@ router.put(
         ).catch(() => {});
       }
 
-      const { tdee, ree, formulaUsed } = calculateTDEE(user.profile);
-      const calorieTarget = calculateCalorieTarget(
-        tdee, user.profile.goal, user.profile.weight, user.profile.bodyFatPercentage
-      );
-      const macros = calculateMacros(
-        user.profile.weight, calorieTarget, user.profile.goal,
-        user.profile.experience, user.profile.bodyFatPercentage
-      );
+      const t = await dailyTargetsForUser(user);
       const workoutPlan = planFor(user.profile);
       const weeklyWeightTarget = calculateWeeklyWeightTarget(
         user.profile.weight, user.profile.goal, user.profile.experience
@@ -284,7 +284,7 @@ router.put(
       });
       res.json({
         profile: user.profile,
-        nutrition: { tdee, ree, formulaUsed, calorieTarget, macros, weeklyWeightTarget },
+        nutrition: nutritionPayload(t, weeklyWeightTarget),
         workoutPlan,
         bmiAnalysis,
         targetChange,

@@ -2,7 +2,7 @@
 // works out "what were the targets, what are they now, and is the change big
 // enough to tell the user and rebuild the menu" — all server-side, so the
 // server stays the single source of truth for targets.
-const { calculateTDEE, calculateCalorieTarget, calculateMacros } = require('./calculations');
+const { baseTargets } = require('./targets');
 
 // A weight change smaller than this does not count as "the weight changed".
 const WEIGHT_TRIGGER_KG = 1;
@@ -11,9 +11,7 @@ const WEIGHT_TRIGGER_KG = 1;
 function computeTargets(profile) {
   try {
     if (!profile || !profile.weight || !profile.height || !profile.age || !profile.gender) return null;
-    const { tdee } = calculateTDEE(profile);
-    const calorieTarget = calculateCalorieTarget(tdee, profile.goal, profile.weight, profile.bodyFatPercentage);
-    const macros = calculateMacros(profile.weight, calorieTarget, profile.goal, profile.experience, profile.bodyFatPercentage);
+    const { calorieTarget, macros } = baseTargets(profile);
     return { calorieTarget, protein: macros.protein, carbs: macros.carbs, fat: macros.fat };
   } catch {
     return null;

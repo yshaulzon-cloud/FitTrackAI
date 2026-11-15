@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { readSavedLang } from './LanguageContext';
 
 const AuthContext = createContext(null);
 
@@ -40,7 +41,7 @@ export function AuthProvider({ children }) {
   }
 
   function pickMsg(data) {
-    const isHe = localStorage.getItem('areto:lang') !== 'en';
+    const isHe = readSavedLang() !== 'en';
     return (isHe && data.messageHe) ? data.messageHe : (data.message || 'Server error');
   }
 
@@ -176,7 +177,14 @@ export function AuthProvider({ children }) {
       },
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(pickMsg(data));
+    if (!res.ok) {
+      // `code` / `status` let a caller react to a specific failure (e.g. FOOD_NOT_FOUND)
+      // without parsing the translated message.
+      const err = new Error(pickMsg(data));
+      err.code = data.code;
+      err.status = res.status;
+      throw err;
+    }
     return data;
   }
 

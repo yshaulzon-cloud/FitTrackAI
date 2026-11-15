@@ -34,7 +34,6 @@ works (or create a new one):
 4. The first deploy will pause asking for the secret env vars. Set them now:
    - `MONGODB_URI` → the Atlas string from step A.5
    - `JWT_SECRET` → any long random string (`openssl rand -hex 64`)
-   - `ANTHROPIC_API_KEY` → from [https://console.anthropic.com](https://console.anthropic.com) (used for AI meal estimation; optional — without it the app falls back to defaults)
    - `EMAIL_USER` → `bodysync11@gmail.com` (or your own Gmail)
    - `EMAIL_PASS` → 16-char Gmail app password (Google account → Security → 2FA → App passwords)
 5. Click **Apply**. First build takes ~3 minutes.

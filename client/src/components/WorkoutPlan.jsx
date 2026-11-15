@@ -2,51 +2,15 @@ import { useState, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
 import WorkoutSession, { readActiveSession, clearActiveSession } from './WorkoutSession';
 import { getExerciseCue } from '../lib/exerciseCues';
+import { summarizeWorkout, exerciseDetail, wasPerformed, compareWithPrevious } from '../lib/workoutHistory.mjs';
+import ExerciseSwapSheet from './ExerciseSwapSheet';
+import { easierVariant, equipmentOk, normalizeUserEquipment } from '../lib/exerciseLibrary.mjs';
+import { toHomeExercises } from '../lib/homeExercises.mjs';
 
 // Muscle group translations
 const muscleGroupMap = {
   'חזה': 'Chest', 'גב': 'Back', 'כתפיים': 'Shoulders', 'זרועות': 'Arms',
   'רגליים': 'Legs', 'תאומים': 'Calves', 'ליבה': 'Core', 'אירובי': 'Cardio', 'כללי': 'General',
-};
-
-// Home exercise alternatives - maps gym exercise to home version(s)
-// alt = second option for exercises that need a bar/equipment
-const homeExerciseMap = {
-  'לחיצת חזה שטוח (Bench Press)': { name: 'שכיבות סמיכה (Push Ups)', reps: '10-20' },
-  'לחיצת חזה משופע דמבלים (Incline DB Press)': { name: 'שכיבות סמיכה רגליים מוגבהות (Decline Push Ups)', reps: '10-15' },
-  'לחיצת חזה שטוח דמבלים (DB Bench Press)': { name: 'שכיבות סמיכה (Push Ups)', reps: '10-20' },
-  'פרפר מכונה (Pec Fly)': { name: 'שכיבות סמיכה רחבות (Wide Push Ups)', reps: '12-15' },
-  'חתירה במוט (Barbell Row)': {
-    name: 'חתירה הפוכה (Inverted Row)', reps: '8-12',
-    alt: { name: 'סופרמן חתירה (Superman Row)', reps: '12-15' },
-  },
-  'חתירה בכבל (Cable Row)': {
-    name: 'חתירה הפוכה (Inverted Row)', reps: '10-15',
-    alt: { name: 'סופרמן חתירה (Superman Row)', reps: '12-15' },
-  },
-  'מתח (Pull Ups)': {
-    name: 'מתח (Pull Ups)', reps: '6-12',
-    alt: { name: 'סופרמן (Superman Pulls)', reps: '12-15' },
-  },
-  'לחיצת כתפיים (Overhead Press)': { name: 'שכיבות סמיכה פייק (Pike Push Ups)', reps: '8-12' },
-  'הרמה צדדית (Lateral Raise)': { name: 'הרמה צדדית עם בקבוקים (Lateral Raise - Bottles)', reps: '12-15' },
-  'הרמה אחורית (Rear Delt Fly)': { name: 'סופרמן (Superman Raises)', reps: '12-15' },
-  'כפיפת מרפק (Bicep Curl)': { name: 'כפיפת מרפק עם בקבוקים (Bicep Curl - Bottles)', reps: '12-15' },
-  'כפיפה בפטיש (Hammer Curl)': { name: 'כפיפה עם בקבוקים (Hammer Curl - Bottles)', reps: '12-15' },
-  'פשיטת מרפק בכבל (Tricep Pushdown)': { name: 'שכיבות סמיכה יהלום (Diamond Push Ups)', reps: '8-15' },
-  'סקוואט (Squat)': { name: 'סקוואט בולגרי (Bulgarian Split Squat)', reps: '10-12' },
-  'דדליפט רומני (Romanian Deadlift)': { name: 'דדליפט על רגל אחת (Single Leg Deadlift)', reps: '10-12' },
-  'דדליפט (Deadlift)': { name: 'דדליפט על רגל אחת (Single Leg Deadlift)', reps: '8-10' },
-  'לחיצת רגליים (Leg Press)': { name: 'סקוואט קפיצה (Jump Squat)', reps: '12-15' },
-  'מכפוף רגל (Leg Curl)': { name: 'גשר ירכיים (Glute Bridge)', reps: '12-15' },
-  'יישור רגל (Leg Extension)': { name: 'סיסי סקוואט (Sissy Squat)', reps: '10-15' },
-  "לאנג'ים (Lunges)": { name: "לאנג'ים (Walking Lunges)", reps: '12-15' },
-  'הרמות עקב (Calf Raise)': { name: 'הרמות עקב על מדרגה (Single Leg Calf Raise)', reps: '15-20' },
-  'הליכה מהירה / אופניים (Zone 2)': { name: 'הליכה מהירה / ריצה קלה (Zone 2 Walk / Jog)' },
-  'אימון Full Body קל או אירובי בינוני': { name: 'אימון HIIT ביתי (Home HIIT Workout)' },
-  'פלאנק (Plank)': { name: 'פלאנק (Plank)' },
-  'כפיפות בטן (Crunches)': { name: 'כפיפות בטן (Crunches)' },
-  'הרמת רגליים (Leg Raise)': { name: 'הרמת רגליים (Leg Raise)' },
 };
 
 // Extract English name from "Hebrew (English)" format
@@ -72,18 +36,43 @@ function getMuscleGroup(group, lang) {
   return muscleGroupMap[group] || group;
 }
 
-// Translate day names for English
-function getDayName(day, lang) {
-  if (lang === 'he') return day;
-  return day
+// A day name may carry a trailing "(focus)" — the training emphasis, e.g.
+// "פלג גוף עליון (כוח)". We split it off so the title stays clean and the focus
+// renders as a small subtitle. Two focuses are pure jargon-noise (RPE codes,
+// "Zone 2") and are dropped outright — handled here defensively so plans stored
+// before the server cleanup still display clean.
+const DAY_FOCUS_NOISE = /^(RPE\b|Zone\s*2)/i;
+function splitDay(day) {
+  const m = String(day || '').match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  if (!m) return { base: String(day || ''), focus: null };
+  const focus = m[2].trim();
+  if (DAY_FOCUS_NOISE.test(focus)) return { base: m[1].trim(), focus: null };
+  return { base: m[1].trim(), focus };
+}
+
+function translateDay(s, lang) {
+  if (lang === 'he') return s;
+  return s
     .replace(/יום א'/g, 'Day 1').replace(/יום ב'/g, 'Day 2').replace(/יום ג'/g, 'Day 3')
     .replace(/יום ד'/g, 'Day 4').replace(/יום ה'/g, 'Day 5').replace(/יום ו'/g, 'Day 6')
     .replace('פלג גוף עליון', 'Upper Body').replace('פלג גוף תחתון', 'Lower Body')
-    .replace('כוח', 'Strength').replace('היפרטרופיה', 'Hypertrophy')
     .replace('אירובי קל', 'Light Cardio').replace('ליבה', 'Core')
     .replace('Full Body קל / אירובי', 'Light Full Body / Cardio')
     .replace('Full Body + ליבה', 'Full Body + Core')
     .replace('אירובי קל + ליבה', 'Light Cardio + Core');
+}
+
+// The clean day title (no focus annotation), translated.
+function getDayName(day, lang) {
+  return translateDay(splitDay(day).base, lang);
+}
+
+// The focus subtitle (or null): the training emphasis, translated.
+function getDayFocus(day, lang) {
+  const { focus } = splitDay(day);
+  if (!focus) return null;
+  if (lang === 'he') return focus;
+  return focus.replace('כוח', 'Strength').replace('היפרטרופיה', 'Hypertrophy');
 }
 
 // Adjust exercises and sets based on available time
@@ -120,20 +109,6 @@ const MUSCLE_DOT = {
   'רגליים': '#2FE3C2', 'תאומים': '#4D9FFF', 'ליבה': '#FFB648', 'אירובי': '#2FE3C2', 'כללי': '#7C8798',
 };
 
-// Convert gym exercises to home alternatives
-function toHomeExercises(exercises) {
-  return exercises.map(ex => {
-    const home = homeExerciseMap[ex.name];
-    if (!home) return ex;
-    const result = { ...ex, name: home.name, reps: home.reps || ex.reps };
-    if (home.alt) {
-      result.altName = home.alt.name;
-      result.altReps = home.alt.reps;
-    }
-    return result;
-  });
-}
-
 export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHistory, showXP, progressionData, dailyStreak = 0, userName, onGoHome }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
@@ -149,6 +124,42 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   // Live session state: null | { exercises, dayName, location, restore? }
   const [session, setSession] = useState(null);
   const [resumeAvailable, setResumeAvailable] = useState(() => readActiveSession());
+  // Exercise swaps for THIS workout only: shown name → { name, muscleGroup }.
+  // Applied after the home conversion, so keys are the names on screen.
+  const [localSwaps, setLocalSwaps] = useState({});
+  const [swapTarget, setSwapTarget] = useState(null); // exercise name whose swap sheet is open
+
+  function withSwaps(list) {
+    return list.map((ex) => {
+      const sw = localSwaps[ex.name];
+      return sw ? { ...ex, name: sw.name, muscleGroup: sw.muscleGroup || ex.muscleGroup } : ex;
+    });
+  }
+  // Record a swap for this workout. If the exercise on screen is itself a
+  // replacement, update the entry for the original; swapping back removes it.
+  function setLocalSwap(shownName, alt) {
+    setLocalSwaps((prev) => {
+      const original = Object.keys(prev).find((k) => prev[k].name === shownName) || shownName;
+      const next = { ...prev };
+      if (alt.name === original) delete next[original];
+      else next[original] = { name: alt.name, muscleGroup: alt.muscle };
+      return next;
+    });
+  }
+  // "Also in my weekly plan": saved on the profile, applied by the server on top
+  // of the generated plan (gym plan only: home names are derived from it).
+  async function persistPlanSwap(shownName, alt) {
+    const original = Object.keys(localSwaps).find((k) => localSwaps[k].name === shownName) || shownName;
+    try {
+      await api('/user/plan-swap', { method: 'PUT', body: JSON.stringify({ from: original, to: alt.name, muscleGroup: alt.muscle }) });
+      // Reload the profile first so the plan already carries the swap, then drop
+      // the local override (dropping it earlier would flash the old exercise).
+      if (onComplete) await onComplete();
+      setLocalSwaps((prev) => { const n = { ...prev }; delete n[original]; return n; });
+    } catch {
+      setMessage(isHe ? 'שמירת ההחלפה בתוכנית נכשלה' : "Couldn't save the swap to your plan");
+    }
+  }
 
   const days = plan?.days || plan || [];
   // One-day view: render only the active day card. Audit recommendation.
@@ -223,7 +234,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     const day = days[safeDayIdx];
     if (!day) return;
     const duration = getDuration(day.day);
-    const baseExercises = homeMode ? toHomeExercises(day.exercises) : day.exercises;
+    const baseExercises = withSwaps(homeMode ? toHomeExercises(day.exercises) : day.exercises);
     const visibleExercises = getExercisesForDuration(baseExercises, duration);
     setSession({
       exercises: visibleExercises,
@@ -247,7 +258,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   // tracking. Records the planned exercises as-is.
   async function handleComplete(day) {
     const duration = getDuration(day.day);
-    const baseExercises = homeMode ? toHomeExercises(day.exercises) : day.exercises;
+    const baseExercises = withSwaps(homeMode ? toHomeExercises(day.exercises) : day.exercises);
     const visibleExercises = getExercisesForDuration(baseExercises, duration);
     try {
       const result = await api('/workout/complete', {
@@ -288,11 +299,13 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   const workouts = workoutHistory?.workouts || [];
 
   const currentDay = days[safeDayIdx];
-  const baseExercises0 = currentDay ? (homeMode ? toHomeExercises(currentDay.exercises) : currentDay.exercises) : [];
+  const baseExercises0 = currentDay ? withSwaps(homeMode ? toHomeExercises(currentDay.exercises) : currentDay.exercises) : [];
   const adjExercises0 = getExercisesForDuration(baseExercises0, dayDurations[currentDay?.day] || 60);
 
   // Fetch last-performance data for the current day's exercises so the
-  // (read-only) accordion preview can show real suggested weights.
+  // (read-only) accordion preview can show real suggested weights. Keyed on the
+  // names on screen, so a swap (new exercise) loads its own last performance.
+  const planNamesKey = adjExercises0.map(ex => ex.name).join('|');
   useEffect(() => {
     const names = adjExercises0.map(ex => ex.name);
     if (names.length === 0) { setPerfMap({}); return; }
@@ -307,7 +320,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
       } catch { /* non-critical */ }
     })();
     return () => { cancelled = true; };
-  }, [safeDayIdx, homeMode, dayDurations[currentDay?.day]]); // eslint-disable-line
+  }, [planNamesKey]); // eslint-disable-line
 
   // Workouts logged since this week's Sunday — feeds the "done" state's
   // next-workout card ("2 left this week").
@@ -392,6 +405,8 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         api={api}
         userName={userName}
         restore={session.restore}
+        userEquipment={profile?.equipment}
+        onPermanentSwap={session.location === 'gym' ? persistPlanSwap : undefined}
         onFinish={(result, opts) => {
           setSession(null);
           setResumeAvailable(null);
@@ -497,6 +512,9 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 700, marginBottom: 2 }}>{isHe ? 'האימון הבא' : 'Next workout'}</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-1)' }}>{getDayName(nextDay.day, lang)}</div>
+                {getDayFocus(nextDay.day, lang) && (
+                  <div style={{ fontSize: 11.5, color: 'var(--text-4)', fontWeight: 600, marginTop: 1 }}>{getDayFocus(nextDay.day, lang)}</div>
+                )}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>
                 {maxPerWeek - doneThisWeek > 0 ? (isHe ? `עוד ${maxPerWeek - doneThisWeek} השבוע` : `${maxPerWeek - doneThisWeek} left this week`) : (isHe ? 'שבוע מלא' : 'week complete')}
@@ -579,6 +597,9 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               {isHe ? 'האימון הבא שלך' : 'Your next workout'}
             </div>
             <div style={{ fontSize: 21, fontWeight: 700, marginTop: 8, color: 'var(--text-1)' }}>{dayTitle}</div>
+            {currentDay && getDayFocus(currentDay.day, lang) && (
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>{getDayFocus(currentDay.day, lang)}</div>
+            )}
             <div style={{ display: 'flex', gap: 14, marginTop: 10, fontSize: 13, color: '#93A0B4', flexWrap: 'wrap' }}>
               <span>{adjExercises0.length} {isHe ? 'תרגילים' : 'exercises'}</span>
               <span>·</span>
@@ -802,6 +823,24 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               </button>
             ))}
 
+            {/* Swap / easier version */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+              {(() => {
+                const easier = easierVariant(selectedExercise.name, { location: homeMode ? 'home' : 'gym' });
+                const names = adjExercises0.map((e) => e.name);
+                if (!easier || names.includes(easier.name) || !equipmentOk(easier, normalizeUserEquipment(profile?.equipment))) return null;
+                return (
+                  <button className="btn" style={{ flex: 1, minHeight: 46, color: 'var(--accent-text, var(--accent))', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)' }}
+                    onClick={() => { setLocalSwap(selectedExercise.name, easier); setSelectedExercise(null); }}>
+                    {isHe ? 'גרסה קלה יותר' : 'Easier version'}
+                  </button>
+                );
+              })()}
+              <button className="btn" style={{ flex: 1, minHeight: 46, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-1)' }}
+                onClick={() => { setSwapTarget(selectedExercise.name); setSelectedExercise(null); }}>
+                {isHe ? 'החלף תרגיל' : 'Swap exercise'}
+              </button>
+            </div>
             <button
               className="btn"
               onClick={() => setSelectedExercise(null)}
@@ -819,6 +858,34 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
       )}
 
 
+      {swapTarget && (
+        <ExerciseSwapSheet
+          exerciseName={swapTarget}
+          inSession={adjExercises0.map((e) => e.name)}
+          equipment={profile?.equipment}
+          location={homeMode ? 'home' : 'gym'}
+          allowPermanent={!homeMode}
+          isHe={isHe}
+          onPick={(alt, opts) => {
+            setLocalSwap(swapTarget, alt);
+            if (opts?.permanent) persistPlanSwap(swapTarget, alt);
+            setSwapTarget(null);
+          }}
+          onClose={() => setSwapTarget(null)}
+        />
+      )}
+
+      {/* Recent workouts: last 10 with "load more", details and a comparison to
+          the previous time. Reloads when a new workout lands in workoutHistory. */}
+      {!session && (
+        <RecentWorkouts
+          api={api}
+          profile={profile}
+          refreshKey={workoutHistory?.workouts?.[0]?._id || 'none'}
+          onChanged={onComplete}
+        />
+      )}
+
       {/* Secondary CTA for the done state — "start another workout" was a dead
           end (server rejects a 2nd /workout/complete same-day), so it's
           replaced with a working summary view rather than demoted. */}
@@ -827,7 +894,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           <button
             type="button"
             onClick={() => setShowTodaySummary(true)}
-            style={{ width: '100%', height: 54, borderRadius: 18, cursor: 'pointer', border: '1.5px solid rgba(47,227,194,.5)', background: 'var(--accent-glow, rgba(47,227,194,.08))', color: 'var(--accent)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}
+            style={{ width: '100%', height: 54, borderRadius: 18, cursor: 'pointer', border: '1.5px solid rgba(47,227,194,.5)', background: 'var(--accent-glow, rgba(47,227,194,.08))', color: 'var(--accent-text, var(--accent))', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}
           >
             {isHe ? 'צפייה בסיכום' : 'View summary'}
           </button>
@@ -841,7 +908,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
           <button
             type="button"
             onClick={startSession}
-            style={{ width: '100%', height: 54, borderRadius: 18, cursor: 'pointer', border: '1.5px solid rgba(47,227,194,.5)', background: 'var(--accent-glow, rgba(47,227,194,.08))', color: 'var(--accent)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}
+            style={{ width: '100%', height: 54, borderRadius: 18, cursor: 'pointer', border: '1.5px solid rgba(47,227,194,.5)', background: 'var(--accent-glow, rgba(47,227,194,.08))', color: 'var(--accent-text, var(--accent))', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}
           >
             {isHe ? 'בכל זאת רוצה להתאמן? אימון חופשי' : 'Still want to train? Free workout'}
           </button>
@@ -904,5 +971,198 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         .wp2-live-dot { animation: wp2LiveDot 1.4s ease-in-out infinite; }
       `}</style>
     </>
+  );
+}
+
+// ── Recent workouts ──────────────────────────────────────────────────
+function RecentWorkouts({ api, profile, refreshKey, onChanged }) {
+  const { lang } = useLang();
+  const isHe = lang === 'he';
+  const [items, setItems] = useState(null); // null = first load in flight
+  const [hasMore, setHasMore] = useState(false);
+  const [moreLoading, setMoreLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [openId, setOpenId] = useState(null);
+  const [confirmId, setConfirmId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function load() {
+    setFailed(false);
+    try {
+      const r = await api('/workout/list?limit=10');
+      setItems(r.workouts || []);
+      setHasMore(!!r.hasMore);
+    } catch {
+      setFailed(true);
+      setItems((prev) => prev || []);
+    }
+  }
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [refreshKey]);
+
+  async function loadMore() {
+    const last = items[items.length - 1];
+    if (!last) return;
+    setMoreLoading(true);
+    setFailed(false);
+    try {
+      const r = await api('/workout/list?limit=10&before=' + encodeURIComponent(last.date));
+      setItems((prev) => [...prev, ...(r.workouts || [])]);
+      setHasMore(!!r.hasMore);
+    } catch { setFailed(true); } finally { setMoreLoading(false); }
+  }
+
+  async function doDelete() {
+    setDeleting(true);
+    try {
+      await api('/workout/' + confirmId, { method: 'DELETE' });
+      setItems((prev) => prev.filter((w) => w._id !== confirmId));
+      setConfirmId(null);
+      setOpenId(null);
+      if (onChanged) onChanged(); // streak, XP and the week counter are recomputed server-side
+    } catch { setFailed(true); } finally { setDeleting(false); }
+  }
+
+  // Date in the user's own timezone (a bad tz string must not break the list).
+  const fmtDate = (d) => {
+    const opts = { weekday: 'short', day: 'numeric', month: 'short' };
+    try { return new Date(d).toLocaleDateString(isHe ? 'he-IL' : 'en-US', { ...opts, timeZone: profile?.timezone || undefined }); }
+    catch { return new Date(d).toLocaleDateString(isHe ? 'he-IL' : 'en-US', opts); }
+  };
+  const unitText = (c) => {
+    if (c.unit === 'kg') return isHe ? 'ק״ג' : 'kg';
+    if (c.unit === 'sec') return isHe ? 'שנ׳' : 's';
+    return isHe ? 'חזרות' : 'reps';
+  };
+  const detailText = (ex) => {
+    const d = exerciseDetail(ex);
+    if (d.kind === 'time') return fmtClock(d.seconds);
+    if (d.kind === 'legacy') return d.sets + '×' + (d.reps || '—');
+    return d.sets + '×' + (d.reps ?? '—') + (d.weight ? ' @ ' + d.weight + (isHe ? ' ק״ג' : ' kg') : '');
+  };
+
+  const card = { background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 14 };
+  return (
+    <section aria-label={isHe ? 'אימונים אחרונים' : 'Recent workouts'} style={{ marginTop: 26 }}>
+      <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-1)', marginBottom: 10 }}>
+        {isHe ? 'אימונים אחרונים' : 'Recent workouts'}
+      </div>
+
+      {items === null && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} aria-busy="true">
+          {[0, 1, 2].map((i) => <div key={i} className="rw-skel" style={{ height: 58, borderRadius: 14 }} />)}
+        </div>
+      )}
+
+      {items && items.length === 0 && !failed && (
+        <div style={{ ...card, padding: 16, fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
+          {isHe ? 'עוד לא התאמנת. האימון הראשון שלך יופיע כאן.' : 'No workouts yet. Your first one will show up here.'}
+        </div>
+      )}
+
+      {items && items.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {items.map((w, wi) => {
+            const open = openId === w._id;
+            const sum = summarizeWorkout(w);
+            return (
+              <div key={w._id} style={card}>
+                <button
+                  type="button"
+                  onClick={() => setOpenId(open ? null : w._id)}
+                  aria-expanded={open}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 56, padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'start' }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {getDayName(w.dayName, lang) || (isHe ? 'אימון' : 'Workout')}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
+                      {fmtDate(w.date)} · {sum.minutes} {isHe ? 'דק׳' : 'min'} · {isHe ? (sum.exerciseCount === 1 ? 'תרגיל אחד' : sum.exerciseCount + ' תרגילים') : (sum.exerciseCount + (sum.exerciseCount === 1 ? ' exercise' : ' exercises'))}
+                      {sum.volume > 0 ? ' · ' + sum.volume.toLocaleString() + (isHe ? ' ק״ג נפח' : ' kg volume') : ''}
+                    </div>
+                  </div>
+                  <span aria-hidden="true" style={{ color: 'var(--text-4)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>▾</span>
+                </button>
+
+                {open && (
+                  <div style={{ padding: '0 14px 14px', borderTop: '1px solid var(--border-faint)' }}>
+                    {(w.exercises || []).filter(wasPerformed).map((ex, ei) => {
+                      const cmp = compareWithPrevious(items, wi, ex.name);
+                      return (
+                        <div key={ei} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: ei > 0 ? '1px solid var(--border-hairline)' : 'none' }}>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', flex: 'none', background: MUSCLE_DOT[ex.muscleGroup] || 'var(--accent)' }} />
+                          <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getExerciseName(ex.name, lang)}</span>
+                          {cmp && (
+                            <span
+                              style={{ flex: 'none', fontSize: 12, fontWeight: 700, color: cmp.direction === 'up' ? 'var(--accent-text, var(--accent))' : cmp.direction === 'down' ? '#B7791F' : 'var(--text-3)' }}
+                              aria-label={cmp.direction === 'up' ? (isHe ? 'שיפור מהפעם הקודמת' : 'Up from last time') : cmp.direction === 'down' ? (isHe ? 'ירידה מהפעם הקודמת' : 'Down from last time') : (isHe ? 'ללא שינוי' : 'No change')}
+                            >
+                              {cmp.direction === 'up' ? '↑' : cmp.direction === 'down' ? '↓' : '='}
+                              {cmp.direction !== 'same' ? ' ' + (cmp.delta > 0 ? '+' : '') + cmp.delta + ' ' + unitText(cmp) : ''}
+                            </span>
+                          )}
+                          <span dir="ltr" style={{ flex: 'none', fontSize: 13, color: 'var(--text-4)', fontVariantNumeric: 'tabular-nums' }}>{detailText(ex)}</span>
+                        </div>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setConfirmId(w._id)}
+                      style={{ marginTop: 8, minHeight: 44, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, color: '#E5484D' }}
+                    >
+                      {isHe ? 'מחק אימון' : 'Delete workout'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {failed && (
+        <div role="alert" style={{ marginTop: 8, fontSize: 12.5, color: '#E5484D', display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isHe ? 'לא הצלחנו לטעון. אפשר לנסות שוב.' : "Couldn't load. Try again."}
+          <button type="button" onClick={() => (items && items.length ? loadMore() : load())} style={{ minHeight: 36, background: 'none', border: '1px solid currentColor', borderRadius: 999, padding: '4px 14px', color: 'inherit', cursor: 'pointer', fontFamily: 'inherit' }}>
+            {isHe ? 'נסה שוב' : 'Retry'}
+          </button>
+        </div>
+      )}
+
+      {hasMore && !failed && (
+        <button
+          type="button"
+          onClick={loadMore}
+          disabled={moreLoading}
+          style={{ width: '100%', minHeight: 48, marginTop: 10, borderRadius: 14, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, background: 'var(--fill-faint)', border: '1px solid var(--border)', color: 'var(--text-1)' }}
+        >
+          {moreLoading ? '…' : (isHe ? 'טען עוד' : 'Load more')}
+        </button>
+      )}
+
+      {confirmId && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
+          onClick={() => !deleting && setConfirmId(null)}
+        >
+          <div style={{ background: 'var(--bg-card, var(--surface))', border: '1px solid var(--border)', borderRadius: 16, padding: 22, maxWidth: 360, width: '100%' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>{isHe ? 'למחוק את האימון?' : 'Delete this workout?'}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 6, lineHeight: 1.5 }}>
+              {isHe ? 'האימון יימחק, ויחושבו מחדש הרצף וה-XP. אי אפשר לבטל.' : 'The workout is removed and your streak and XP are recalculated. This can’t be undone.'}
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              <button type="button" onClick={doDelete} disabled={deleting} style={{ flex: 1, minHeight: 46, borderRadius: 12, border: 'none', background: '#E5484D', color: '#fff', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
+                {deleting ? '…' : (isHe ? 'מחק' : 'Delete')}
+              </button>
+              <button type="button" onClick={() => setConfirmId(null)} disabled={deleting} style={{ flex: 1, minHeight: 46, borderRadius: 12, background: 'var(--fill-faint)', border: '1px solid var(--border)', color: 'var(--text-1)', fontFamily: 'inherit', cursor: 'pointer' }}>
+                {isHe ? 'ביטול' : 'Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

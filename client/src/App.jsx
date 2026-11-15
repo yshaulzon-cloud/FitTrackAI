@@ -1,7 +1,7 @@
 import { useState, useEffect, Component } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-import { useLang } from './context/LanguageContext';
+import { useLang, readSavedLang } from './context/LanguageContext';
 import Login from './pages/Login';
 import OnboardingFlow from './pages/OnboardingFlow';
 import Dashboard from './pages/Dashboard';
@@ -21,7 +21,7 @@ class ErrorBoundary extends Component {
   componentDidCatch(err) { console.error('App error:', err); }
   render() {
     if (this.state.hasError) {
-      const isHe = localStorage.getItem('areto:lang') !== 'en';
+      const isHe = readSavedLang() !== 'en';
       return (
         <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'Heebo, sans-serif' }}>
           <p style={{ fontSize: 16, color: '#e2e8f0' }}>

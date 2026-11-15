@@ -1,0 +1,376 @@
+/* Preview harness styling — dev-only, fully self-contained (does not touch the
+   app's index.css). The harness chrome is intentionally its own look: a calm
+   slate console that frames the colorful app without competing with it. */
+
+:root {
+  --hz-bg: #0b0f16;
+  --hz-panel: #121824;
+  --hz-panel-2: #0f151f;
+  --hz-line: rgba(255, 255, 255, 0.07);
+  --hz-text: #e7edf5;
+  --hz-text-dim: #9aa7b8;
+  --hz-text-faint: #63708223;
+  --hz-accent: #2fe3c2;
+  --hz-side-w: 340px;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #harness-root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--hz-bg);
+  color: var(--hz-text);
+  font-family: 'Rubik', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.hz {
+  display: grid;
+  grid-template-columns: var(--hz-side-w) 1fr;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+.hz-side {
+  background: var(--hz-panel);
+  border-inline-end: 1px solid var(--hz-line);
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.hz-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--hz-line);
+}
+.hz-brand__mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #36e8c6, #189e85);
+  color: #04241b;
+  font-weight: 800;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.hz-brand__name { font-size: 15px; font-weight: 700; }
+.hz-brand__sub { font-size: 11.5px; color: var(--hz-text-dim); margin-top: 2px; }
+
+/* Connection dot in the brand row */
+.hz-conn {
+  width: 9px; height: 9px; border-radius: 50%;
+  margin-inline-start: auto;
+  background: #f0812e;
+  box-shadow: 0 0 0 3px rgba(240, 129, 46, 0.15);
+  flex: none;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.hz-conn--on {
+  background: var(--hz-accent);
+  box-shadow: 0 0 0 3px rgba(47, 227, 194, 0.15);
+}
+
+/* Scroll region between brand and footer */
+.hz-scroll {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0 -18px;
+  padding: 6px 18px;
+}
+
+/* Sections */
+.hz-sec { padding: 14px 0; border-bottom: 1px solid var(--hz-line); }
+.hz-sec:last-child { border-bottom: 0; }
+.hz-sec__head {
+  display: flex; align-items: baseline; gap: 8px;
+  margin-bottom: 11px;
+}
+.hz-sec__title {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--hz-text-dim);
+}
+.hz-sec__hint {
+  margin-inline-start: auto;
+  font-size: 10.5px; color: var(--hz-text-dim); opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+.hz-sec__body { display: flex; flex-direction: column; gap: 10px; }
+
+.hz-row { display: flex; flex-wrap: wrap; gap: 7px; }
+
+.hz-btn {
+  background: var(--hz-panel-2);
+  border: 1px solid var(--hz-line);
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--hz-text);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.hz-btn:hover:not(:disabled) { border-color: var(--hz-accent); }
+.hz-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.hz-btn--accent {
+  background: var(--hz-accent); border-color: var(--hz-accent);
+  color: #04241b; font-weight: 600;
+}
+.hz-btn--danger { color: #f5698c; border-color: rgba(245, 105, 140, 0.25); }
+.hz-btn--danger:hover:not(:disabled) { border-color: #f5698c; }
+
+.hz-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.hz-field__label { font-size: 12.5px; color: var(--hz-text-dim); }
+
+.hz-seg {
+  display: inline-flex;
+  background: var(--hz-panel-2);
+  border: 1px solid var(--hz-line);
+  border-radius: 9px;
+  padding: 2px;
+}
+.hz-seg__opt {
+  background: none; border: 0;
+  padding: 6px 12px; border-radius: 7px;
+  font-size: 12px; font-family: inherit;
+  color: var(--hz-text-dim); cursor: pointer;
+  transition: all 0.12s;
+}
+.hz-seg__opt--on { background: var(--hz-accent); color: #04241b; font-weight: 600; }
+
+.hz-soon { margin: 0; font-size: 12px; color: var(--hz-text-dim); line-height: 1.6; opacity: 0.75; }
+
+/* Persona cards */
+.hz-personas { display: flex; flex-direction: column; gap: 7px; }
+.hz-persona {
+  text-align: start;
+  background: var(--hz-panel-2);
+  border: 1px solid var(--hz-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hz-persona:hover:not(:disabled) { border-color: var(--hz-accent); }
+.hz-persona:disabled { opacity: 0.5; cursor: wait; }
+.hz-persona--on { border-color: var(--hz-accent); background: rgba(47, 227, 194, 0.06); }
+.hz-persona__label { font-size: 13px; font-weight: 600; color: var(--hz-text); }
+.hz-persona__hint { font-size: 11px; color: var(--hz-text-dim); line-height: 1.4; }
+
+/* Action status line */
+.hz-status {
+  font-size: 11.5px;
+  color: var(--hz-text-dim);
+  line-height: 1.5;
+  padding: 8px 10px;
+  background: var(--hz-panel-2);
+  border: 1px solid var(--hz-line);
+  border-radius: 8px;
+  word-break: break-word;
+}
+.hz-status--busy { color: var(--hz-accent); }
+
+/* Screen groups */
+.hz-screengroup { display: flex; flex-direction: column; gap: 6px; }
+.hz-screengroup + .hz-screengroup { margin-top: 8px; }
+.hz-screengroup__label {
+  font-size: 10.5px; color: var(--hz-text-dim); opacity: 0.8;
+  letter-spacing: 0.04em;
+}
+
+/* Toggle switch (feature flags) */
+.hz-toggle {
+  width: 38px; height: 22px; border-radius: 12px;
+  border: 1px solid var(--hz-line);
+  background: var(--hz-panel-2);
+  position: relative; cursor: pointer; padding: 0;
+  transition: background 0.15s, border-color 0.15s;
+  flex: none;
+}
+.hz-toggle__knob {
+  position: absolute; top: 2px; inset-inline-start: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--hz-text-dim);
+  transition: transform 0.15s, background 0.15s;
+}
+.hz-toggle--on { background: var(--hz-accent); border-color: var(--hz-accent); }
+.hz-toggle--on .hz-toggle__knob {
+  background: #04241b;
+  transform: translateX(16px);
+}
+/* RTL: the sidebar is rtl, so "on" should push the knob the other way */
+[dir='rtl'] .hz-toggle--on .hz-toggle__knob { transform: translateX(-16px); }
+
+/* ── Observability (logs / network / crashes) ────────────── */
+.hz-obs-tabs { display: flex; align-items: center; gap: 4px; }
+.hz-obs-tab {
+  background: var(--hz-panel-2); border: 1px solid var(--hz-line);
+  border-radius: 8px; padding: 5px 9px;
+  font-size: 11.5px; font-family: inherit; color: var(--hz-text-dim);
+  cursor: pointer; display: flex; align-items: center; gap: 5px;
+}
+.hz-obs-tab--on { color: var(--hz-text); border-color: var(--hz-accent); }
+.hz-obs-tab--alert { color: #f5698c; border-color: rgba(245, 105, 140, 0.3); }
+.hz-obs-tab__n {
+  font-size: 10px; background: rgba(255,255,255,0.08);
+  border-radius: 999px; padding: 1px 6px; font-variant-numeric: tabular-nums;
+}
+.hz-obs-clear {
+  margin-inline-start: auto; background: none; border: 0;
+  color: var(--hz-text-dim); cursor: pointer; font-size: 12px; padding: 4px;
+}
+.hz-obs-clear:hover { color: var(--hz-text); }
+
+.hz-obs-body {
+  margin-top: 8px;
+  height: 200px; overflow-y: auto;
+  background: #070a0f; border: 1px solid var(--hz-line); border-radius: 8px;
+  padding: 6px;
+  font-family: 'SFMono-Regular', ui-monospace, 'Cascadia Code', monospace;
+  font-size: 11px; line-height: 1.5;
+  direction: ltr; text-align: left;
+}
+.hz-obs-empty { color: var(--hz-text-dim); opacity: 0.6; padding: 8px; direction: rtl; text-align: center; }
+
+.hz-logline { display: flex; gap: 7px; padding: 2px 3px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.hz-logline__lvl { flex: none; width: 34px; color: var(--hz-text-dim); text-transform: uppercase; font-size: 9.5px; padding-top: 1px; }
+.hz-logline__txt { flex: 1; word-break: break-word; color: #c4d0de; }
+.hz-logline--warn .hz-logline__txt { color: #ffb648; }
+.hz-logline--error .hz-logline__txt { color: #f5698c; }
+.hz-logline--warn .hz-logline__lvl { color: #ffb648; }
+.hz-logline--error .hz-logline__lvl { color: #f5698c; }
+
+.hz-netline { display: flex; gap: 7px; align-items: center; padding: 2px 3px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.hz-netline__status { flex: none; width: 30px; font-weight: 700; }
+.hz-netline__status.s2 { color: #2fe3c2; }
+.hz-netline__status.s3 { color: #4d9fff; }
+.hz-netline__status.s4, .hz-netline__status.s5, .hz-netline--bad .hz-netline__status { color: #f5698c; }
+.hz-netline__method { flex: none; width: 42px; color: var(--hz-text-dim); }
+.hz-netline__url { flex: 1; color: #c4d0de; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hz-netline__ms { flex: none; color: var(--hz-text-dim); font-variant-numeric: tabular-nums; }
+
+.hz-crashline { padding: 5px 3px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.hz-crashline__msg { color: #f5698c; word-break: break-word; }
+.hz-crashline__stack { margin: 4px 0 0; color: var(--hz-text-dim); font-size: 10px; white-space: pre-wrap; opacity: 0.8; }
+
+/* Recording indicator */
+.hz-rec {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; color: #f5698c;
+}
+.hz-rec::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%;
+  background: #f5698c; animation: hz-blink 1s steps(2) infinite;
+}
+@keyframes hz-blink { 50% { opacity: 0.2; } }
+
+/* ── Device mode (live mirror of the real phone) ─────────── */
+.dv {
+  width: 390px; height: 844px;
+  background: #000;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.dv__img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: block;
+  cursor: crosshair; /* signals click-to-tap */
+  user-select: none;
+}
+.dv__wait { color: var(--hz-text-dim); font-size: 13px; }
+.dv__fps {
+  position: absolute; top: 8px; inset-inline-end: 8px;
+  background: rgba(0,0,0,0.5); color: var(--hz-accent);
+  font-size: 10px; font-variant-numeric: tabular-nums;
+  padding: 2px 7px; border-radius: 999px;
+  pointer-events: none;
+}
+.hz-tap-err {
+  margin-top: 12px; max-width: 390px;
+  font-size: 12px; color: #f5698c; text-align: center;
+  background: rgba(245,105,140,0.08); border: 1px solid rgba(245,105,140,0.2);
+  border-radius: 8px; padding: 8px 12px;
+}
+.hz-soon code {
+  background: var(--hz-panel-2); border: 1px solid var(--hz-line);
+  border-radius: 4px; padding: 1px 5px; font-size: 11px;
+}
+
+.hz-foot {
+  padding-top: 14px;
+  border-top: 1px solid var(--hz-line);
+  font-size: 11.5px;
+  color: var(--hz-text-dim);
+  line-height: 1.6;
+}
+
+/* ── Stage (phone) ───────────────────────────────────────── */
+.hz-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  overflow: auto;
+  background:
+    radial-gradient(60% 60% at 50% 0%, rgba(47, 227, 194, 0.05), transparent 70%),
+    var(--hz-bg);
+}
+
+/* ── Phone frame ─────────────────────────────────────────── */
+.pf { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.pf__frame {
+  position: relative;
+  width: 414px;               /* 390 viewport + 12px bezel each side */
+  height: 868px;              /* 844 viewport + 12px bezel top/bottom */
+  background: #05070b;
+  border-radius: 52px;
+  padding: 12px;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.06),
+    0 40px 90px rgba(0, 0, 0, 0.55);
+}
+.pf__notch {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 150px;
+  height: 26px;
+  background: #05070b;
+  border-radius: 0 0 18px 18px;
+  z-index: 2;
+}
+.pf__viewport {
+  width: 390px;
+  height: 844px;
+  border-radius: 40px;
+  overflow: hidden;
+  background: #000;
+}
+.hz-screen {
+  width: 390px;
+  height: 844px;
+  border: 0;
+  display: block;
+}
+.pf__label {
+  font-size: 11.5px;
+  color: var(--hz-text-dim);
+  font-variant-numeric: tabular-nums;
+}

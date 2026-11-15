@@ -1,17 +1,63 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLang } from '../context/LanguageContext';
+import { mealTimes, chronologicalOrder, nextMealIndex } from '../lib/mealTimes.mjs';
+import MealEditor, { MealItemsList } from './MealEditor';
+import { applyMealToMenu, logValuesOf, menuHasUserState } from '../lib/mealEdit.mjs';
+import { menuStaleReason, sumMeals, menuVsTarget } from '../lib/menuFresh.mjs';
+import { hasTargets } from '../lib/dayTarget.mjs';
+import ManualMealForm from './ManualMealForm';
+import { describeLogResult, remainingLine, restoreValuesOf } from '../lib/logFeedback.mjs';
+import { defaultGrams, parseGrams, portionNumbers, shareOfTarget, pickPayload } from '../lib/foodPick.mjs';
+
+// The menu's total against the target it is meant to meet (calories + protein), so
+// every menu, daily or weekly, shows where it stands — and, when no menu really
+// fits the target, says it is only the closest one.
+function MenuTargetSummary({ meals, target, isHe, label, approximate }) {
+  const cal = menuVsTarget(sumMeals(meals, 'calories'), target?.calories);
+  const prot = menuVsTarget(sumMeals(meals, 'protein'), target?.protein);
+  const total = Math.round(sumMeals(meals, 'calories'));
+  const levelColor = { close: 'var(--success)', near: '#FFB648', far: 'var(--danger)' };
+  const sign = (n) => (n > 0 ? '+' : n < 0 ? '−' : '±');
+  return (
+    <div style={{ marginTop: 16, background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 14, padding: '13px 16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+        <span style={{ fontSize: 13.5, color: '#93A0B4' }}>{label}</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)', fontVariantNumeric: 'tabular-nums' }}>
+          {total.toLocaleString()} {isHe ? 'קק״ל' : 'kcal'}
+          {cal && <span style={{ color: '#7C8798', fontWeight: 400 }}> {isHe ? 'מתוך יעד' : 'of'} {cal.target.toLocaleString()}</span>}
+        </span>
+      </div>
+      {cal && (
+        <div style={{ marginTop: 4, fontSize: 12.5, color: levelColor[cal.level], textAlign: isHe ? 'left' : 'right' }}>
+          {cal.gap === 0
+            ? (isHe ? 'בדיוק ביעד' : 'exactly on target')
+            : `${sign(cal.gap)}${Math.abs(cal.gap).toLocaleString()} ${isHe ? 'קק״ל' : 'kcal'} ${cal.over ? (isHe ? 'מעל היעד' : 'over target') : (isHe ? 'מתחת ליעד' : 'under target')}`}
+        </div>
+      )}
+      {prot && (
+        <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums' }}>
+          <span>{isHe ? 'חלבון' : 'Protein'}</span>
+          <span>{prot.total}g {isHe ? 'מתוך יעד' : 'of'} {prot.target}g</span>
+        </div>
+      )}
+      {approximate && (
+        <div style={{ marginTop: 8, fontSize: 12.5, color: '#FFB648', lineHeight: 1.5 }}>
+          {isHe
+            ? 'אין תפריט שמתאים בדיוק ליעד שלך. זה הקרוב ביותר שיש כרגע, אפשר להחליף ארוחות או לערוך אותן כדי להתקרב.'
+            : 'No menu matches your target exactly. This is the closest one available — swap or edit meals to get nearer.'}
+        </div>
+      )}
+    </div>
+  );
+}
 function isNativeShell() {
   try {
     return typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true;
   } catch { return false; }
 }
 
-const MEAL_TYPE_TIMES = {
-  breakfast: '07:30',
-  snack: '10:30',
-  lunch: '13:00',
-  dinner: '19:30',
-};
+// Meal times come from lib/mealTimes.mjs (by slot in the day, so the two
+// snacks of a plan get different hours).
 const MEAL_TYPE_EMOJI = {
   breakfast: '🌅',
   snack: '🥐',
@@ -160,7 +206,10 @@ function LoggedMealRow({ meal, isHe, t, onDelete }) {
   const tag = meal.source === 'ai'
     ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-4)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" title={isHe ? 'הערכת AI' : 'AI estimate'}><rect x="5" y="8" width="14" height="10" rx="2" /><path d="M9 8V6a3 3 0 0 1 6 0v2M9 13h.01M15 13h.01" /></svg>
     : meal.source === 'default'
+    // Old records only: before the engine stopped guessing, an unknown food was saved as a rough placeholder.
     ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFB648" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" title={isHe ? 'הערכה כללית' : 'Rough estimate'}><path d="M12 9v4M12 16.5v.5" /><circle cx="12" cy="12" r="9" /></svg>
+    : meal.source === 'manual'
+    ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-4)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" title={isHe ? 'הוזן ידנית' : 'Entered by hand'}><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z" /></svg>
     : null;
   return (
     <div style={{
@@ -245,7 +294,7 @@ function LoggedMealRow({ meal, isHe, t, onDelete }) {
   );
 }
 
-export default function NutritionTracker({ targets, todayData, api, onUpdate, showXP }) {
+export default function NutritionTracker({ targets, todayData, api, onUpdate, showXP, dayType }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
 
@@ -254,6 +303,40 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
   const [loading, setLoading] = useState(false);
   const isNative = isNativeShell();
   const [message, setMessage] = useState('');
+  // A message that is a failure ("we couldn't find that food") is drawn as one.
+  const [errorMessage, setErrorMessage] = useState('');
+  function flashError(text, ms = 5000) {
+    clearTimeout(toastTimer.current);
+    setWarnMessage('');
+    setErrorMessage(text);
+    setMessage(text);
+    toastTimer.current = setTimeout(() => { setMessage(''); setErrorMessage(''); }, ms);
+  }
+  // The food the user typed that the database does not know: { text, manual } — `manual`
+  // is true once they opened the hand-typed form. Nothing is logged for it until they
+  // either pick a result from the list or save their own numbers.
+  const [notFound, setNotFound] = useState(null);
+  const [manualBusy, setManualBusy] = useState(false);
+  const [manualError, setManualError] = useState('');
+  // A food chosen from the search list, waiting for the user to set the amount:
+  // { food, gramsText }. Nothing is logged until they confirm.
+  const [pick, setPick] = useState(null);
+  // The toast after a log is drawn amber when the engine had to assume something.
+  const [warnMessage, setWarnMessage] = useState('');
+  // "N kcal left today" shown next to the delete toast.
+  const [deleteNote, setDeleteNote] = useState('');
+  // One toast timer at a time, so an older message cannot clear a newer one early.
+  const toastTimer = useRef(null);
+  // The standard confirmation after a meal is saved, whichever path saved it: what was
+  // added, where the day stands against today's target, and anything that was assumed.
+  function showLogged(result, ms) {
+    const { text, hasNotes } = describeLogResult(result, isHe);
+    clearTimeout(toastTimer.current);
+    setErrorMessage('');
+    setWarnMessage(hasNotes ? text : '');
+    setMessage(text);
+    toastTimer.current = setTimeout(() => { setMessage(''); setWarnMessage(''); }, ms || (hasNotes ? 9000 : 4500));
+  }
   const [deletingId, setDeletingId] = useState(null);
   const [lastDeletedMeal, setLastDeletedMeal] = useState(null);
   // Menu state persists to localStorage so navigating away and back (or
@@ -262,6 +345,8 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
   const [menuOpen, setMenuOpen] = useState(false);
   const [menu, setMenu] = useState(null);
   const [menuCalTarget, setMenuCalTarget] = useState(null);
+  const [menuDate, setMenuDate] = useState(null); // local day the daily menu was built on
+  const [weeklyDate, setWeeklyDate] = useState(null); // …and the weekly one (day i = that day + i)
   const [menuMode, setMenuMode] = useState('daily'); // 'daily' | 'weekly'
   const [weeklyMenu, setWeeklyMenu] = useState(null); // array of 7 day-menus
   const [weeklyDayIdx, setWeeklyDayIdx] = useState(0);
@@ -269,6 +354,8 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
   const [swappingIdx, setSwappingIdx] = useState(null);
   const [loggingIdx, setLoggingIdx] = useState(null);
   const [expandedMenuIdx, setExpandedMenuIdx] = useState(null);
+  const [editingIdx, setEditingIdx] = useState(null); // menu row being edited at food level
+  const [weeklyOpenKey, setWeeklyOpenKey] = useState(null); // "day-meal" whose foods are shown
   const [history, setHistory] = useState([]);
   const [hydrated, setHydrated] = useState(false);
   // Which daily-menu rows the user has ticked "eaten" today. Kept per
@@ -286,6 +373,8 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
         setMenuOpen(!!saved.menuOpen);
         setMenu(saved.menu || null);
         setMenuCalTarget(saved.menuCalTarget || null);
+        setMenuDate(saved.menuDate || null);
+        setWeeklyDate(saved.weeklyDate || null);
         setMenuMode(saved.menuMode || 'daily');
         setWeeklyMenu(saved.weeklyMenu || null);
         setWeeklyDayIdx(saved.weeklyDayIdx || 0);
@@ -304,10 +393,13 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
     if (!hydrated) return;
     try {
       localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify({
-        menuOpen, menu, menuCalTarget, menuMode, weeklyMenu, weeklyDayIdx, menuLogged,
+        menuOpen, menu, menuCalTarget, menuDate, weeklyDate, menuMode, weeklyMenu, weeklyDayIdx, menuLogged,
       }));
+      // Tell the reminder scheduler: a ticked meal must stop today's reminder
+      // for it (and an un-tick brings it back). See useReminderSync.js.
+      window.dispatchEvent(new Event('areto:menu-logged'));
     } catch { /* storage full / unavailable */ }
-  }, [hydrated, menuOpen, menu, menuCalTarget, menuMode, weeklyMenu, weeklyDayIdx, menuLogged]);
+  }, [hydrated, menuOpen, menu, menuCalTarget, menuDate, weeklyDate, menuMode, weeklyMenu, weeklyDayIdx, menuLogged]);
 
   // Pull last 30 days of nutrition logs once. Today's meals come live
   // from the `todayData` prop so they react to immediate add/delete.
@@ -316,11 +408,14 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
     api('/nutrition/history').then(setHistory).catch(() => {});
   }, []); // eslint-disable-line
 
-  const calorieTarget = targets?.calorieTarget || 2000;
-  const proteinTarget = targets?.macros?.protein || 150;
-  const carbsTarget = targets?.macros?.carbs || 250;
-  const fatTarget = targets?.macros?.fat || 65;
-  const fiberTarget = targets?.macros?.fiberTarget || 30;
+  // Today's targets are the server's numbers or nothing: no invented 2000 / 150 /
+  // 250 / 65 / 30. 0 means "not loaded" — the screen says so and shows no percentage.
+  const targetKnown = hasTargets(targets);
+  const calorieTarget = targetKnown ? targets.calorieTarget : 0;
+  const proteinTarget = targetKnown ? (targets.macros?.protein || 0) : 0;
+  const carbsTarget = targetKnown ? (targets.macros?.carbs || 0) : 0;
+  const fatTarget = targetKnown ? (targets.macros?.fat || 0) : 0;
+  const fiberTarget = targetKnown ? (targets.macros?.fiberTarget || 0) : 0;
 
   const calorieProgress = todayData?.totalCalories || 0;
   const proteinProgress = todayData?.totalProtein || 0;
@@ -339,6 +434,7 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       const res = await api(url);
       setMenu(res.menu);
       setMenuCalTarget(res.calorieTarget);
+      setMenuDate(todayKey);
       setMenuMode('daily');
       setWeeklyMenu(null);
       setMenuOpen(true);
@@ -351,6 +447,72 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
     }
   }
 
+  // Targets changed (weight or goal edited in Settings): show what moved and
+  // rebuild the menu, unless today's menu already has the user's own state in it.
+  const [targetChange, setTargetChange] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('nutrition:targetChange') || 'null'); } catch { return null; }
+  });
+  const [menuKept, setMenuKept] = useState(false);
+  // Applies a pending change once (remembered by its timestamp), whether the
+  // event arrived while this tab was open or the change was saved while it was
+  // unmounted (Settings) and we only see it on the next mount.
+  const applyTargetChange = () => {
+    let tc = null; let appliedAt = null;
+    try {
+      tc = JSON.parse(localStorage.getItem('nutrition:targetChange') || 'null');
+      appliedAt = localStorage.getItem('nutrition:targetChangeApplied');
+    } catch { /* ignore */ }
+    setTargetChange(tc);
+    if (!tc || String(tc.at) === appliedAt) return;
+    try { localStorage.setItem('nutrition:targetChangeApplied', String(tc.at)); } catch { /* ignore */ }
+    const weeklyMeals = Array.isArray(weeklyMenu) ? weeklyMenu.flatMap((d) => d.meals || []) : [];
+    const pseudo = menuMode === 'weekly' ? { meals: weeklyMeals } : menu;
+    if (!pseudo) return; // no menu open: the next one is built with the new target
+    if (menuHasUserState(pseudo, menuLogged, todayKey)) { setMenuKept(true); return; }
+    setMenuKept(false);
+    if (menuMode === 'weekly') fetchWeeklyMenu(); else fetchMenu();
+  };
+  useEffect(() => {
+    if (hydrated) applyTargetChange();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
+  useEffect(() => {
+    window.addEventListener('areto:targets-changed', applyTargetChange);
+    return () => window.removeEventListener('areto:targets-changed', applyTargetChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menu, weeklyMenu, menuLogged, menuMode, todayKey]);
+  // A menu is built for one day and one target. A saved menu from another day —
+  // or sized for a target that no longer applies today (a workout turned a rest
+  // day into a training day, a new weight) — is dropped, or rebuilt when it is
+  // the one on screen. The user's own menu (ticked or edited) is kept: its
+  // footer shows how far it is from the new target.
+  const staleRefetch = useRef('');
+  useEffect(() => {
+    if (!hydrated) return;
+    const liveTarget = targets?.calorieTarget; // not the 2000 display fallback: unknown stays unknown
+    // The weekly menu is "the day it was built on + i": a new day invalidates all of it.
+    if (weeklyMenu && weeklyDate !== todayKey) {
+      setWeeklyMenu(null);
+      if (menuOpen && menuMode === 'weekly') fetchWeeklyMenu();
+      return;
+    }
+    if (menu) {
+      const builtFor = menu.target?.calories ?? menuCalTarget;
+      const reason = menuStaleReason({ savedDate: menuDate, today: todayKey, menuTarget: builtFor, currentTarget: liveTarget });
+      if (!reason) return;
+      if (reason === 'target' && menuHasUserState(menu, menuLogged, todayKey)) return;
+      const key = `${todayKey}|${reason}|${builtFor}|${liveTarget}`;
+      if (staleRefetch.current === key) return; // one rebuild per situation, never a loop
+      staleRefetch.current = key;
+      if (menuOpen && menuMode === 'daily') fetchMenu(); else setMenu(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, menu, menuDate, menuCalTarget, weeklyMenu, weeklyDate, menuOpen, menuMode, targets?.calorieTarget, todayKey]);
+  const dismissTargetChange = () => {
+    try { localStorage.removeItem('nutrition:targetChange'); } catch { /* ignore */ }
+    setTargetChange(null); setMenuKept(false);
+  };
+
   async function fetchWeeklyMenu() {
     setMenuLoading(true);
     try {
@@ -358,6 +520,7 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
       setWeeklyMenu(res.days);
       setWeeklyDayIdx(0);
       setMenuCalTarget(res.calorieTarget);
+      setWeeklyDate(todayKey);
       setMenuMode('weekly');
       setMenu(null);
       setMenuOpen(true);
@@ -492,6 +655,13 @@ ${content}
         calories: String(current.calories),
         excludeText: current.he,
       });
+      // Tell the server where the day stands, so the replacement keeps it near the target.
+      const dayTarget = menu.target?.calories ?? menuCalTarget ?? targets?.calorieTarget;
+      const dayTotal = sumMeals(menu.meals, 'calories');
+      if (dayTarget > 0 && dayTotal > 0) {
+        params.set('dayTotal', String(Math.round(dayTotal)));
+        params.set('target', String(Math.round(dayTarget)));
+      }
       const res = await api(`/nutrition/swap-meal?${params.toString()}`);
       const newMeal = res.meal;
       setMenu(prev => {
@@ -528,6 +698,12 @@ ${content}
         calories: String(current.calories),
         excludeText: current.he,
       });
+      const dayTarget = day.dayTarget?.calories;
+      const dayTotal = sumMeals(day.meals, 'calories');
+      if (dayTarget > 0 && dayTotal > 0) {
+        params.set('dayTotal', String(Math.round(dayTotal)));
+        params.set('target', String(Math.round(dayTarget)));
+      }
       const res = await api(`/nutrition/swap-meal?${params.toString()}`);
       const newMeal = res.meal;
       setWeeklyMenu(prev => {
@@ -556,7 +732,7 @@ ${content}
       const description = isHe ? meal.he : (meal.en || meal.he);
       const result = await api('/nutrition/log', {
         method: 'POST',
-        body: JSON.stringify({ description }),
+        body: JSON.stringify({ description, nutrition: logValuesOf(meal) }),
       });
       if (showXP && result?.xp) showXP(result.xp);
       // Mark this menu row as eaten so its button flips to "done".
@@ -564,12 +740,10 @@ ${content}
         const base = prev.date === todayKey ? prev.idxs : [];
         return { date: todayKey, idxs: base.includes(idx) ? base : [...base, idx] };
       });
-      setMessage(`${t.added} ${result.meal.description} (${result.meal.calories} ${t.caloriesWord}, ${result.meal.protein} ${t.proteinGrams})`);
-      setTimeout(() => setMessage(''), 3000);
+      showLogged(result);
       onUpdate();
     } catch (err) {
-      setMessage(err.message || t.errorSaving);
-      setTimeout(() => setMessage(''), 5000);
+      flashError(err.message || t.errorSaving);
     } finally {
       setLoggingIdx(null);
     }
@@ -612,46 +786,69 @@ ${content}
     if (!foodInput.trim()) return;
     setLoading(true);
     setMessage('');
+    setNotFound(null);
     try {
       const result = await api('/nutrition/log', {
         method: 'POST',
         body: JSON.stringify({ description: foodInput.trim() }),
       });
       setFoodInput('');
+      setPick(null);
       if (showXP && result?.xp) showXP(result.xp);
-      const aiTag = result.meal.source === 'ai' ? ` · ${t.aiEstimate}`
-        : result.meal.source === 'default' ? ` · ${isHe ? 'הערכה כללית (לא במאגר)' : 'rough estimate (not in database)'}`
-        : '';
-      setMessage(
-        `${t.added} ${result.meal.description} (${result.meal.calories} ${t.caloriesWord}, ${result.meal.protein} ${t.proteinGrams})${aiTag}`
-      );
-      setTimeout(() => setMessage(''), 4000);
+      showLogged(result);
       onUpdate();
     } catch (err) {
-      setMessage(err.message || t.errorSaving);
-      setTimeout(() => setMessage(''), 5000);
+      if (err.code === 'FOOD_NOT_FOUND') {
+        // Not in the database: nothing was logged. Keep the text so the user can fix it,
+        // pick from the list, or type the numbers (see ManualMealForm).
+        setNotFound({ text: foodInput.trim(), manual: false });
+      } else {
+        flashError(err.message || t.errorSaving);
+      }
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleQuickChip(chipText) {
-    // Strip emoji if any
-    const text = chipText.replace(/^\p{Emoji}\s*/u, '').trim();
+  // Save a meal whose numbers the user typed (the "not found" flow). The server checks
+  // the ranges again and stores it with source 'manual'.
+  async function handleManualSave({ description, nutrition }) {
+    setManualBusy(true);
+    setManualError('');
+    try {
+      const result = await api('/nutrition/log', {
+        method: 'POST',
+        body: JSON.stringify({ description, nutrition }),
+      });
+      setNotFound(null);
+      setFoodInput('');
+      if (showXP && result?.xp) showXP(result.xp);
+      showLogged(result);
+      onUpdate();
+    } catch (err) {
+      setManualError(err.message || t.errorSaving);
+    } finally {
+      setManualBusy(false);
+    }
+  }
+
+  // A "recent" chip logs that meal again WITH ITS OWN STORED VALUES. It used to send
+  // only the text, so the server re-read it: a hand-typed meal was not found, and (the
+  // emoji strip below used to cut the first digit off "200 גרם …", turning it into
+  // "00 גרם …") the quantity could be lost.
+  async function handleQuickChip(meal) {
     setLoading(true);
     setMessage('');
     try {
       const result = await api('/nutrition/log', {
         method: 'POST',
-        body: JSON.stringify({ description: text }),
+        body: JSON.stringify({ description: meal.description, nutrition: restoreValuesOf(meal) }),
       });
       if (showXP && result?.xp) showXP(result.xp);
-      setMessage(`${t.added} ${result.meal.description} (${result.meal.calories} ${t.caloriesWord}, ${result.meal.protein} ${t.proteinGrams})`);
-      setTimeout(() => setMessage(''), 3000);
+      showLogged(result);
       onUpdate();
     } catch (err) {
-      setMessage(err.message || t.errorSaving);
-      setTimeout(() => setMessage(''), 5000);
+      flashError(err.message || t.errorSaving);
     } finally {
       setLoading(false);
     }
@@ -672,25 +869,33 @@ ${content}
     return () => { cancelled = true; clearTimeout(id); };
   }, [foodInput, menuOpen]); // eslint-disable-line
 
-  // Tapping a result logs it by its exact DB name, so estimateNutrition hits
-  // the entry directly — same path as the free-text Add, no AI fallback needed.
-  async function addSearchResult(name) {
+  // Tapping a result opens the amount picker (one serving, or 100 g, to start): the user
+  // sees what that portion is worth and how much of today's target it takes, and only
+  // then adds it. What is saved is exactly the numbers shown.
+  function addSearchResult(food) {
     setSearchResults([]);
-    setFoodInput('');
+    setNotFound(null);
+    setMessage('');
+    setPick({ food, gramsText: String(defaultGrams(food)) });
+  }
+
+  async function confirmPick() {
+    const grams = pick && parseGrams(pick.gramsText);
+    if (!grams) return;
     setLoading(true);
     setMessage('');
     try {
       const result = await api('/nutrition/log', {
         method: 'POST',
-        body: JSON.stringify({ description: name }),
+        body: JSON.stringify(pickPayload(pick.food, grams, isHe)),
       });
+      setPick(null);
+      setFoodInput('');
       if (showXP && result?.xp) showXP(result.xp);
-      setMessage(`${t.added} ${result.meal.description} · ${result.meal.calories} ${t.caloriesWord}`);
-      setTimeout(() => setMessage(''), 3000);
+      showLogged(result);
       onUpdate();
     } catch (err) {
-      setMessage(err.message || t.errorSaving);
-      setTimeout(() => setMessage(''), 5000);
+      flashError(err.message || t.errorSaving);
     } finally {
       setLoading(false);
     }
@@ -700,11 +905,14 @@ ${content}
     const meal = todayData?.meals?.find(m => m._id === mealId);
     setDeletingId(mealId);
     try {
-      await api(`/nutrition/meal/${mealId}`, { method: 'DELETE' });
+      const res = await api(`/nutrition/meal/${mealId}`, { method: 'DELETE' });
       if (meal) {
         setLastDeletedMeal(meal);
+        setDeleteNote(remainingLine(res, isHe) || '');
+        clearTimeout(toastTimer.current);
+        setWarnMessage('');
         setMessage('__MEAL_DELETED__');
-        setTimeout(() => { setMessage(''); setLastDeletedMeal(null); }, 8000);
+        toastTimer.current = setTimeout(() => { setMessage(''); setLastDeletedMeal(null); setDeleteNote(''); }, 8000);
         // Un-mark the matching menu row so the button flips back to "סמן שאכלתי"
         const mealDesc = (meal.description || '').trim().toLowerCase();
         const matchedIdx = (menu?.meals || []).findIndex(m => {
@@ -727,20 +935,22 @@ ${content}
     }
   }
 
+  // Undo of a delete puts the meal back EXACTLY as it was (its stored values), instead of
+  // re-reading the description — which could give different numbers or, for a meal the
+  // user typed by hand, not find it at all.
   async function handleUndoMeal() {
     if (!lastDeletedMeal) return;
     try {
-      await api('/nutrition/log', {
+      const result = await api('/nutrition/log', {
         method: 'POST',
-        body: JSON.stringify({ description: lastDeletedMeal.description }),
+        body: JSON.stringify({ description: lastDeletedMeal.description, nutrition: restoreValuesOf(lastDeletedMeal) }),
       });
       setLastDeletedMeal(null);
-      setMessage(t.added + ' ' + lastDeletedMeal.description);
-      setTimeout(() => setMessage(''), 3000);
+      setDeleteNote('');
+      showLogged(result);
       onUpdate();
-    } catch {
-      setMessage(t.errorSaving);
-      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      flashError(err.message || t.errorSaving);
     }
   }
 
@@ -753,19 +963,19 @@ ${content}
   // Rows in loggedMenuSet are 'done'; the earliest remaining one is 'now';
   // the rest are 'upcoming'. Driven by explicit taps (loggedMenuSet) rather
   // than a raw logged-meal count, so marking a meal actually sticks.
-  let nowIdx = -1;
-  if (menuMeals.length > 0) {
-    for (let i = 0; i < menuMeals.length; i++) {
-      if (!loggedMenuSet.has(i)) { nowIdx = i; break; }
-    }
-  }
+  // -1 when every meal is eaten (the menu view then shows the "done" state
+  // instead of repeating meal 0 as "up next").
+  const nowIdx = menuMeals.length > 0 ? nextMealIndex(menuMeals, loggedMenuSet) : -1;
+  const menuTimes = mealTimes(menuMeals);
+  const weeklyTimes = mealTimes(weeklyDayMeals);
   function menuMealStatus(idx) {
     if (loggedMenuSet.has(idx)) return 'done';
     return idx === nowIdx ? 'now' : 'upcoming';
   }
 
   const isMealUndo = message === '__MEAL_DELETED__';
-  const isError = message === t.errorSaving || message === t.errorDeleting;
+  const isError = (!!errorMessage && message === errorMessage) || message === t.errorSaving || message === t.errorDeleting;
+  const isWarn = !isError && !!warnMessage && message === warnMessage;
 
   // Quick-add chips: derived from the user's own recent meals.
   // We merge today's live log with the last-30-day history, dedupe by
@@ -788,10 +998,12 @@ ${content}
     for (const m of all) {
       const desc = (m.description || '').trim();
       if (!desc) continue;
+      // An old made-up placeholder meal (source 'default') is not offered again as a chip.
+      if (m.source === 'default') continue;
       const key = desc.toLowerCase().replace(/\s+/g, ' ');
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push(desc);
+      out.push(m); // the whole meal: a chip logs it again with its own stored values
       if (out.length >= 6) break;
     }
     return out;
@@ -817,6 +1029,45 @@ ${content}
           </button>
         </div>
       </div>
+
+      {dayType && (
+        <div style={{ marginTop: 14, display: 'flex', alignItems: 'flex-start', gap: 10, background: dayType.type === 'training' ? 'rgba(47,227,194,.08)' : 'rgba(143,138,247,.08)', border: `1px solid ${dayType.type === 'training' ? 'rgba(47,227,194,.22)' : 'rgba(143,138,247,.22)'}`, borderRadius: 14, padding: '10px 14px' }}>
+          <div style={{ fontSize: 13.5, color: 'var(--text-1)', lineHeight: 1.6 }}>
+            <strong>{dayType.type === 'training' ? (isHe ? 'יום אימון' : 'Training day') : (isHe ? 'יום מנוחה' : 'Rest day')}</strong>
+            <span style={{ color: 'var(--text-3)' }}>
+              {' · '}
+              {dayType.deltaPct === 0
+                ? (isHe ? 'יעד היום כרגיל' : 'today\'s target as usual')
+                : (isHe
+                    ? `יעד היום מותאם ${dayType.deltaPct > 0 ? '+' : '−'}${Math.abs(dayType.deltaPct)}% (הממוצע השבועי לא משתנה)`
+                    : `today's target ${dayType.deltaPct > 0 ? '+' : '−'}${Math.abs(dayType.deltaPct)}% (weekly average unchanged)`)}
+            </span>
+            {dayType.type === 'rest' && (
+              <div style={{ color: 'var(--text-2)', fontSize: 12.5 }}>
+                {isHe ? 'מנוחה היא חלק מהאימון: השרירים בונים את עצמם בהתאוששות. גם ביום מנוחה, תיעוד ארוחה או שינה שומר על הרצף.' : 'Rest is part of training: muscle is built while you recover. Logging a meal or sleep still keeps your streak.'}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {targetChange && (
+        <div role="status" style={{ marginTop: 14, background: 'rgba(143,138,247,.08)', border: '1px solid rgba(143,138,247,.22)', borderRadius: 14, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1, fontSize: 13.5, color: 'var(--text-1)', lineHeight: 1.6 }}>
+            <strong>{isHe ? 'היעד היומי עודכן' : 'Your daily target was updated'}</strong>
+            <div style={{ color: 'var(--text-2)' }}>
+              {Math.round(targetChange.from.calorieTarget).toLocaleString()} → {Math.round(targetChange.to.calorieTarget).toLocaleString()} {isHe ? 'קק״ל' : 'kcal'}
+              {' · '}{isHe ? 'חלבון' : 'protein'} {Math.round(targetChange.from.protein)} → {Math.round(targetChange.to.protein)}g
+            </div>
+            <div style={{ color: 'var(--text-3)', fontSize: 12.5 }}>
+              {menuKept
+                ? (isHe ? 'התפריט של היום נשמר, כי כבר אכלת ממנו או ערכת אותו. התפריט החדש יתאים ליעד מהפעם הבאה.' : 'Today’s menu was kept because you already ate from it or edited it. New menus use the new target.')
+                : (isHe ? 'התפריט הותאם ליעד החדש.' : 'The menu was rebuilt for the new target.')}
+            </div>
+          </div>
+          <button type="button" onClick={dismissTargetChange} aria-label={isHe ? 'סגור' : 'Dismiss'} style={{ minWidth: 40, minHeight: 40, background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 20, cursor: 'pointer' }}>×</button>
+        </div>
+      )}
 
       {/* Menu controls: daily/weekly switch + PDF export. Both call functions
           the rebuild left in place but stopped rendering. */}
@@ -869,28 +1120,41 @@ ${content}
                       {isHe ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'צהריים', dinner: 'ערב' }[meal.type] || meal.type)
                             : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[meal.type] || meal.type)}
                     </span>
-                    <span style={{ fontSize: 12.5, color: '#7C8798', fontVariantNumeric: 'tabular-nums' }}>{MEAL_TYPE_TIMES[meal.type] || '—'}</span>
+                    <span style={{ fontSize: 12.5, color: '#7C8798', fontVariantNumeric: 'tabular-nums' }}>{weeklyTimes[mi] || '—'}</span>
                   </div>
                   <div style={{ fontSize: 13.5, color: '#93A0B4', marginTop: 5, lineHeight: 1.6 }}>{isHe ? meal.he : (meal.en || meal.he)}</div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                     <span style={{ fontSize: 11, color: '#F5698C', background: 'rgba(245,105,140,.08)', borderRadius: 999, padding: '3px 9px' }}>{meal.protein}g {isHe ? 'חלבון' : 'protein'}</span>
                     <span style={{ fontSize: 11, color: '#7C8798', background: 'var(--fill-faint)', borderRadius: 999, padding: '3px 9px' }}>{meal.calories} {isHe ? 'קק״ל' : 'kcal'}</span>
+                    <span style={{ fontSize: 11, color: '#4D9FFF', background: 'rgba(77,159,255,.08)', borderRadius: 999, padding: '3px 9px' }}>{meal.carbs}g {isHe ? 'פחמ׳' : 'carbs'}</span>
+                    <span style={{ fontSize: 11, color: '#7C8798', background: 'var(--fill-faint)', borderRadius: 999, padding: '3px 9px' }}>{meal.fat}g {isHe ? 'שומן' : 'fat'}</span>
+                    {Array.isArray(meal.items) && meal.items.length > 0 && (
+                      <button type="button" onClick={() => setWeeklyOpenKey(weeklyOpenKey === `${weeklyDayIdx}-${mi}` ? null : `${weeklyDayIdx}-${mi}`)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-3)', fontSize: 11.5, minHeight: 28, padding: '0 4px' }}>
+                        {isHe ? 'פירוט' : 'Foods'}
+                      </button>
+                    )}
                     <button type="button" onClick={() => swapWeeklyMealAt(weeklyDayIdx, mi)} disabled={swappingIdx === `${weeklyDayIdx}-${mi}`}
                       style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#7C8798', fontSize: 12 }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 8h11l-3-3M17 16H6l3 3" /></svg>
                       {isHe ? 'החלף' : 'Swap'}
                     </button>
                   </div>
+                  {weeklyOpenKey === `${weeklyDayIdx}-${mi}` && <MealItemsList meal={meal} isHe={isHe} />}
                 </div>
               ))}
             </div>
             {weeklyMenu[weeklyDayIdx] && (
-              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 14, padding: '13px 16px' }}>
-                <span style={{ fontSize: 13.5, color: '#93A0B4' }}>{isHe ? `סה״כ יום ${weeklyDayIdx + 1}` : `Day ${weeklyDayIdx + 1} total`}</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>
-                  {weeklyMenu[weeklyDayIdx].totalCalories?.toLocaleString()} {isHe ? 'קק״ל' : 'kcal'} · {weeklyMenu[weeklyDayIdx].totalProtein}g {isHe ? 'חלבון' : 'protein'}
-                </span>
-              </div>
+              <MenuTargetSummary
+                meals={weeklyMenu[weeklyDayIdx].meals}
+                target={weeklyMenu[weeklyDayIdx].dayTarget}
+                approximate={weeklyMenu[weeklyDayIdx].approximate}
+                isHe={isHe}
+                label={(isHe ? `סה״כ יום ${weeklyDayIdx + 1}` : `Day ${weeklyDayIdx + 1} total`)
+                  + (weeklyMenu[weeklyDayIdx].dayTarget?.dayType
+                    ? ` · ${weeklyMenu[weeklyDayIdx].dayTarget.dayType.type === 'training' ? (isHe ? 'יום אימון' : 'training') : (isHe ? 'יום מנוחה' : 'rest')}`
+                    : '')}
+              />
             )}
           </>
         ) : (
@@ -906,7 +1170,17 @@ ${content}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <div>
               <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-1)' }}>{Math.round(calorieProgress).toLocaleString()}</span>
-              <span style={{ fontSize: 13.5, color: '#7C8798' }}> / {calorieTarget.toLocaleString()} {isHe ? 'קק״ל' : 'kcal'}</span>
+              {targetKnown
+                ? <span style={{ fontSize: 13.5, color: '#7C8798' }}> / {calorieTarget.toLocaleString()} {isHe ? 'קק״ל' : 'kcal'}</span>
+                : (
+                  <span style={{ fontSize: 13, color: '#FFB648' }}>
+                    {' '}{isHe ? 'קק״ל · יעד לא נטען' : 'kcal · target not loaded'}{' '}
+                    <button type="button" onClick={() => onUpdate && onUpdate()}
+                      style={{ background: 'none', border: 'none', color: 'var(--accent)', fontFamily: 'inherit', fontSize: 13, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>
+                      {isHe ? 'נסה שוב' : 'Retry'}
+                    </button>
+                  </span>
+                )}
             </div>
             <span style={{ fontSize: 12.5, color: '#7C8798' }}>
               {(todayData?.meals || []).length} {isHe ? 'ארוחות' : 'meals'}
@@ -944,7 +1218,7 @@ ${content}
                 type="text"
                 placeholder={isHe ? 'חפש מזון...' : 'Search food...'}
                 value={foodInput}
-                onChange={(e) => setFoodInput(e.target.value)}
+                onChange={(e) => { setFoodInput(e.target.value); setPick(null); setNotFound((nf) => (nf && !nf.manual ? null : nf)); }}
                 disabled={loading}
                 maxLength={500}
               />
@@ -961,19 +1235,121 @@ ${content}
           </div>
         </form>
 
-        {/* Live matches from the food database. Free-text Add still works for
-            anything not listed — that path keeps the AI fallback. */}
-        {searchResults.length > 0 && (
+        {/* The typed food is not in the database. Nothing was logged and no numbers
+            were guessed: the user rewords it, picks from the list below, or types
+            the values themselves. */}
+        {notFound && (
+          <div role="alert" style={{ marginTop: 12, padding: '12px 14px', borderRadius: 'var(--r-md)', background: 'rgba(255,182,72,.10)', border: '1px solid rgba(255,182,72,.30)' }}>
+            <div style={{ fontSize: 14, color: 'var(--text-1)', lineHeight: 1.6, overflowWrap: 'anywhere' }}>
+              {isHe ? `לא מצאנו את ״${notFound.text}״ במאגר.` : `We couldn't find “${notFound.text}”.`}
+            </div>
+            <div style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.6, marginTop: 4 }}>
+              {isHe
+                ? 'נסו לנסח אחרת (למשל ״150 גרם אורז״), לבחור מהרשימה שמופיעה בזמן ההקלדה, או להזין את הערכים ידנית.'
+                : 'Try rewording it (for example “150 g rice”), pick from the list that appears as you type, or enter the values yourself.'}
+            </div>
+            {!notFound.manual && (
+              <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                <button type="button" className="btn btn-accent" style={{ minHeight: 44 }}
+                  onClick={() => { setManualError(''); setNotFound({ ...notFound, manual: true }); }}>
+                  {isHe ? 'הזן ערכים ידנית' : 'Enter values yourself'}
+                </button>
+                <button type="button" onClick={() => setNotFound(null)}
+                  style={{ minHeight: 44, padding: '0 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'none', color: 'var(--text-2)', fontFamily: 'inherit', fontSize: 14, cursor: 'pointer' }}>
+                  {isHe ? 'סגור' : 'Dismiss'}
+                </button>
+              </div>
+            )}
+            {notFound.manual && (
+              <ManualMealForm
+                isHe={isHe}
+                initialName={notFound.text}
+                busy={manualBusy}
+                serverError={manualError}
+                onSubmit={handleManualSave}
+                onCancel={() => { setNotFound(null); setManualError(''); }}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Live matches from the food database, shown while typing. */}
+        {pick && (() => {
+          const grams = parseGrams(pick.gramsText);
+          const n = grams ? portionNumbers(pick.food, grams) : null;
+          const calShare = n ? shareOfTarget(n.calories, calorieTarget) : null;
+          const protShare = n ? shareOfTarget(n.protein, proteinTarget) : null;
+          const setGrams = (g) => setPick((p) => ({ ...p, gramsText: String(Math.max(1, Math.min(2000, Math.round(g)))) }));
+          const base = grams || defaultGrams(pick.food);
+          const serving = pick.food.serving > 0 ? Math.round(pick.food.serving) : null;
+          const stepBtn = { minWidth: 44, minHeight: 44, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--fill-faint)', color: 'var(--text-1)', fontSize: 20, cursor: 'pointer', fontFamily: 'inherit' };
+          const chipBtn = (active) => ({ minHeight: 36, padding: '0 12px', borderRadius: 999, border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`, background: active ? 'var(--accent-glow)' : 'none', color: active ? 'var(--accent)' : 'var(--text-2)', fontFamily: 'inherit', fontSize: 13, cursor: 'pointer' });
+          return (
+            <div className="food-pick" style={{ marginTop: 12, padding: 14, borderRadius: 16, background: 'var(--surface)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-1)' }}>
+                {isHe ? (pick.food.nameHe || pick.food.name) : (pick.food.nameEn || pick.food.name)}
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-4)', marginTop: 2 }}>
+                {isHe ? 'ל-100 גרם' : 'Per 100 g'}: {pick.food.cal} {isHe ? 'קק״ל' : 'kcal'} · {pick.food.p}g {isHe ? 'חלבון' : 'protein'}
+              </div>
+              <label htmlFor="pick-grams" style={{ display: 'block', fontSize: 12, color: 'var(--text-3)', margin: '12px 0 4px' }}>
+                {isHe ? 'כמות (גרם)' : 'Amount (grams)'}
+              </label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button type="button" style={stepBtn} aria-label={isHe ? 'הפחת 10 גרם' : 'Less by 10 g'} onClick={() => setGrams(base - 10)} disabled={loading}>−</button>
+                <input id="pick-grams" type="text" inputMode="numeric" dir="ltr" autoComplete="off" value={pick.gramsText} disabled={loading}
+                  onChange={(e) => setPick((p) => ({ ...p, gramsText: e.target.value }))}
+                  aria-invalid={!grams}
+                  style={{ flex: 1, minWidth: 0, minHeight: 44, boxSizing: 'border-box', textAlign: 'center', padding: '8px 12px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 16 }} />
+                <button type="button" style={stepBtn} aria-label={isHe ? 'הוסף 10 גרם' : 'More by 10 g'} onClick={() => setGrams(base + 10)} disabled={loading}>+</button>
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                {serving && serving !== 100 && (
+                  <button type="button" style={chipBtn(grams === serving)} onClick={() => setGrams(serving)} disabled={loading}>
+                    {isHe ? `מנה · ${serving} ג׳` : `1 serving · ${serving} g`}
+                  </button>
+                )}
+                <button type="button" style={chipBtn(grams === 100)} onClick={() => setGrams(100)} disabled={loading}>{isHe ? '100 ג׳' : '100 g'}</button>
+              </div>
+              <div style={{ marginTop: 12, fontSize: 14, color: 'var(--text-1)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.6 }}>
+                {n ? (
+                  <>
+                    <strong>{n.calories} {isHe ? 'קק״ל' : 'kcal'}</strong> · {n.protein}g {isHe ? 'חלבון' : 'protein'} · {n.carbs}g {isHe ? 'פחמ׳' : 'carbs'} · {n.fat}g {isHe ? 'שומן' : 'fat'}
+                    {calShare !== null && (
+                      <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>
+                        {isHe ? `${calShare}% מיעד הקלוריות להיום` : `${calShare}% of today's calorie target`}
+                        {protShare !== null && (isHe ? ` · ${protShare}% מיעד החלבון` : ` · ${protShare}% of the protein target`)}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <span style={{ color: 'var(--danger)', fontSize: 13 }}>{isHe ? 'יש להזין כמות בגרמים (1–2000).' : 'Enter an amount in grams (1–2000).'}</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                <button type="button" className="btn btn-accent" style={{ flex: 2, minHeight: 44 }} onClick={confirmPick} disabled={loading || !n}>
+                  {loading ? t.saving : (isHe ? 'הוסף ליום' : 'Add to today')}
+                </button>
+                <button type="button" onClick={() => setPick(null)} disabled={loading}
+                  style={{ flex: 1, minHeight: 44, borderRadius: 12, border: '1px solid var(--border)', background: 'none', color: 'var(--text-2)', fontFamily: 'inherit', fontSize: 14, cursor: 'pointer' }}>
+                  {isHe ? 'ביטול' : 'Cancel'}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {!pick && searchResults.length > 0 && (
           <div className="food-results">
             <div className="food-results__count">
               {searchResults.length} {isHe ? 'תוצאות' : 'results'}
             </div>
             {searchResults.map((r, i) => (
-              <button key={i} type="button" className="food-result" onClick={() => addSearchResult(r.name)} disabled={loading}>
+              <button key={i} type="button" className="food-result" onClick={() => addSearchResult(r)} disabled={loading}>
                 <span className="food-result__text">
                   <span className="food-result__name">{r.name}</span>
                   <span className="food-result__macros">
-                    {isHe ? '100 גרם' : '100g'} · {r.cal} {isHe ? 'קק״ל' : 'kcal'} · {r.p}g {isHe ? 'חלבון' : 'protein'}
+                    {isHe ? '100 גרם' : '100g'} · {r.cal} {isHe ? 'קק״ל' : 'kcal'} · {r.p}g {isHe ? 'חלבון' : 'protein'} · {r.c}g {isHe ? 'פחמ׳' : 'carbs'} · {r.f}g {isHe ? 'שומן' : 'fat'}{r.fb != null ? ` · ${r.fb}g ${isHe ? 'סיבים' : 'fibre'}` : ''}
                   </span>
                 </span>
                 <span className="food-result__add" aria-hidden="true"><PlusIcon /></span>
@@ -989,13 +1365,13 @@ ${content}
             </span>
             {quickChips.map(c => (
               <button
-                key={c}
+                key={c.description}
                 className="chip"
                 onClick={() => handleQuickChip(c)}
                 type="button"
                 disabled={loading}
               >
-                {c}
+                {c.description}
               </button>
             ))}
           </div>
@@ -1006,8 +1382,9 @@ ${content}
             style={{
               padding: '10px 16px',
               borderRadius: 'var(--r-md)',
-              background: isError ? 'rgba(239,68,68,0.10)' : 'rgba(34,197,94,0.10)',
-              color: isError ? 'var(--danger)' : 'var(--success)',
+              background: isError ? 'rgba(239,68,68,0.10)' : isWarn ? 'rgba(255,182,72,0.12)' : 'rgba(34,197,94,0.10)',
+              color: isError ? 'var(--danger)' : isWarn ? 'var(--text-1)' : 'var(--success)',
+              border: isWarn ? '1px solid rgba(255,182,72,0.35)' : undefined,
               fontSize: 14,
               marginTop: 12,
               display: 'flex',
@@ -1016,7 +1393,10 @@ ${content}
               gap: 12,
             }}
           >
-            <span>{isMealUndo ? t.mealDeleted : message}</span>
+            {/* \n in a message = a new line (added · where the day stands · notes) */}
+            <span role={isError ? 'alert' : 'status'} style={{ whiteSpace: 'pre-line', lineHeight: 1.6, overflowWrap: 'anywhere' }}>
+              {isMealUndo ? `${t.mealDeleted}${deleteNote ? `\n${deleteNote}` : ''}` : message}
+            </span>
             {isMealUndo && (
               <button
                 onClick={handleUndoMeal}
@@ -1044,26 +1424,43 @@ ${content}
         const typeLabel = (type) => isHe
           ? ({ breakfast: 'ארוחת בוקר', snack: 'חטיף', lunch: 'ארוחת צהריים', dinner: 'ארוחת ערב' }[type] || type)
           : ({ breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }[type] || type);
-        const nextIdx = nowIdx >= 0 ? nowIdx : 0;
-        const next = menuMeals[nextIdx];
-        const eaten = loggedMenuSet.size;
+        const nextIdx = nowIdx;
+        const next = nextIdx >= 0 ? menuMeals[nextIdx] : null;
+        // X of Y counts every meal in the menu (the rest-of-day list below
+        // leaves out the "up next" card, so the header is not a list length).
+        const eaten = menuMeals.filter((_, i) => loggedMenuSet.has(i)).length;
+        const pctDone = (cur, tgt) => (tgt > 0 ? Math.min(100, Math.round((cur / tgt) * 100)) : 0);
         return (
           <>
+            {next ? (
             <div style={{ marginTop: 16, background: 'rgba(47,227,194,.05)', border: '1.5px solid rgba(47,227,194,.35)', borderRadius: 20, padding: '18px 20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: '#04241B', background: '#2FE3C2', borderRadius: 999, padding: '4px 11px' }}>
                   {isHe ? 'הארוחה הבאה' : 'Up next'}
                 </span>
-                <span style={{ fontSize: 13, color: '#7C8798', fontVariantNumeric: 'tabular-nums' }}>{MEAL_TYPE_TIMES[next.type] || '—'}</span>
+                <span style={{ fontSize: 13, color: '#7C8798', fontVariantNumeric: 'tabular-nums' }}>{menuTimes[nextIdx] || '—'}</span>
               </div>
               <div style={{ fontSize: 17, fontWeight: 700, marginTop: 12, color: 'var(--text-1)' }}>{typeLabel(next.type)}</div>
               <div style={{ fontSize: 13.5, color: '#93A0B4', marginTop: 4, lineHeight: 1.6 }}>{isHe ? next.he : (next.en || next.he)}</div>
               <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 11.5, color: '#F5698C', background: 'rgba(245,105,140,.08)', borderRadius: 999, padding: '4px 10px' }}>{next.protein}g {isHe ? 'חלבון' : 'protein'}</span>
                 <span style={{ fontSize: 11.5, color: '#4D9FFF', background: 'rgba(77,159,255,.08)', borderRadius: 999, padding: '4px 10px' }}>{next.carbs}g {isHe ? 'פחמ׳' : 'carbs'}</span>
-                <span style={{ fontSize: 11.5, color: '#FFB648', background: 'rgba(255,182,72,.08)', borderRadius: 999, padding: '4px 10px' }}>{next.calories} {isHe ? 'קק״ל' : 'kcal'}</span>
+                <span style={{ fontSize: 11.5, color: '#FFB648', background: 'rgba(255,182,72,.08)', borderRadius: 999, padding: '4px 10px' }}>{next.fat}g {isHe ? 'שומן' : 'fat'}</span>
+                <span style={{ fontSize: 11.5, color: 'var(--text-3)', background: 'var(--fill-faint)', borderRadius: 999, padding: '4px 10px' }}>{next.calories} {isHe ? 'קק״ל' : 'kcal'}</span>
               </div>
-              <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              {editingIdx === nextIdx ? (
+                <MealEditor
+                  meal={next} api={api} isHe={isHe}
+                  onSave={(m) => { setMenu((prev) => applyMealToMenu(prev, nextIdx, m)); setEditingIdx(null); }}
+                  onCancel={() => setEditingIdx(null)}
+                />
+              ) : (<>
+              <MealItemsList meal={next} isHe={isHe} />
+              <button type="button" onClick={() => setEditingIdx(nextIdx)}
+                style={{ marginTop: 10, minHeight: 40, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: 'var(--accent-text, var(--accent))', fontSize: 13, fontWeight: 600, padding: 0 }}>
+                {isHe ? 'ערוך ארוחה' : 'Edit meal'}{next.edited ? (isHe ? ' · נערכה' : ' · edited') : ''}
+              </button>
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                 <button type="button" onClick={() => logMenuMeal(nextIdx)} disabled={loggingIdx === nextIdx}
                   style={{ flex: 2, background: 'linear-gradient(135deg,#36E8C6,#1EC0A2)', color: '#04241B', fontWeight: 700, border: 'none', borderRadius: 13, padding: 12, fontSize: 14.5, fontFamily: 'inherit', cursor: 'pointer' }}>
                   {loggingIdx === nextIdx ? t.saving : (isHe ? 'סמן שאכלתי' : 'Mark eaten')}
@@ -1074,13 +1471,43 @@ ${content}
                   {swappingIdx === nextIdx ? '…' : (isHe ? 'החלף' : 'Swap')}
                 </button>
               </div>
+              </>)}
             </div>
+            ) : (
+            <div style={{ marginTop: 16, background: 'rgba(47,227,194,.05)', border: '1.5px solid rgba(47,227,194,.35)', borderRadius: 20, padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(47,227,194,.15)', border: '2px solid #2FE3C2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2FE3C2" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+                </span>
+                <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-1)' }}>
+                  {isHe ? 'סיימת את התפריט להיום' : "You've finished today's menu"}
+                </div>
+              </div>
+              {[
+                { label: isHe ? 'קלוריות' : 'Calories', cur: calorieProgress, tgt: calorieTarget, unit: isHe ? 'קק״ל' : 'kcal', color: '#FFB648' },
+                { label: isHe ? 'חלבון' : 'Protein', cur: proteinProgress, tgt: proteinTarget, unit: isHe ? 'ג׳' : 'g', color: '#F5698C' },
+              ].map((r) => (
+                <div key={r.label} style={{ marginTop: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-3)' }}>
+                    <span>{r.label}</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-1)', fontWeight: 600 }}>
+                      {Math.round(r.cur).toLocaleString()} / {r.tgt > 0 ? Math.round(r.tgt).toLocaleString() : '—'} {r.unit}
+                    </span>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 999, background: 'var(--fill-faint)', marginTop: 6, overflow: 'hidden' }}>
+                    <div style={{ width: `${pctDone(r.cur, r.tgt)}%`, height: '100%', background: r.color, borderRadius: 999 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            )}
 
             <div style={{ padding: '20px 0 8px', fontSize: 13.5, color: '#7C8798' }}>
               {isHe ? `שאר היום · ${eaten} מתוך ${menuMeals.length} נאכלו` : `Rest of day · ${eaten} of ${menuMeals.length} eaten`}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              {menuMeals.map((meal, idx) => {
+              {chronologicalOrder(menuMeals).filter((i) => i !== nextIdx).map((idx) => {
+                const meal = menuMeals[idx];
                 const done = loggedMenuSet.has(idx);
                 const isExpanded = expandedMenuIdx === idx;
                 const fullName = isHe ? meal.he : (meal.en || meal.he);
@@ -1112,7 +1539,7 @@ ${content}
                       >
                         {done && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2FE3C2" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>}
                       </span>
-                      <span style={{ fontSize: 12.5, color: '#7C8798', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{MEAL_TYPE_TIMES[meal.type] || '—'}</span>
+                      <span style={{ fontSize: 12.5, color: '#7C8798', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{menuTimes[idx] || '—'}</span>
                       <span style={{ flex: 1, fontSize: 14, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {typeLabel(meal.type)} · {fullName}
                       </span>
@@ -1124,6 +1551,27 @@ ${content}
                         <div style={{ fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.6, padding: '12px 0 4px' }}>
                           {typeLabel(meal.type)} · {fullName}
                         </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                          <span style={{ fontSize: 11.5, color: '#FFB648', background: 'rgba(255,182,72,.1)', borderRadius: 999, padding: '4px 10px' }}>{meal.calories} {isHe ? 'קק״ל' : 'kcal'}</span>
+                          <span style={{ fontSize: 11.5, color: '#F5698C', background: 'rgba(245,105,140,.08)', borderRadius: 999, padding: '4px 10px' }}>{meal.protein}g {isHe ? 'חלבון' : 'protein'}</span>
+                          <span style={{ fontSize: 11.5, color: '#4D9FFF', background: 'rgba(77,159,255,.08)', borderRadius: 999, padding: '4px 10px' }}>{meal.carbs}g {isHe ? 'פחמ׳' : 'carbs'}</span>
+                          <span style={{ fontSize: 11.5, color: 'var(--text-3)', background: 'var(--fill-faint)', borderRadius: 999, padding: '4px 10px' }}>{meal.fat}g {isHe ? 'שומן' : 'fat'}</span>
+                        </div>
+                        {editingIdx === idx ? (
+                          <MealEditor
+                            meal={meal} api={api} isHe={isHe}
+                            onSave={(m) => { setMenu((prev) => applyMealToMenu(prev, idx, m)); setEditingIdx(null); }}
+                            onCancel={() => setEditingIdx(null)}
+                          />
+                        ) : (<>
+                          <MealItemsList meal={meal} isHe={isHe} />
+                          {!done && (
+                            <button type="button" onClick={() => setEditingIdx(idx)}
+                              style={{ marginTop: 8, minHeight: 40, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: 'var(--accent-text, var(--accent))', fontSize: 13, fontWeight: 600, padding: 0 }}>
+                              {isHe ? 'ערוך ארוחה' : 'Edit meal'}{meal.edited ? (isHe ? ' · נערכה' : ' · edited') : ''}
+                            </button>
+                          )}
+                        </>)}
                         <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                           {done ? (
                             <button type="button" onClick={() => unmarkMenuMeal(idx)} disabled={busy}
@@ -1150,12 +1598,13 @@ ${content}
                 );
               })}
             </div>
-            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 14, padding: '13px 16px' }}>
-              <span style={{ fontSize: 13.5, color: '#93A0B4' }}>{isHe ? 'סה״כ היום בתפריט' : "Menu total today"}</span>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>
-                {menu?.totalCalories?.toLocaleString()} {isHe ? 'קק״ל' : 'kcal'} · {menu?.totalProtein}g {isHe ? 'חלבון' : 'protein'}
-              </span>
-            </div>
+            <MenuTargetSummary
+              meals={menu?.meals}
+              target={menu?.target || (menuCalTarget ? { calories: menuCalTarget, protein: targets?.macros?.protein } : null)}
+              approximate={menu?.approximate}
+              isHe={isHe}
+              label={isHe ? 'סה״כ היום בתפריט' : 'Menu total today'}
+            />
           </>
         );
       })()}
@@ -1227,7 +1676,9 @@ ${content}
               <div className="progress-label">
                 <span>{item.label}</span>
                 <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {Math.round(item.current)} / {item.target}{item.unit} ({Math.round(pct)}%)
+                  {item.target > 0
+                    ? `${Math.round(item.current)} / ${item.target}${item.unit} (${Math.round(pct)}%)`
+                    : `${Math.round(item.current)}${item.unit}`}
                 </span>
               </div>
               <div className="progress-bar">

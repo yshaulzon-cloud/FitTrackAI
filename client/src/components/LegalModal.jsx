@@ -11,10 +11,10 @@ import { useLang } from '../context/LanguageContext';
 
 const PRIVACY_HE = {
   title: 'מדיניות פרטיות',
-  updated: 'עודכן: מאי 2026',
+  updated: 'עודכן: נובמבר 2026',
   tldr: [
     'אוספים נתוני פרופיל ופעילות (תזונה, אימונים, שינה)',
-    'לא משתפים עם צד שלישי. לא משתמשים ב-AI להערכת ארוחות',
+    'לא מוכרים את המידע, אין פרסומות ואין בינה מלאכותית. שירותי תשתית מקבלים רק את הנחוץ להפעלה',
     'אפשר למחוק את החשבון בכל זמן — והנתונים נמחקים מהשרת',
   ],
   sections: [
@@ -25,7 +25,7 @@ const PRIVACY_HE = {
       ],
       list: [
         'פרטי חשבון: כתובת אימייל וסיסמה (מוצפנת בעזרת bcrypt).',
-        'פרופיל אישי: שם, גיל, מין, גובה, משקל, אחוזי שומן (אופציונלי), רמת ניסיון.',
+        'פרופיל אישי: שם, גיל, מין, גובה, משקל, אחוזי שומן (אופציונלי), עיר (אופציונלי), אזור זמן, רמת ניסיון.',
         'מטרות וכושר: מטרת אימון ומספר אימונים בשבוע.',
         'תיעוד פעילות: ארוחות שרשמת, אימונים שביצעת, רישומי שינה ומדידות גוף.',
         'מטא-נתוני שימוש בסיסיים: תאריכי כניסה, פעולות שביצעת באפליקציה.',
@@ -50,17 +50,21 @@ const PRIVACY_HE = {
     {
       h: '4. שמירה ואבטחה',
       p: [
-        'המידע שלך מאוחסן ב-MongoDB עם תקשורת מוצפנת. הסיסמה לא נשמרת בטקסט גלוי — רק hash. גישה לשרת מוגבלת באמצעות JWT.',
+        'המידע שלך מאוחסן ב-MongoDB Atlas עם תקשורת מוצפנת. הסיסמה לא נשמרת בטקסט גלוי — רק hash. גישה לשרת מוגבלת באמצעות JWT.',
       ],
     },
     {
       h: '5. שיתוף עם צד שלישי',
       p: [
-        'אנחנו לא מוכרים את המידע שלך. שירותים חיצוניים שאיתם יש לנו אינטראקציה הם:',
+        'אנחנו לא מוכרים את המידע שלך, ואין באפליקציה פרסומות, אנליטיקה או דיווח קריסות של צד שלישי. שירותים חיצוניים שאיתם יש לנו אינטראקציה הם:',
       ],
       list: [
-        'Gmail SMTP — לשליחת קוד איפוס סיסמה.',
-        'MongoDB Atlas — אחסון בענן.',
+        'MongoDB Atlas — אחסון המידע בענן.',
+        'Render — אירוח שרת האפליקציה.',
+        'Wangus — אירוח האתר והקבצים הסטטיים.',
+        'Resend — שליחת קוד איפוס סיסמה (מקבל את כתובת האימייל שלך ואת הקוד).',
+        'Google Sign-In — רק אם בחרת להתחבר עם Google (אנחנו מקבלים את האימייל והשם שלך).',
+        'Google Fonts — טעינת גופנים (Google מקבלת את כתובת ה-IP של המכשיר).',
       ],
     },
     {
@@ -101,10 +105,10 @@ const PRIVACY_HE = {
 
 const PRIVACY_EN = {
   title: 'Privacy Policy',
-  updated: 'Last updated: May 2026',
+  updated: 'Last updated: November 2026',
   tldr: [
     'We collect profile and activity data (nutrition, workouts, sleep)',
-    'We don’t share with third parties. No AI service estimates meals',
+    'We don’t sell your data; no ads and no AI. Infrastructure providers get only what is needed to run the app',
     'You can delete your account anytime — all data is removed from our server',
   ],
   sections: [
@@ -113,7 +117,7 @@ const PRIVACY_EN = {
       p: ['To build a personalized plan, we collect:'],
       list: [
         'Account: email and password (bcrypt-hashed).',
-        'Profile: name, age, gender, height, weight, body-fat % (optional), experience level.',
+        'Profile: name, age, gender, height, weight, body-fat % (optional), city (optional), time zone, experience level.',
         'Goals: training goal and weekly workout count.',
         'Activity logs: meals you record, workouts, sleep entries, and body measurements.',
         'Basic usage metadata: sign-in timestamps and in-app actions.',
@@ -138,15 +142,19 @@ const PRIVACY_EN = {
     {
       h: '4. Storage and security',
       p: [
-        'Data is stored in MongoDB over encrypted connections. Passwords are never stored in plaintext — only hashed. Server access is gated by JWT.',
+        'Data is stored in MongoDB Atlas over encrypted connections. Passwords are never stored in plaintext — only hashed. Server access is gated by JWT.',
       ],
     },
     {
       h: '5. Third-party services',
-      p: ['We do not sell your data. The external services we interact with are:'],
+      p: ['We do not sell your data, and the app has no third-party ads, analytics or crash reporting. The external services we interact with are:'],
       list: [
-        'Gmail SMTP — to send password reset codes.',
-        'MongoDB Atlas — cloud storage.',
+        'MongoDB Atlas — cloud storage of your data.',
+        'Render — hosting of the app server.',
+        'Wangus — hosting of the website and static files.',
+        'Resend — sends password reset codes (receives your email address and the code).',
+        'Google Sign-In — only if you choose to sign in with Google (we receive your email and name).',
+        'Google Fonts — font loading (Google receives the device’s IP address).',
       ],
     },
     {

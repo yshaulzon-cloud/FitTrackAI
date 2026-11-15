@@ -61,3 +61,14 @@ store-screenshots-en/
 מסכים הגדרות/
 מערכת אימונים/
 *.docx
+
+# Local working media and built bundles (hundreds of MB; GitHub rejects files
+# over 100 MB, and none of it is part of the app source)
+release/
+פרויקט סרטוני תרגילים/
+סרטוני תרגילים/
+פוזות שניות לאנימציה/
+תמונות תרגילים 1/
+תמונות תרגילים לדוגמה/
+מסכים לפני אימון/
+צילומי מסך אימון חי/

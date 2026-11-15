@@ -1,19 +1,18 @@
-// Schedules/cancels recurring local notifications via Capacitor.
-// No-ops on web (the toggles still persist to localStorage so the
-// preferences survive across sessions and apply once on Android).
+// Local notifications via Capacitor. No-ops on web (the preferences still
+// persist to localStorage and apply once on Android).
+//
+// What gets scheduled is decided by notifPlan.mjs (pure, tested). This file is
+// only the native adapter: permission, Android channels, and "replace the set
+// of notifications we manage with the plan". See docs/notifications.md.
+import { readPrefs, CHANNELS } from './notifConfig.mjs';
+import { buildPlan, isManagedId, LEGACY_IDS } from './notifPlan.mjs';
 
-const IDS = {
-  workout: 1001,
-  meal_morning: 1002,
-  meal_afternoon: 1003,
-  meal_evening: 1004,
-  streak: 1005,
-  weekly: 1006,
-  sleep_prompt: 1007,
-  sleep_followup: 1008,
-};
+// Test seam (notifications.test.mjs): lets the adapter run against a fake plugin.
+let testHooks = null;
+export function _setTestHooks(h) { testHooks = h; }
 
 function isNative() {
+  if (testHooks && typeof testHooks.native === 'boolean') return testHooks.native;
   try {
     return typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true;
   } catch { return false; }
@@ -29,6 +28,7 @@ function isNative() {
 // android" and silently breaking every call in this file. A plain wrapper
 // object has no `.then`, so no such probing happens.
 async function getPlugin() {
+  if (testHooks?.plugin) return { plugin: testHooks.plugin };
   const { LocalNotifications } = await import('@capacitor/local-notifications');
   return { plugin: LocalNotifications };
 }
@@ -43,15 +43,15 @@ async function ensurePermission() {
   return true;
 }
 
-// Public: trigger the system notification permission prompt early.
-// Safe no-op on web. Returns true if granted, false otherwise.
+// Public: trigger the system notification permission prompt. Safe no-op on
+// web. Returns true if granted, false otherwise.
 export async function requestNotificationPermission() {
   if (!isNative()) return false;
   try { return await ensurePermission(); } catch { return false; }
 }
 
-// Public: check current permission state without prompting. Returns
-// 'granted' | 'denied' | 'prompt' | null (web/error).
+// Public: current permission state without prompting. 'granted' | 'denied' |
+// 'prompt' | null (web/error).
 export async function getNotificationPermissionStatus() {
   if (!isNative()) return null;
   try {
@@ -61,172 +61,123 @@ export async function getNotificationPermissionStatus() {
   } catch { return null; }
 }
 
-async function cancelById(id) {
-  if (!isNative()) return true;
+// ── "state of today" the planner needs ──────────────────────────────
+// Kept in memory and mirrored to localStorage for the current calendar day,
+// so e.g. "sleep already logged" survives an app restart. Components report
+// facts with updateReminderState({...}); each report schedules a (debounced)
+// re-sync.
+const STATE_KEY = 'notif:state';
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
+function loadState() {
   try {
-    const { plugin: LN } = await getPlugin();
-    await LN.cancel({ notifications: [{ id }] });
-  } catch { /* not scheduled */ }
-  return true;
+    const s = JSON.parse(localStorage.getItem(STATE_KEY) || 'null');
+    if (s && s.date === dayKey()) return s.flags || {};
+  } catch { /* ignore */ }
+  return {};
+}
+let flags = loadState();
+
+export function getReminderState() {
+  if (flags.__date && flags.__date !== dayKey()) flags = {}; // a new day starts clean
+  return flags;
 }
 
-// Returns true once scheduled, false if permission was denied (so callers
-// can revert their toggle and tell the user to enable it manually).
-async function scheduleDaily({ id, hour, minute, title, body }) {
-  if (!isNative()) return true;
-  const ok = await ensurePermission();
-  if (!ok) return false;
+let syncTimer = null;
+let langIsHe = true;
+
+export function updateReminderState(patch, { isHe, sync = true } = {}) {
+  const base = getReminderState();
+  const next = { ...base, ...patch, __date: dayKey() };
+  const changed = Object.keys(patch).some((k) => JSON.stringify(base[k]) !== JSON.stringify(patch[k]));
+  flags = next;
+  try { localStorage.setItem(STATE_KEY, JSON.stringify({ date: dayKey(), flags: next })); } catch { /* ignore */ }
+  if (typeof isHe === 'boolean') langIsHe = isHe;
+  if (sync && changed) requestReminderSync();
+}
+
+// Debounced: many things can change at once on app open (meals, workouts,
+// progression all load), and one rebuild is enough.
+export function requestReminderSync({ isHe, delay = 600 } = {}) {
+  if (typeof isHe === 'boolean') langIsHe = isHe;
+  if (!isNative()) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => { syncReminders({ isHe: langIsHe }).catch(() => null); }, delay);
+}
+
+// ── the sync ────────────────────────────────────────────────────────
+let chain = Promise.resolve();
+
+async function ensureChannels(LN, isHe) {
+  for (const ch of Object.values(CHANNELS)) {
+    try {
+      await LN.createChannel({
+        id: ch.id, name: isHe ? ch.he : ch.en, importance: ch.importance, visibility: 1, vibration: true,
+        description: isHe ? 'מוגדר באפליקציית Areto' : 'Managed in the Areto app',
+      });
+    } catch { /* channels need Android 8+; elsewhere this is a no-op */ }
+  }
+}
+
+async function migrateLegacy(LN) {
+  // Before the rolling window every reminder was ONE repeating alarm with ids
+  // 1001–1008. Those would keep firing next to the new ones, so cancel them once.
+  try {
+    if (localStorage.getItem('notif:schedule:v2') === '1') return;
+    await LN.cancel({ notifications: LEGACY_IDS.map((id) => ({ id })) });
+    localStorage.setItem('notif:schedule:v2', '1');
+  } catch { /* not scheduled / storage unavailable */ }
+}
+
+async function doSync({ isHe, askPermission }) {
+  if (!isNative()) return { ok: true, scheduled: 0, permission: null };
+  const prefs = readPrefs(localStorage);
+  const plan = buildPlan({ now: new Date(), prefs, state: getReminderState(), isHe });
+
+  let permission = await getNotificationPermissionStatus();
+  if (permission !== 'granted' && plan.length > 0 && askPermission) {
+    permission = (await requestNotificationPermission()) ? 'granted' : 'denied';
+  }
   const { plugin: LN } = await getPlugin();
-  await LN.cancel({ notifications: [{ id }] }).catch(() => {});
-  await LN.schedule({
-    notifications: [{
-      id, title, body,
-      schedule: { on: { hour, minute }, allowWhileIdle: true, repeats: true },
-      smallIcon: 'ic_stat_icon_config_sample',
-    }],
-  });
-  return true;
-}
 
-async function scheduleWeekly({ id, weekday, hour, minute, title, body }) {
-  if (!isNative()) return true;
-  const ok = await ensurePermission();
-  if (!ok) return false;
-  const { plugin: LN } = await getPlugin();
-  await LN.cancel({ notifications: [{ id }] }).catch(() => {});
-  await LN.schedule({
-    notifications: [{
-      id, title, body,
-      schedule: { on: { weekday, hour, minute }, allowWhileIdle: true, repeats: true },
-      smallIcon: 'ic_stat_icon_config_sample',
-    }],
-  });
-  return true;
-}
+  if (permission === 'granted') {
+    await ensureChannels(LN, isHe);
+    await migrateLegacy(LN);
+  }
 
-// One-shot notification for a specific Date — unlike scheduleDaily/Weekly,
-// this fires once and doesn't repeat, so cancelling it only affects that
-// single occurrence (used by the sleep prompts, which need to be
-// cancellable "just for today" without killing tomorrow's reminder).
-async function scheduleOneTime({ id, when, title, body }) {
-  if (!isNative()) return true;
-  const ok = await ensurePermission();
-  if (!ok) return false;
-  const { plugin: LN } = await getPlugin();
-  await LN.cancel({ notifications: [{ id }] }).catch(() => {});
-  await LN.schedule({
-    notifications: [{
-      id, title, body,
-      schedule: { at: when, allowWhileIdle: true },
-      smallIcon: 'ic_stat_icon_config_sample',
-    }],
-  });
-  return true;
-}
+  // Replace everything this app scheduled. Cancelling is always safe (and is
+  // how turning reminders off takes effect even if permission was revoked).
+  try {
+    const pending = (await LN.getPending()).notifications || [];
+    const ours = pending.filter((n) => isManagedId(n.id)).map((n) => ({ id: n.id }));
+    if (ours.length) await LN.cancel({ notifications: ours });
+  } catch { /* nothing pending */ }
 
-// ── Sleep-logging reminders ─────────────────────────────────────────
-// Modeled as a generic "daily prompt, one follow-up, then silence" pair
-// so future reminder types (water, weigh-in) can copy this shape.
-//
-// Capacitor's LocalNotifications has no "check a condition right before
-// firing" hook, so this can't be a single always-on repeating alarm like
-// the workout/meal reminders above. Instead: schedule/cancel these two
-// one-shot alarms for *today only*, called (a) whenever the app loads and
-// sleep hasn't been logged yet, cancelling+re-arming for today's
-// remaining slots, and (b) the instant sleep gets logged, cancelling both
-// immediately. Tomorrow's occurrence is armed the next time the app opens.
-export async function scheduleSleepPrompts(hour = 8, isHe = true) {
-  if (!isNative()) return true;
-  const now = new Date();
-
-  const promptAt = new Date(now);
-  promptAt.setHours(hour, 0, 0, 0);
-  const followupAt = new Date(promptAt);
-  followupAt.setHours(promptAt.getHours() + 2);
-
-  const ok = await ensurePermission();
-  if (!ok) return false;
-
-  // Skip any slot whose time already passed today — don't fire a
-  // "good morning" prompt at 3pm.
-  if (promptAt > now) {
-    await scheduleOneTime({
-      id: IDS.sleep_prompt, when: promptAt,
-      title: isHe ? 'בוקר טוב 😴' : 'Good morning 😴',
-      body:  isHe ? 'כמה שעות ישנת הלילה? עדכון קצר יעזור לך לעקוב אחר השינה שלך.' : 'How many hours did you sleep last night? A quick update will help you track your sleep.',
+  if (permission !== 'granted') {
+    return { ok: plan.length === 0, scheduled: 0, permission };
+  }
+  if (plan.length) {
+    await LN.schedule({
+      notifications: plan.map((n) => ({
+        id: n.id, title: n.title, body: n.body,
+        schedule: { at: n.at, allowWhileIdle: true },
+        channelId: CHANNELS[n.category].id,
+        smallIcon: 'ic_stat_icon_config_sample',
+      })),
     });
   }
-  if (followupAt > now) {
-    await scheduleOneTime({
-      id: IDS.sleep_followup, when: followupAt,
-      title: isHe ? 'תזכורת קטנה לשינה 😴' : 'A quick sleep reminder 😴',
-      body:  isHe ? 'עדיין לא עדכנת את שעות השינה שלך. אפשר לעשות את זה עכשיו בכמה שניות.' : 'You haven’t logged your sleep yet. It only takes a few seconds.',
-    });
-  }
-  return true;
+  return { ok: true, scheduled: plan.length, permission };
 }
 
-export async function cancelSleepPrompts() {
-  await cancelById(IDS.sleep_prompt);
-  await cancelById(IDS.sleep_followup);
-  return true;
-}
-
-export async function applyWorkoutReminder(enabled, isHe, time = { hour: 18, minute: 0 }) {
-  if (!enabled) return cancelById(IDS.workout);
-  return scheduleDaily({
-    id: IDS.workout, hour: time.hour, minute: time.minute,
-    title: isHe ? 'זמן לאימון 💪' : 'Time to train 💪',
-    body:  isHe ? 'האימון שלך מחכה — כמה דקות של תנועה יקדמו אותך עוד צעד.' : 'Your workout is waiting — a little movement can take you one step further.',
-  });
-}
-
-// Split into three independent reminders (was one combined toggle covering
-// all three fixed times) so each meal can be turned on/off and timed on its
-// own — someone who only wants a dinner nudge shouldn't also get breakfast
-// and lunch ones.
-export async function applyMealMorningReminder(enabled, isHe, time = { hour: 8, minute: 0 }) {
-  if (!enabled) return cancelById(IDS.meal_morning);
-  return scheduleDaily({
-    id: IDS.meal_morning, hour: time.hour, minute: time.minute,
-    title: isHe ? 'זמן לארוחת בוקר 🥗' : 'Time for breakfast 🥗',
-    body:  isHe ? 'כדאי לעדכן עכשיו את ארוחת הבוקר כדי לשמור על מעקב מדויק.' : 'Log your breakfast now to keep your tracking accurate.',
-  });
-}
-
-export async function applyMealAfternoonReminder(enabled, isHe, time = { hour: 13, minute: 0 }) {
-  if (!enabled) return cancelById(IDS.meal_afternoon);
-  return scheduleDaily({
-    id: IDS.meal_afternoon, hour: time.hour, minute: time.minute,
-    title: isHe ? 'זמן לארוחת צהריים 🍽️' : 'Time for lunch 🍽️',
-    body:  isHe ? 'עדכון קצר של ארוחת הצהריים יעזור לך להישאר במעקב.' : 'A quick lunch update will help you stay on track.',
-  });
-}
-
-export async function applyMealEveningReminder(enabled, isHe, time = { hour: 19, minute: 0 }) {
-  if (!enabled) return cancelById(IDS.meal_evening);
-  return scheduleDaily({
-    id: IDS.meal_evening, hour: time.hour, minute: time.minute,
-    title: isHe ? 'זמן לארוחת ערב 🌙' : 'Time for dinner 🌙',
-    body:  isHe ? 'כדאי לעדכן את ארוחת הערב עכשיו, כל עוד הפרטים עדיין טריים.' : 'Log your dinner while the details are still fresh.',
-  });
-}
-
-export async function applyStreakReminder(enabled, isHe, time = { hour: 21, minute: 0 }) {
-  if (!enabled) return cancelById(IDS.streak);
-  return scheduleDaily({
-    id: IDS.streak, hour: time.hour, minute: time.minute,
-    title: isHe ? 'ממשיכים את הרצף 🔥' : 'Keep your streak going 🔥',
-    body:  isHe ? 'עדיין נשאר זמן להשלים את הפעילות של היום ולשמור על הרצף.' : 'There’s still time to complete today’s activity and keep your streak going.',
-  });
-}
-
-export async function applyWeeklyReport(enabled, isHe, time = { hour: 10, minute: 0 }) {
-  if (!enabled) return cancelById(IDS.weekly);
-  // Capacitor weekday: 1=Sunday … 7=Saturday
-  return scheduleWeekly({
-    id: IDS.weekly, weekday: 1, hour: time.hour, minute: time.minute,
-    title: isHe ? 'הסיכום השבועי מוכן 📊' : 'Your weekly recap is ready 📊',
-    body:  isHe ? 'אפשר לראות מה התקדם השבוע ומה כדאי לקחת איתך לשבוע הבא.' : 'See your progress from this week and what to focus on next.',
-  });
+// Public. Rebuilds the notification set from the saved preferences plus the
+// reported state. Calls are serialized. `askPermission` should be true only
+// when the user just switched something on (never prompt out of the blue).
+// Returns { ok, scheduled, permission }; ok === false means "wanted to
+// schedule but permission is denied", so callers can show the explanation.
+export function syncReminders({ isHe = langIsHe, askPermission = false } = {}) {
+  langIsHe = isHe;
+  const run = () => doSync({ isHe, askPermission });
+  const p = chain.then(run, run);
+  chain = p.catch(() => null);
+  return p;
 }
