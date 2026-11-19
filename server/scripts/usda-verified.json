@@ -3767,6 +3767,3180 @@
      "grams": 85
     }
    ]
+  },
+  {
+   "key": "חזה הודו",
+   "fdc": 171496,
+   "desc": "Turkey, whole, breast, meat only, cooked, roasted",
+   "cal": 147,
+   "p": 30.13,
+   "c": 0,
+   "f": 2.08,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 3,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 85
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "breast",
+     "grams": 1413
+    }
+   ]
+  },
+  {
+   "key": "כבד בקר",
+   "fdc": 168627,
+   "desc": "Beef, variety meats and by-products, liver, cooked, pan-fried",
+   "cal": 175,
+   "p": 26.52,
+   "c": 5.16,
+   "f": 4.68,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 3,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 85
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "slice",
+     "grams": 81
+    }
+   ]
+  },
+  {
+   "key": "לשון בקר",
+   "fdc": 170598,
+   "desc": "Beef, variety meats and by-products, tongue, cooked, simmered",
+   "cal": 284,
+   "p": 19.29,
+   "c": 0,
+   "f": 22.3,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 3,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 85
+    }
+   ]
+  },
+  {
+   "key": "טונה במים",
+   "fdc": 171986,
+   "desc": "Fish, tuna, light, canned in water, without salt, drained solids",
+   "cal": 116,
+   "p": 25.51,
+   "c": 0,
+   "f": 0.82,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 3,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 85
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "can",
+     "grams": 165
+    }
+   ]
+  },
+  {
+   "key": "מקרל",
+   "fdc": 175120,
+   "desc": "Fish, mackerel, Atlantic, cooked, dry heat",
+   "cal": 262,
+   "p": 23.85,
+   "c": 0,
+   "f": 17.81,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fillet",
+     "grams": 88
+    },
+    {
+     "amount": 3,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 85
+    }
+   ]
+  },
+  {
+   "key": "לוקוס",
+   "fdc": 171963,
+   "desc": "Fish, grouper, mixed species, cooked, dry heat",
+   "cal": 118,
+   "p": 24.84,
+   "c": 0,
+   "f": 1.3,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 3,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 85
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fillet",
+     "grams": 202
+    }
+   ]
+  },
+  {
+   "key": "אנשובי",
+   "fdc": 174183,
+   "desc": "Fish, anchovy, european, canned in oil, drained solids",
+   "cal": 210,
+   "p": 28.89,
+   "c": 0,
+   "f": 9.71,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz, boneless",
+     "grams": 28.35
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "anchovy",
+     "grams": 4
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "can (2 oz)",
+     "grams": 45
+    },
+    {
+     "amount": 5,
+     "unit": "undetermined",
+     "text": "anchovies",
+     "grams": 20
+    }
+   ]
+  },
+  {
+   "key": "מולים",
+   "fdc": 174217,
+   "desc": "Mollusks, mussel, blue, cooked, moist heat",
+   "cal": 172,
+   "p": 23.8,
+   "c": 7.39,
+   "f": 4.48,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 3,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 85
+    }
+   ]
+  },
+  {
+   "key": "דג הליבוט",
+   "fdc": 174201,
+   "desc": "Fish, halibut, Atlantic and Pacific, cooked, dry heat",
+   "cal": 111,
+   "p": 22.54,
+   "c": 0,
+   "f": 1.61,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 3,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 85
+    },
+    {
+     "amount": 0.5,
+     "unit": "undetermined",
+     "text": "fillet",
+     "grams": 159
+    }
+   ]
+  },
+  {
+   "key": "צלופח",
+   "fdc": 174194,
+   "desc": "Fish, eel, mixed species, cooked, dry heat",
+   "cal": 236,
+   "p": 23.65,
+   "c": 0,
+   "f": 14.95,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz, boneless",
+     "grams": 28.35
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz with bone (yield after bone removed)",
+     "grams": 22
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cubic inch, boneless",
+     "grams": 17
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fillet",
+     "grams": 159
+    },
+    {
+     "amount": 3,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 85
+    }
+   ]
+  },
+  {
+   "key": "שליו",
+   "fdc": 172419,
+   "desc": "Quail, meat only, raw",
+   "cal": 134,
+   "p": 21.76,
+   "c": 0,
+   "f": 4.53,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "quail",
+     "grams": 92
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "unit (yield from 1 lb ready-to cook quail)",
+     "grams": 342
+    }
+   ]
+  },
+  {
+   "key": "ביצי שליו",
+   "fdc": 172191,
+   "desc": "Egg, quail, whole, fresh, raw",
+   "cal": 158,
+   "p": 13.05,
+   "c": 0.41,
+   "f": 11.09,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "egg",
+     "grams": 9
+    }
+   ]
+  },
+  {
+   "key": "קרפיון",
+   "fdc": 174185,
+   "desc": "Fish, carp, cooked, dry heat",
+   "cal": 162,
+   "p": 22.86,
+   "c": 0,
+   "f": 7.17,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 3,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 85
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fillet",
+     "grams": 170
+    }
+   ]
+  },
+  {
+   "key": "תמנון",
+   "fdc": 174249,
+   "desc": "Mollusks, octopus, common, cooked, moist heat",
+   "cal": 164,
+   "p": 29.82,
+   "c": 4.4,
+   "f": 2.08,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 3,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 85
+    }
+   ]
+  },
+  {
+   "key": "אבלון",
+   "fdc": 174213,
+   "desc": "Mollusks, abalone, mixed species, cooked, fried",
+   "cal": 189,
+   "p": 19.63,
+   "c": 11.05,
+   "f": 6.78,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 3,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 85
+    }
+   ]
+  },
+  {
+   "key": "כבד טלה",
+   "fdc": 172532,
+   "desc": "Lamb, variety meats and by-products, liver, cooked, braised",
+   "cal": 220,
+   "p": 30.57,
+   "c": 2.53,
+   "f": 8.81,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 3,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 85
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "unit, cooked (yield from 1 lb raw meat)",
+     "grams": 336
+    }
+   ]
+  },
+  {
+   "key": "חלבון ביצה",
+   "fdc": 172183,
+   "desc": "Egg, white, raw, fresh",
+   "cal": 52,
+   "p": 10.9,
+   "c": 0.73,
+   "f": 0.17,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "large",
+     "grams": 33
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 243
+    }
+   ]
+  },
+  {
+   "key": "ג'רקי בקר",
+   "fdc": 167536,
+   "desc": "Snacks, beef jerky, chopped and formed",
+   "cal": 410,
+   "p": 33.2,
+   "c": 11,
+   "f": 25.6,
+   "fb": 1.8,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 28.35
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "piece, large",
+     "grams": 20
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 28.35
+    }
+   ]
+  },
+  {
+   "key": "יוגורט 3%",
+   "fdc": 171284,
+   "desc": "Yogurt, plain, whole milk",
+   "cal": 61,
+   "p": 3.47,
+   "c": 4.66,
+   "f": 3.25,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "container (6 oz)",
+     "grams": 170
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "container (8 oz)",
+     "grams": 227
+    },
+    {
+     "amount": 0.5,
+     "unit": "undetermined",
+     "text": "container (4 oz)",
+     "grams": 113
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup (8 fl oz)",
+     "grams": 245
+    }
+   ]
+  },
+  {
+   "key": "פרמזן",
+   "fdc": 170848,
+   "desc": "Cheese, parmesan, hard",
+   "cal": 392,
+   "p": 35.75,
+   "c": 3.22,
+   "f": 25,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 28.35
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cubic inch",
+     "grams": 10.3
+    },
+    {
+     "amount": 5,
+     "unit": "undetermined",
+     "text": "package (5 oz)",
+     "grams": 142
+    }
+   ]
+  },
+  {
+   "key": "גבינת פטה",
+   "fdc": 173420,
+   "desc": "Cheese, feta",
+   "cal": 265,
+   "p": 14.21,
+   "c": 3.88,
+   "f": 21.49,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, crumbled",
+     "grams": 150
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 28.35
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cubic inch",
+     "grams": 17
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "wedge (1.33 oz)",
+     "grams": 38
+    }
+   ]
+  },
+  {
+   "key": "חלב 3%",
+   "fdc": 171265,
+   "desc": "Milk, whole, 3.25% milkfat, with added vitamin D",
+   "cal": 61,
+   "p": 3.15,
+   "c": 4.8,
+   "f": 3.25,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 244
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 30.5
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 15
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "quart",
+     "grams": 976
+    }
+   ]
+  },
+  {
+   "key": "חלב 1%",
+   "fdc": 170872,
+   "desc": "Milk, lowfat, fluid, 1% milkfat, with added vitamin A and vitamin D",
+   "cal": 42,
+   "p": 3.37,
+   "c": 4.99,
+   "f": 0.97,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 244
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 30.5
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "quart",
+     "grams": 976
+    }
+   ]
+  },
+  {
+   "key": "חלב שקדים",
+   "fdc": 174832,
+   "desc": "Beverages, almond milk, unsweetened, shelf stable",
+   "cal": 15,
+   "p": 0.4,
+   "c": 1.31,
+   "f": 0.96,
+   "fb": 0.2,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 262
+    }
+   ]
+  },
+  {
+   "key": "מי קוקוס",
+   "fdc": 174831,
+   "desc": "Beverages, Coconut water, ready-to-drink, unsweetened",
+   "cal": 18,
+   "p": 0.22,
+   "c": 4.24,
+   "f": 0,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 245
+    }
+   ]
+  },
+  {
+   "key": "חומוס גרגירים",
+   "fdc": 173757,
+   "desc": "Chickpeas (garbanzo beans, bengal gram), mature seeds, cooked, boiled, without salt",
+   "cal": 164,
+   "p": 8.86,
+   "c": 27.42,
+   "f": 2.59,
+   "fb": 7.6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 164
+    }
+   ]
+  },
+  {
+   "key": "שעועית שחורה",
+   "fdc": 173735,
+   "desc": "Beans, black, mature seeds, cooked, boiled, without salt",
+   "cal": 132,
+   "p": 8.86,
+   "c": 23.71,
+   "f": 0.54,
+   "fb": 8.7,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 172
+    }
+   ]
+  },
+  {
+   "key": "שעועית מונג",
+   "fdc": 174257,
+   "desc": "Mung beans, mature seeds, cooked, boiled, without salt",
+   "cal": 105,
+   "p": 7.02,
+   "c": 19.15,
+   "f": 0.38,
+   "fb": 7.6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 202
+    }
+   ]
+  },
+  {
+   "key": "אטריות אורז",
+   "fdc": 168914,
+   "desc": "Rice noodles, cooked",
+   "cal": 108,
+   "p": 1.79,
+   "c": 24.01,
+   "f": 0.2,
+   "fb": 1,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 176
+    }
+   ]
+  },
+  {
+   "key": "אטריות סובה",
+   "fdc": 168907,
+   "desc": "Noodles, japanese, soba, cooked",
+   "cal": 99,
+   "p": 5.06,
+   "c": 21.44,
+   "f": 0.1,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 114
+    }
+   ]
+  },
+  {
+   "key": "גריסי פנינה",
+   "fdc": 170285,
+   "desc": "Barley, pearled, cooked",
+   "cal": 123,
+   "p": 2.26,
+   "c": 28.22,
+   "f": 0.44,
+   "fb": 3.8,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 157
+    }
+   ]
+  },
+  {
+   "key": "אורז פרא",
+   "fdc": 168897,
+   "desc": "Wild rice, cooked",
+   "cal": 101,
+   "p": 3.99,
+   "c": 21.34,
+   "f": 0.34,
+   "fb": 1.8,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 164
+    }
+   ]
+  },
+  {
+   "key": "כוסמין",
+   "fdc": 169746,
+   "desc": "Spelt, cooked",
+   "cal": 127,
+   "p": 5.5,
+   "c": 26.44,
+   "f": 0.85,
+   "fb": 3.9,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 194
+    }
+   ]
+  },
+  {
+   "key": "טפיוקה",
+   "fdc": 169717,
+   "desc": "Tapioca, pearl, dry",
+   "cal": 358,
+   "p": 0.19,
+   "c": 88.69,
+   "f": 0.02,
+   "fb": 0.9,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 152
+    }
+   ]
+  },
+  {
+   "key": "קמח תירס",
+   "fdc": 169694,
+   "desc": "Corn flour, masa, enriched, white",
+   "cal": 363,
+   "p": 8.46,
+   "c": 76.59,
+   "f": 3.69,
+   "fb": 6.4,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 114
+    }
+   ]
+  },
+  {
+   "key": "סורגום",
+   "fdc": 169716,
+   "desc": "Sorghum grain",
+   "cal": 329,
+   "p": 10.62,
+   "c": 72.09,
+   "f": 3.46,
+   "fb": 6.7,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 192
+    }
+   ]
+  },
+  {
+   "key": "אמרנט",
+   "fdc": 170682,
+   "desc": "Amaranth grain, uncooked",
+   "cal": 371,
+   "p": 13.56,
+   "c": 65.25,
+   "f": 7.02,
+   "fb": 6.7,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 193
+    }
+   ]
+  },
+  {
+   "key": "טף",
+   "fdc": 169747,
+   "desc": "Teff, uncooked",
+   "cal": 367,
+   "p": 13.3,
+   "c": 73.13,
+   "f": 2.38,
+   "fb": 8,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 193
+    }
+   ]
+  },
+  {
+   "key": "יאם",
+   "fdc": 170071,
+   "desc": "Yam, raw",
+   "cal": 118,
+   "p": 1.53,
+   "c": 27.88,
+   "f": 0.17,
+   "fb": 4.1,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, cubes",
+     "grams": 150
+    }
+   ]
+  },
+  {
+   "key": "לחם לבן",
+   "fdc": 174924,
+   "desc": "Bread, white, commercially prepared",
+   "cal": 266,
+   "p": 8.85,
+   "c": 49.42,
+   "f": 3.33,
+   "fb": 2.7,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "slice",
+     "grams": 29
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 28.35
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, crumbs",
+     "grams": 45
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, cubes",
+     "grams": 35
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "slice, large",
+     "grams": 30
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "slice",
+     "grams": 25
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "slice crust not eaten",
+     "grams": 12
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "slice, thin",
+     "grams": 20
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "slice thin, crust not eaten",
+     "grams": 9
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "slice, very thin",
+     "grams": 15
+    }
+   ]
+  },
+  {
+   "key": "פיתה מקמח מלא",
+   "fdc": 174916,
+   "desc": "Bread, pita, whole-wheat",
+   "cal": 262,
+   "p": 9.8,
+   "c": 55.89,
+   "f": 1.71,
+   "fb": 6.1,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "pita, large (6-1/2\" dia)",
+     "grams": 64
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "pita, small  (4\" dia)",
+     "grams": 28
+    }
+   ]
+  },
+  {
+   "key": "מצות",
+   "fdc": 172740,
+   "desc": "Crackers, matzo, plain",
+   "cal": 395,
+   "p": 10,
+   "c": 83.7,
+   "f": 1.4,
+   "fb": 3,
+   "portions": [
+    {
+     "amount": 0.5,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 14.2
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "matzo",
+     "grams": 28
+    }
+   ]
+  },
+  {
+   "key": "בייגל",
+   "fdc": 174899,
+   "desc": "Bagels, plain, enriched, with calcium propionate (includes onion, poppy, sesame)",
+   "cal": 264,
+   "p": 10.56,
+   "c": 52.38,
+   "f": 1.32,
+   "fb": 1.6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "bagel",
+     "grams": 99
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "mini bagel (2-1/2\" dia)",
+     "grams": 26
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "small bagel (3\" dia)",
+     "grams": 69
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "medium bagel (3-1/2\" to 4\" dia)",
+     "grams": 105
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "large bagel (4-1/2\")",
+     "grams": 131
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 28.35
+    }
+   ]
+  },
+  {
+   "key": "בייגלה",
+   "fdc": 167555,
+   "desc": "Snacks, pretzels, hard, plain, salted",
+   "cal": 384,
+   "p": 10.04,
+   "c": 80.39,
+   "f": 2.93,
+   "fb": 3.4,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 28.35
+    },
+    {
+     "amount": 10,
+     "unit": "undetermined",
+     "text": "twists",
+     "grams": 60
+    }
+   ]
+  },
+  {
+   "key": "פופקורן",
+   "fdc": 167959,
+   "desc": "Snacks, popcorn, air-popped",
+   "cal": 387,
+   "p": 12.94,
+   "c": 77.78,
+   "f": 4.54,
+   "fb": 14.5,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 8
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 28.35
+    }
+   ]
+  },
+  {
+   "key": "פקאן",
+   "fdc": 170182,
+   "desc": "Nuts, pecans",
+   "cal": 691,
+   "p": 9.17,
+   "c": 13.86,
+   "f": 71.97,
+   "fb": 9.6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, chopped",
+     "grams": 109
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, halves",
+     "grams": 99
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz (19 halves)",
+     "grams": 28.35
+    }
+   ]
+  },
+  {
+   "key": "גרעיני דלעת",
+   "fdc": 170556,
+   "desc": "Seeds, pumpkin and squash seed kernels, dried",
+   "cal": 559,
+   "p": 30.23,
+   "c": 10.71,
+   "f": 49.05,
+   "fb": 6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 129
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 28.35
+    }
+   ]
+  },
+  {
+   "key": "גרעיני חמנייה",
+   "fdc": 170562,
+   "desc": "Seeds, sunflower seed kernels, dried",
+   "cal": 584,
+   "p": 20.78,
+   "c": 20,
+   "f": 51.46,
+   "fb": 8.6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, with hulls, edible yield",
+     "grams": 46
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 140
+    }
+   ]
+  },
+  {
+   "key": "זרעי צ'יה",
+   "fdc": 170554,
+   "desc": "Seeds, chia seeds, dried",
+   "cal": 486,
+   "p": 16.54,
+   "c": 42.12,
+   "f": 30.74,
+   "fb": 34.4,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 28.35
+    }
+   ]
+  },
+  {
+   "key": "זרעי פשתן",
+   "fdc": 169414,
+   "desc": "Seeds, flaxseed",
+   "cal": 534,
+   "p": 18.29,
+   "c": 28.88,
+   "f": 42.16,
+   "fb": 27.3,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp, whole",
+     "grams": 10.3
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, whole",
+     "grams": 168
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp, ground",
+     "grams": 7
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tsp, whole",
+     "grams": 3.4
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tsp, ground",
+     "grams": 2.5
+    }
+   ]
+  },
+  {
+   "key": "שמן קוקוס",
+   "fdc": 171412,
+   "desc": "Oil, coconut",
+   "cal": 892,
+   "p": 0,
+   "c": 0,
+   "f": 99.06,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 13.6
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 218
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tsp",
+     "grams": 4.5
+    }
+   ]
+  },
+  {
+   "key": "גהי",
+   "fdc": 173412,
+   "desc": "Butter oil, anhydrous",
+   "cal": 876,
+   "p": 0.28,
+   "c": 0,
+   "f": 99.48,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 12.8
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 205
+    }
+   ]
+  },
+  {
+   "key": "תרד",
+   "fdc": 168462,
+   "desc": "Spinach, raw",
+   "cal": 23,
+   "p": 2.86,
+   "c": 3.63,
+   "f": 0.39,
+   "fb": 2.2,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 30
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "bunch",
+     "grams": 340
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "leaf",
+     "grams": 10
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "package (10 oz)",
+     "grams": 284
+    }
+   ]
+  },
+  {
+   "key": "צנונית",
+   "fdc": 169276,
+   "desc": "Radishes, raw",
+   "cal": 16,
+   "p": 0.68,
+   "c": 3.4,
+   "f": 0.1,
+   "fb": 1.6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup slices",
+     "grams": 116
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "large (1\" to 1-1/4\" dia)",
+     "grams": 9
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "medium (3/4\" to 1\" dia)",
+     "grams": 4.5
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "slice",
+     "grams": 1
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "small",
+     "grams": 2
+    },
+    {
+     "amount": 0.5,
+     "unit": "undetermined",
+     "text": "cup slices",
+     "grams": 58
+    }
+   ]
+  },
+  {
+   "key": "סלק",
+   "fdc": 169145,
+   "desc": "Beets, raw",
+   "cal": 43,
+   "p": 1.61,
+   "c": 9.56,
+   "f": 0.17,
+   "fb": 2.8,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 136
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "beet (2\" dia)",
+     "grams": 82
+    }
+   ]
+  },
+  {
+   "key": "תות שדה",
+   "fdc": 167762,
+   "desc": "Strawberries, raw",
+   "cal": 32,
+   "p": 0.67,
+   "c": 7.68,
+   "f": 0.3,
+   "fb": 2,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, halves",
+     "grams": 152
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, pureed",
+     "grams": 232
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, sliced",
+     "grams": 166
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, whole",
+     "grams": 144
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "extra large (1-5/8\" dia)",
+     "grams": 27
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "large (1-3/8\" dia)",
+     "grams": 18
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "medium (1-1/4\" dia)",
+     "grams": 12
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "pint as purchased, yields",
+     "grams": 357
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "small (1\" dia)",
+     "grams": 7
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "NLEA serving",
+     "grams": 147
+    }
+   ]
+  },
+  {
+   "key": "אוכמניות",
+   "fdc": 171711,
+   "desc": "Blueberries, raw",
+   "cal": 57,
+   "p": 0.74,
+   "c": 14.49,
+   "f": 0.33,
+   "fb": 2.4,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 148
+    },
+    {
+     "amount": 50,
+     "unit": "undetermined",
+     "text": "berries",
+     "grams": 68
+    }
+   ]
+  },
+  {
+   "key": "מנגו",
+   "fdc": 169910,
+   "desc": "Mangos, raw",
+   "cal": 60,
+   "p": 0.82,
+   "c": 14.98,
+   "f": 0.38,
+   "fb": 1.6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup pieces",
+     "grams": 165
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fruit without refuse",
+     "grams": 336
+    }
+   ]
+  },
+  {
+   "key": "אננס",
+   "fdc": 169124,
+   "desc": "Pineapple, raw, all varieties",
+   "cal": 50,
+   "p": 0.54,
+   "c": 13.12,
+   "f": 0.12,
+   "fb": 1.4,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, chunks",
+     "grams": 165
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fruit",
+     "grams": 905
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "slice (4-2/3\" dia x 3/4\" thick)",
+     "grams": 166
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "slice (3-1/2\" dia x 3/4\" thick)",
+     "grams": 84
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "slice, thin (3-1/2\" dia x 1/2\" thick)",
+     "grams": 56
+    }
+   ]
+  },
+  {
+   "key": "קיווי",
+   "fdc": 168153,
+   "desc": "Kiwifruit, green, raw",
+   "cal": 61,
+   "p": 1.14,
+   "c": 14.66,
+   "f": 0.52,
+   "fb": 3,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, sliced",
+     "grams": 180
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fruit (2\" dia)",
+     "grams": 69
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "NLEA serving",
+     "grams": 148
+    }
+   ]
+  },
+  {
+   "key": "רימון",
+   "fdc": 169134,
+   "desc": "Pomegranates, raw",
+   "cal": 83,
+   "p": 1.67,
+   "c": 18.7,
+   "f": 1.17,
+   "fb": 4,
+   "portions": [
+    {
+     "amount": 0.5,
+     "unit": "undetermined",
+     "text": "cup arils (seed/juice sacs)",
+     "grams": 87
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "pomegranate (4\" dia)",
+     "grams": 282
+    }
+   ]
+  },
+  {
+   "key": "פאפאיה",
+   "fdc": 169926,
+   "desc": "Papayas, raw",
+   "cal": 43,
+   "p": 0.47,
+   "c": 10.82,
+   "f": 0.26,
+   "fb": 1.7,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup 1\" pieces",
+     "grams": 145
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, mashed",
+     "grams": 230
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fruit, small",
+     "grams": 157
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fruit, large",
+     "grams": 781
+    }
+   ]
+  },
+  {
+   "key": "ליים",
+   "fdc": 168155,
+   "desc": "Limes, raw",
+   "cal": 30,
+   "p": 0.7,
+   "c": 10.54,
+   "f": 0.2,
+   "fb": 2.8,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fruit (2\" dia)",
+     "grams": 67
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "NLEA serving",
+     "grams": 67
+    }
+   ]
+  },
+  {
+   "key": "פטל",
+   "fdc": 167755,
+   "desc": "Raspberries, raw",
+   "cal": 52,
+   "p": 1.2,
+   "c": 11.94,
+   "f": 0.65,
+   "fb": 6.5,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 123
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "pint as purchased, yields",
+     "grams": 312
+    },
+    {
+     "amount": 10,
+     "unit": "undetermined",
+     "text": "raspberries",
+     "grams": 19
+    }
+   ]
+  },
+  {
+   "key": "ארטישוק",
+   "fdc": 169205,
+   "desc": "Artichokes, (globe or french), raw",
+   "cal": 47,
+   "p": 3.27,
+   "c": 10.51,
+   "f": 0.15,
+   "fb": 5.4,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "artichoke, medium",
+     "grams": 128
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "artichoke, large",
+     "grams": 162
+    }
+   ]
+  },
+  {
+   "key": "סלרי",
+   "fdc": 169988,
+   "desc": "Celery, raw",
+   "cal": 14,
+   "p": 0.69,
+   "c": 2.97,
+   "f": 0.17,
+   "fb": 1.6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup chopped",
+     "grams": 101
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "NLEA serving",
+     "grams": 110
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 7.5
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "stalk, large (11\"-12\" long)",
+     "grams": 64
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "stalk, medium (7-1/2\" - 8\" long)",
+     "grams": 40
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "stalk, small (5\" long)",
+     "grams": 17
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "strip (4\" long)",
+     "grams": 4
+    }
+   ]
+  },
+  {
+   "key": "תאנה",
+   "fdc": 173021,
+   "desc": "Figs, raw",
+   "cal": 74,
+   "p": 0.75,
+   "c": 19.18,
+   "f": 0.3,
+   "fb": 2.9,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "large (2-1/2\" dia)",
+     "grams": 64
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "medium (2-1/4\" dia)",
+     "grams": 50
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "small (1-1/2\" dia)",
+     "grams": 40
+    }
+   ]
+  },
+  {
+   "key": "פסיפלורה",
+   "fdc": 169108,
+   "desc": "Passion-fruit, (granadilla), purple, raw",
+   "cal": 97,
+   "p": 2.2,
+   "c": 23.38,
+   "f": 0.7,
+   "fb": 10.4,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 236
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fruit without refuse",
+     "grams": 18
+    }
+   ]
+  },
+  {
+   "key": "לוקוואט",
+   "fdc": 169908,
+   "desc": "Loquats, raw",
+   "cal": 47,
+   "p": 0.43,
+   "c": 12.14,
+   "f": 0.2,
+   "fb": 1.7,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, cubed",
+     "grams": 149
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "large",
+     "grams": 20
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "medium",
+     "grams": 16
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "small",
+     "grams": 13.6
+    }
+   ]
+  },
+  {
+   "key": "ליצ'י",
+   "fdc": 169086,
+   "desc": "Litchis, raw",
+   "cal": 66,
+   "p": 0.83,
+   "c": 16.53,
+   "f": 0.44,
+   "fb": 1.3,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 190
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fruit without refuse",
+     "grams": 9.6
+    }
+   ]
+  },
+  {
+   "key": "מנגולד",
+   "fdc": 169991,
+   "desc": "Chard, swiss, raw",
+   "cal": 19,
+   "p": 1.8,
+   "c": 3.74,
+   "f": 0.2,
+   "fb": 1.6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 36
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "leaf",
+     "grams": 48
+    }
+   ]
+  },
+  {
+   "key": "צלפים",
+   "fdc": 172238,
+   "desc": "Capers, canned",
+   "cal": 23,
+   "p": 2.36,
+   "c": 4.89,
+   "f": 0.86,
+   "fb": 3.2,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp, drained",
+     "grams": 8.6
+    }
+   ]
+  },
+  {
+   "key": "אפרסמון",
+   "fdc": 169941,
+   "desc": "Persimmons, japanese, raw",
+   "cal": 70,
+   "p": 0.58,
+   "c": 18.59,
+   "f": 0.19,
+   "fb": 3.6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fruit (2-1/2\" dia)",
+     "grams": 168
+    }
+   ]
+  },
+  {
+   "key": "דייקון",
+   "fdc": 168451,
+   "desc": "Radishes, oriental, raw",
+   "cal": 18,
+   "p": 0.6,
+   "c": 4.1,
+   "f": 0.1,
+   "fb": 1.6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup slices",
+     "grams": 116
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "radish (7\" long)",
+     "grams": 338
+    }
+   ]
+  },
+  {
+   "key": "במיה",
+   "fdc": 169260,
+   "desc": "Okra, raw",
+   "cal": 33,
+   "p": 1.93,
+   "c": 7.45,
+   "f": 0.19,
+   "fb": 3.2,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 100
+    },
+    {
+     "amount": 8,
+     "unit": "undetermined",
+     "text": "pods (3\" long)",
+     "grams": 95
+    }
+   ]
+  },
+  {
+   "key": "שורש לוטוס",
+   "fdc": 169250,
+   "desc": "Lotus root, raw",
+   "cal": 74,
+   "p": 2.6,
+   "c": 17.23,
+   "f": 0.1,
+   "fb": 4.9,
+   "portions": [
+    {
+     "amount": 10,
+     "unit": "undetermined",
+     "text": "slices (2-1/2\" dia)",
+     "grams": 81
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "root (9-1/2\" long)",
+     "grams": 115
+    }
+   ]
+  },
+  {
+   "key": "לבבות דקל",
+   "fdc": 168569,
+   "desc": "Hearts of palm, canned",
+   "cal": 28,
+   "p": 2.52,
+   "c": 4.62,
+   "f": 0.62,
+   "fb": 2.4,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 146
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "piece",
+     "grams": 33
+    }
+   ]
+  },
+  {
+   "key": "ארטישוק ירושלמי",
+   "fdc": 169236,
+   "desc": "Jerusalem-artichokes, raw",
+   "cal": 73,
+   "p": 2,
+   "c": 17.44,
+   "f": 0.01,
+   "fb": 1.6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup slices",
+     "grams": 150
+    }
+   ]
+  },
+  {
+   "key": "קולרבי",
+   "fdc": 168424,
+   "desc": "Kohlrabi, raw",
+   "cal": 27,
+   "p": 1.7,
+   "c": 6.2,
+   "f": 0.1,
+   "fb": 3.6,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 135
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "slice",
+     "grams": 16
+    }
+   ]
+  },
+  {
+   "key": "רגלת הגינה",
+   "fdc": 169274,
+   "desc": "Purslane, raw",
+   "cal": 20,
+   "p": 2.03,
+   "c": 3.39,
+   "f": 0.36,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 43
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "plant",
+     "grams": 3
+    }
+   ]
+  },
+  {
+   "key": "פיג'ויה",
+   "fdc": 168176,
+   "desc": "Feijoa, raw",
+   "cal": 61,
+   "p": 0.71,
+   "c": 15.21,
+   "f": 0.42,
+   "fb": 6.4,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, pureed",
+     "grams": 243
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fruit without peel",
+     "grams": 42
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup 1/2\" chunks",
+     "grams": 205
+    }
+   ]
+  },
+  {
+   "key": "צימוקים זהובים",
+   "fdc": 168164,
+   "desc": "Raisins, golden, seedless",
+   "cal": 301,
+   "p": 3.28,
+   "c": 80.02,
+   "f": 0.2,
+   "fb": 3.3,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, packed",
+     "grams": 165
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup (not packed)",
+     "grams": 145
+    }
+   ]
+  },
+  {
+   "key": "חמוציות מסוכרות",
+   "fdc": 171723,
+   "desc": "Cranberries, dried, sweetened (Includes foods for USDA's Food Distribution Program)",
+   "cal": 308,
+   "p": 0.17,
+   "c": 82.8,
+   "f": 1.09,
+   "fb": 5.3,
+   "portions": [
+    {
+     "amount": 0.25,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 40
+    }
+   ]
+  },
+  {
+   "key": "רוטב סויה",
+   "fdc": 174277,
+   "desc": "Soy sauce made from soy and wheat (shoyu)",
+   "cal": 53,
+   "p": 8.14,
+   "c": 4.93,
+   "f": 0.57,
+   "fb": 0.8,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 16
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tsp",
+     "grams": 5.3
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 255
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "individual packet",
+     "grams": 8.9
+    }
+   ]
+  },
+  {
+   "key": "מיסו",
+   "fdc": 172442,
+   "desc": "Miso",
+   "cal": 198,
+   "p": 12.79,
+   "c": 25.37,
+   "f": 6.01,
+   "fb": 5.4,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 17
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 275
+    }
+   ]
+  },
+  {
+   "key": "סריראצ'ה",
+   "fdc": 171186,
+   "desc": "Sauce, hot chile, sriracha",
+   "cal": 93,
+   "p": 1.93,
+   "c": 19.16,
+   "f": 0.93,
+   "fb": 2.2,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tsp",
+     "grams": 6.5
+    }
+   ]
+  },
+  {
+   "key": "רוטב דגים",
+   "fdc": 174531,
+   "desc": "Sauce, fish, ready-to-serve",
+   "cal": 35,
+   "p": 5.06,
+   "c": 3.64,
+   "f": 0.01,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 18
+    }
+   ]
+  },
+  {
+   "key": "מרשמלו",
+   "fdc": 167995,
+   "desc": "Candies, marshmallows",
+   "cal": 318,
+   "p": 1.8,
+   "c": 81.3,
+   "f": 0.2,
+   "fb": 0.1,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup of miniature",
+     "grams": 50
+    },
+    {
+     "amount": 10,
+     "unit": "undetermined",
+     "text": "miniatures",
+     "grams": 7
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "regular",
+     "grams": 7.2
+    }
+   ]
+  },
+  {
+   "key": "מיץ רימונים",
+   "fdc": 167787,
+   "desc": "Pomegranate juice, bottled",
+   "cal": 54,
+   "p": 0.15,
+   "c": 13.13,
+   "f": 0.29,
+   "fb": 0.1,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 249
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 31.4
+    }
+   ]
+  },
+  {
+   "key": "וודקה",
+   "fdc": 174818,
+   "desc": "Alcoholic beverage, distilled, vodka, 80 proof",
+   "cal": 231,
+   "p": 0,
+   "c": 0,
+   "f": 0,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 27.8
+    },
+    {
+     "amount": 1.5,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 42
+    }
+   ]
+  },
+  {
+   "key": "ויסקי",
+   "fdc": 174819,
+   "desc": "Alcoholic beverage, distilled, whiskey, 86 proof",
+   "cal": 250,
+   "p": 0,
+   "c": 0.1,
+   "f": 0,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 27.8
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "jigger (1.5 fl oz)",
+     "grams": 42
+    }
+   ]
+  },
+  {
+   "key": "תה ירוק",
+   "fdc": 171917,
+   "desc": "Beverages, tea, green, brewed, regular",
+   "cal": 1,
+   "p": 0.22,
+   "c": 0,
+   "f": 0,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 245
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 29.6
+    }
+   ]
+  },
+  {
+   "key": "אספרסו",
+   "fdc": 171891,
+   "desc": "Beverages, coffee, brewed, espresso, restaurant-prepared",
+   "cal": 9,
+   "p": 0.12,
+   "c": 1.67,
+   "f": 0.18,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 29.6
+    }
+   ]
+  },
+  {
+   "key": "סוכר",
+   "fdc": 169655,
+   "desc": "Sugars, granulated",
+   "cal": 387,
+   "p": 0,
+   "c": 99.98,
+   "f": 0,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "serving packet",
+     "grams": 2.8
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tsp",
+     "grams": 4.2
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 200
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "serving 1 cube",
+     "grams": 2.3
+    }
+   ]
+  },
+  {
+   "key": "קמח",
+   "fdc": 168894,
+   "desc": "Wheat flour, white, all-purpose, enriched, bleached",
+   "cal": 364,
+   "p": 10.33,
+   "c": 76.31,
+   "f": 0.98,
+   "fb": 2.7,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 125
+    }
+   ]
+  },
+  {
+   "key": "סוכר חום",
+   "fdc": 168833,
+   "desc": "Sugars, brown",
+   "cal": 380,
+   "p": 0.12,
+   "c": 98.09,
+   "f": 0,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tsp unpacked",
+     "grams": 3
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup packed",
+     "grams": 220
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup unpacked",
+     "grams": 145
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tsp packed",
+     "grams": 4.6
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tsp brownulated",
+     "grams": 3.2
+    }
+   ]
+  },
+  {
+   "key": "סירופ מייפל",
+   "fdc": 169661,
+   "desc": "Syrups, maple",
+   "cal": 260,
+   "p": 0.04,
+   "c": 67.04,
+   "f": 0.06,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 20
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "serving 1/4 cup",
+     "grams": 83
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 315
+    }
+   ]
+  },
+  {
+   "key": "קקאו",
+   "fdc": 169593,
+   "desc": "Cocoa, dry powder, unsweetened",
+   "cal": 228,
+   "p": 19.6,
+   "c": 57.9,
+   "f": 13.7,
+   "fb": 37,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 86
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 5.4
+    }
+   ]
+  },
+  {
+   "key": "שמן קנולה",
+   "fdc": 172336,
+   "desc": "Oil, canola",
+   "cal": 884,
+   "p": 0,
+   "c": 0,
+   "f": 100,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 14
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 218
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tsp",
+     "grams": 4.5
+    }
+   ]
+  },
+  {
+   "key": "שמן חמניות",
+   "fdc": 171025,
+   "desc": "Oil, sunflower, linoleic, (approx. 65%)",
+   "cal": 884,
+   "p": 0,
+   "c": 0,
+   "f": 100,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 13.6
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 218
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tsp",
+     "grams": 4.5
+    }
+   ]
+  },
+  {
+   "key": "שמן שומשום",
+   "fdc": 171016,
+   "desc": "Oil, sesame, salad or cooking",
+   "cal": 884,
+   "p": 0,
+   "c": 0,
+   "f": 100,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tablespoon",
+     "grams": 13.6
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 218
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tsp",
+     "grams": 4.5
+    }
+   ]
+  },
+  {
+   "key": "צימוקים",
+   "fdc": 168165,
+   "desc": "Raisins, dark, seedless",
+   "cal": 299,
+   "p": 3.3,
+   "c": 79.32,
+   "f": 0.25,
+   "fb": 4.5,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, packed",
+     "grams": 165
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup (not packed)",
+     "grams": 145
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "miniature box (.5 oz)",
+     "grams": 14
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "small box (1.5 oz)",
+     "grams": 43
+    },
+    {
+     "amount": 50,
+     "unit": "undetermined",
+     "text": "raisins",
+     "grams": 26
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz (60 raisins)",
+     "grams": 28.35
+    }
+   ]
+  },
+  {
+   "key": "בוטנים",
+   "fdc": 172430,
+   "desc": "Peanuts, all types, raw",
+   "cal": 567,
+   "p": 25.8,
+   "c": 16.13,
+   "f": 49.24,
+   "fb": 8.5,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 28.35
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 146
+    }
+   ]
+  },
+  {
+   "key": "אגוזי לוז",
+   "fdc": 170581,
+   "desc": "Nuts, hazelnuts or filberts",
+   "cal": 628,
+   "p": 14.95,
+   "c": 16.7,
+   "f": 60.75,
+   "fb": 9.7,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, chopped",
+     "grams": 115
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, ground",
+     "grams": 75
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, whole",
+     "grams": 135
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz (21 whole kernels)",
+     "grams": 28.35
+    },
+    {
+     "amount": 10,
+     "unit": "undetermined",
+     "text": "nuts",
+     "grams": 14
+    }
+   ]
+  },
+  {
+   "key": "שומשום",
+   "fdc": 170150,
+   "desc": "Seeds, sesame seeds, whole, dried",
+   "cal": 573,
+   "p": 17.73,
+   "c": 23.45,
+   "f": 49.67,
+   "fb": 11.8,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 144
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 9
+    }
+   ]
+  },
+  {
+   "key": "קוקוס מגורד",
+   "fdc": 170170,
+   "desc": "Nuts, coconut meat, dried (desiccated), not sweetened",
+   "cal": 660,
+   "p": 6.88,
+   "c": 23.65,
+   "f": 64.53,
+   "fb": 16.3,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 28.35
+    }
+   ]
+  },
+  {
+   "key": "שמנת מתוקה",
+   "fdc": 170859,
+   "desc": "Cream, fluid, heavy whipping",
+   "cal": 340,
+   "p": 2.84,
+   "c": 2.84,
+   "f": 36.08,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, whipped",
+     "grams": 120
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup, fluid (yields 2 cups whipped)",
+     "grams": 238
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 15
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 29.8
+    }
+   ]
+  },
+  {
+   "key": "גבינת עיזים",
+   "fdc": 173435,
+   "desc": "Cheese, goat, soft type",
+   "cal": 264,
+   "p": 18.52,
+   "c": 0,
+   "f": 21.08,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "oz",
+     "grams": 28.35
+    }
+   ]
+  },
+  {
+   "key": "מיץ תפוחים",
+   "fdc": 173933,
+   "desc": "Apple juice, canned or bottled, unsweetened, without added ascorbic acid",
+   "cal": 46,
+   "p": 0.1,
+   "c": 11.3,
+   "f": 0.13,
+   "fb": 0.2,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 248
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 31
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "drink box (8.45 fl oz)",
+     "grams": 262
+    }
+   ]
+  },
+  {
+   "key": "מיץ ענבים",
+   "fdc": 173042,
+   "desc": "Grape juice, canned or bottled, unsweetened, without added ascorbic acid",
+   "cal": 60,
+   "p": 0.37,
+   "c": 14.77,
+   "f": 0.13,
+   "fb": 0.2,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 253
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 31.6
+    }
+   ]
+  },
+  {
+   "key": "מיץ גזר",
+   "fdc": 170491,
+   "desc": "Carrot juice, canned",
+   "cal": 40,
+   "p": 0.95,
+   "c": 9.28,
+   "f": 0.15,
+   "fb": 0.8,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 236
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 29.5
+    }
+   ]
+  },
+  {
+   "key": "מיץ עגבניות",
+   "fdc": 170545,
+   "desc": "Tomato juice, canned, without salt added",
+   "cal": 17,
+   "p": 0.85,
+   "c": 3.53,
+   "f": 0.29,
+   "fb": 0.4,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 243
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 30.4
+    },
+    {
+     "amount": 6,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 182
+    }
+   ]
+  },
+  {
+   "key": "מיץ לימון",
+   "fdc": 167747,
+   "desc": "Lemon juice, raw",
+   "cal": 22,
+   "p": 0.35,
+   "c": 6.9,
+   "f": 0.24,
+   "fb": 0.3,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 244
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 30.5
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "lemon yields",
+     "grams": 48
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "wedge yields",
+     "grams": 5.9
+    }
+   ]
+  },
+  {
+   "key": "מיץ אננס",
+   "fdc": 169947,
+   "desc": "Pineapple juice, canned or bottled, unsweetened, without added ascorbic acid",
+   "cal": 53,
+   "p": 0.36,
+   "c": 12.87,
+   "f": 0.12,
+   "fb": 0.2,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 250
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "fl oz",
+     "grams": 31.3
+    }
+   ]
+  },
+  {
+   "key": "רסק עגבניות",
+   "fdc": 170459,
+   "desc": "Tomato products, canned, paste, without salt added",
+   "cal": 82,
+   "p": 4.32,
+   "c": 18.91,
+   "f": 0.47,
+   "fb": 4.1,
+   "portions": [
+    {
+     "amount": 0.25,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 66
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 262
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 16
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "can (6 oz)",
+     "grams": 170
+    }
+   ]
+  },
+  {
+   "key": "רוטב עגבניות",
+   "fdc": 171192,
+   "desc": "Sauce, pasta, spaghetti/marinara, ready-to-serve",
+   "cal": 50,
+   "p": 1.39,
+   "c": 7.43,
+   "f": 1.61,
+   "fb": 1.8,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "serving 1/2 cup",
+     "grams": 132
+    }
+   ]
+  },
+  {
+   "key": "רוטב ברביקיו",
+   "fdc": 174523,
+   "desc": "Sauce, barbecue",
+   "cal": 172,
+   "p": 0.82,
+   "c": 40.77,
+   "f": 0.63,
+   "fb": 0.9,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 17
+    },
+    {
+     "amount": 0.5,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 143
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 279
+    }
+   ]
+  },
+  {
+   "key": "חומץ",
+   "fdc": 172237,
+   "desc": "Vinegar, distilled",
+   "cal": 18,
+   "p": 0,
+   "c": 0.04,
+   "f": 0,
+   "fb": 0,
+   "portions": [
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tbsp",
+     "grams": 14.9
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "cup",
+     "grams": 238
+    },
+    {
+     "amount": 1,
+     "unit": "undetermined",
+     "text": "tsp",
+     "grams": 5
+    }
+   ]
   }
  ]
 }

@@ -1,7 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const { OAuth2Client } = require('google-auth-library');
@@ -61,10 +60,9 @@ function hashResetCode(code) {
 }
 
 // ── Reset-code email delivery ────────────────────────────────────────────
-// Primary transport is Resend's HTTP API (https, port 443). Render's free
-// tier can't open an outbound SMTP connection to Gmail (it times out), so
-// nodemailer/SMTP is only a local-dev fallback used when RESEND_API_KEY isn't
-// set. The HTTP API isn't affected by the SMTP block.
+// The only transport is Resend's HTTP API (https, port 443). Render's free
+// tier can't open an outbound SMTP connection (it times out), which is why the
+// old nodemailer/SMTP fallback was dropped.
 //
 // Required env in production:
 //   RESEND_API_KEY  — from resend.com → API Keys
@@ -115,23 +113,15 @@ async function sendResetEmail(to, code) {
     }
   }
 
-  // Fallback: direct SMTP (works locally; blocked on Render free tier).
-  const port = parseInt(process.env.EMAIL_PORT || '587', 10);
-  const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port,
-    secure: port === 465,
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-    connectionTimeout: 12000,
-    greetingTimeout: 8000,
-    socketTimeout: 15000,
-  });
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER ? `"Areto" <${process.env.EMAIL_USER}>` : from,
-    to,
-    subject: 'Areto - קוד איפוס סיסמה',
-    html: RESET_EMAIL_HTML(code),
-  });
+  // No mail provider configured. There is deliberately no SMTP fallback any
+  // more (nodemailer was removed: it was a dev-only path and carried a
+  // high-severity advisory). Locally, set RESET_CODE_LOG=1 to print the code to
+  // the console instead; it is never logged otherwise.
+  if (process.env.RESET_CODE_LOG === '1' && process.env.NODE_ENV !== 'production') {
+    console.log(`[dev] reset code for ${to}: ${code}`);
+    return;
+  }
+  throw new Error('Email delivery is not configured (set RESEND_API_KEY)');
 }
 
 // POST /auth/register
@@ -141,8 +131,8 @@ router.post(
   [
     body('email').isEmail().withMessage('כתובת אימייל לא תקינה'),
     body('password')
-      .isLength({ min: 8 })
-      .withMessage('הסיסמה חייבת להכיל לפחות 8 תווים')
+      .isLength({ min: 8, max: 128 })
+      .withMessage('הסיסמה חייבת להכיל 8 עד 128 תווים')
       .matches(/\d/)
       .withMessage('הסיסמה חייבת לכלול לפחות ספרה אחת'),
   ],
@@ -376,8 +366,16 @@ router.post(
       user.resetCodeAttempts = 0;
       await user.save();
 
-      // Send the code (Brevo HTTP API in prod, SMTP fallback locally).
-      await sendResetEmail(email, code);
+      // Send the code through Resend. A provider failure is logged but the
+      // response stays the same generic one: answering 500 only for addresses
+      // that have an account (and 200 for the rest) would let anyone probe
+      // which emails are registered whenever the provider is down. The user
+      // can retry, or recover through Google (the client says so).
+      try {
+        await sendResetEmail(email, code);
+      } catch (sendErr) {
+        console.error('Reset email delivery failed:', sendErr.message);
+      }
 
       res.json({
         message: 'אם האימייל קיים במערכת, נשלח קוד איפוס',
@@ -400,8 +398,8 @@ router.post(
     // multibyte string (e.g. Hebrew letters) crashed the old buffer compare.
     body('code').matches(/^\d{6}$/).withMessage('קוד לא תקין'),
     body('newPassword')
-      .isLength({ min: 8 })
-      .withMessage('הסיסמה חייבת להכיל לפחות 8 תווים')
+      .isLength({ min: 8, max: 128 })
+      .withMessage('הסיסמה חייבת להכיל 8 עד 128 תווים')
       .matches(/\d/)
       .withMessage('הסיסמה חייבת לכלול לפחות ספרה אחת'),
   ],

@@ -82,6 +82,17 @@ export function recommend({ recent, targetReps, tooHardAt = null, now = Date.now
   return { action: 'hold', weight: last.weight, reps, reason: { code: last.missedBottom ? 'missedOnce' : 'building', reps: last.minReps } };
 }
 
+// A short night the user approved (see sleepAdvice.mjs): take one weight step off
+// the suggestion. Still only a suggestion — nothing is applied until the user
+// taps it. Bodyweight and already-lowered suggestions are left alone, and an
+// "increase" simply becomes "stay where you were" (one step down from the bump).
+export function easeForSleep(rec) {
+  if (!rec || !(rec.weight > 0) || rec.action === 'decrease') return rec;
+  const eased = Math.max(0, roundHalf(rec.weight - weightStep(rec.weight - 0.01)));
+  if (!(eased < rec.weight)) return rec;
+  return { ...rec, weight: eased, reason: { code: 'sleepEase', from: rec.weight, base: rec.reason?.code } };
+}
+
 // ── "too hard" flags and the on/off preference (client-only) ────────────
 const FLAGS_KEY = 'areto:adapt:tooHard';
 const PREF_KEY = 'areto:adapt:enabled';
@@ -121,6 +132,7 @@ export function explain(rec, isHe) {
     case 'topRangeBodyweight': return isHe ? `עשית ${r.reps} חזרות בכל הסטים, אפשר להוסיף חזרה` : `You did ${r.reps} reps on every set — add one`;
     case 'tooHard': return isHe ? 'סימנת שהתרגיל היה קשה מדי, אז מורידים קצת' : 'You flagged it as too hard, so a little lighter';
     case 'missedTwice': return isHe ? 'פעמיים ברציפות לא הגעת למינימום החזרות, אז מורידים קצת' : 'You missed the minimum reps twice in a row, so a little lighter';
+    case 'sleepEase': return isHe ? `בגלל השינה הקצרה, צעד אחד קל יותר מ-${r.from} ${kg}` : `Because of the short sleep, one step lighter than ${r.from} ${kg}`;
     case 'missedOnce': return isHe ? 'בפעם שעברה לא הגעת למינימום החזרות, נשארים באותו משקל' : 'You missed the minimum reps last time — same weight';
     default: return isHe ? 'אותו משקל, חזרה אחת יותר מפעם שעברה' : 'Same weight, one more rep than last time';
   }

@@ -1,7 +1,5 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors');
-const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const path = require('path');
 require('dotenv').config();
@@ -14,7 +12,7 @@ const adminRoutes = require('./routes/admin');
 const progressionRoutes = require('./routes/progression');
 const sleepRoutes = require('./routes/sleep');
 
-const rateLimit = require('express-rate-limit');
+const { applyBaseMiddleware } = require('./utils/baseMiddleware');
 
 const app = express();
 
@@ -22,66 +20,10 @@ const app = express();
 // from X-Forwarded-For instead of the internal proxy address.
 app.set('trust proxy', 1);
 
-// Global rate limiter — applies to every authenticated API call.
+// helmet → CORS → global rate limiter, in that order (see utils/baseMiddleware.js: CORS must come before the
+// limiter so a 429 still carries CORS headers, and the limiter counts per signed-in user, else per IP).
 // Auth-specific routes have their own stricter limiters in routes/auth.js.
-const globalLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Too many requests', messageHe: 'יותר מדי בקשות, נסה שוב עוד דקה' },
-});
-app.use(globalLimiter);
-
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", 'https://accounts.google.com', 'https://apis.google.com'],
-      frameSrc: ["'self'", 'https://accounts.google.com'],
-      connectSrc: ["'self'", 'https://accounts.google.com', 'https://oauth2.googleapis.com', 'https://www.googleapis.com'],
-      imgSrc: ["'self'", 'data:', 'https://lh3.googleusercontent.com'],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-    },
-  },
-}));
-
-// CORS — in production we whitelist explicit origins. Locally (no
-// CORS_ORIGIN env) we fall back to "allow any" for convenient dev.
-const corsAllowlist = (process.env.CORS_ORIGIN || '')
-  .split(',')
-  .map((o) => o.trim())
-  .filter(Boolean);
-// Always allow Capacitor's native WebView origins so the future Android
-// build keeps working without server config changes.
-if (corsAllowlist.length === 0 && process.env.NODE_ENV === 'production') {
-  console.warn('WARNING: CORS_ORIGIN is empty in production — every origin is allowed. Set it on the host.');
-}
-const NATIVE_ORIGINS = ['capacitor://localhost', 'https://localhost', 'http://localhost'];
-
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);              // curl/same-origin
-    if (corsAllowlist.length === 0) return callback(null, true); // dev mode
-    const allowed = [...corsAllowlist, ...NATIVE_ORIGINS];
-    if (allowed.includes(origin)) return callback(null, true);
-    // Allow subdomains of an allowlisted host only — match against the
-    // origin's *parsed* hostname with a leading-dot suffix check, so an
-    // allowlist of "example.com" does not match "evilexample.com".
-    let originHost;
-    try { originHost = new URL(origin).hostname; }
-    catch { return callback(new Error(`CORS blocked: ${origin}`)); }
-    const ok = allowed.some((o) => {
-      let allowHost;
-      try { allowHost = new URL(o).hostname; } catch { return false; }
-      return originHost === allowHost || originHost.endsWith('.' + allowHost);
-    });
-    if (ok) return callback(null, true);
-    return callback(new Error(`CORS blocked: ${origin}`));
-  },
-  credentials: true,
-}));
+applyBaseMiddleware(app);
 
 app.use(express.json({ limit: '1mb' }));
 app.use(mongoSanitize());
@@ -97,7 +39,7 @@ app.use('/sleep', sleepRoutes);
 
 // Bump on each release so a deployed build is verifiable from the health
 // endpoints (poll GET / or /health after pushing to confirm Render redeployed).
-const API_VERSION = '1.0.9';
+const API_VERSION = '1.0.10';
 
 // Health check
 app.get('/health', (req, res) => {
@@ -122,10 +64,7 @@ if (fs.existsSync(path.join(clientDist, 'index.html'))) {
 }
 
 // Global error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Internal server error', messageHe: 'שגיאת שרת פנימית' });
-});
+app.use(require('./utils/errorHandler').errorHandler);
 
 // Connect to MongoDB and start server
 const PORT = process.env.PORT || 3001;

@@ -6,6 +6,9 @@ import { summarizeWorkout, exerciseDetail, wasPerformed, compareWithPrevious } f
 import ExerciseSwapSheet from './ExerciseSwapSheet';
 import { easierVariant, equipmentOk, normalizeUserEquipment } from '../lib/exerciseLibrary.mjs';
 import { toHomeExercises } from '../lib/homeExercises.mjs';
+import useSleepAdvice from '../lib/useSleepAdvice';
+import SleepAdviceCard from './SleepAdviceCard';
+import { isAdaptEnabled } from '../lib/workoutAdapt.mjs';
 
 // Muscle group translations
 const muscleGroupMap = {
@@ -395,6 +398,11 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   const showWeek = !resumeAvailable && !alreadyTrainedToday && weeklyLimitReached;
   const screenReady = !showActive && !showDone && !showWeek;
 
+  // Last night's sleep → a suggestion (approve / skip) or a quiet note. Without a
+  // sleep log today this is a no-op. Called before the early return below so the
+  // hook order never changes.
+  const sleepAdv = useSleepAdvice(api, screenReady);
+
   // Full-screen live session overlay takes over everything else.
   if (session) {
     return (
@@ -416,7 +424,8 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
         }}
         onDiscard={() => {
           setSession(null);
-          setResumeAvailable(null);
+          // Leaving keeps a session that has progress (WorkoutSession decides); show the resume card for it.
+          setResumeAvailable(readActiveSession());
         }}
       />
     );
@@ -588,6 +597,8 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               </button>
             </div>
           </div>
+
+          <SleepAdviceCard advice={sleepAdv.advice} choice={sleepAdv.choice} onChoose={sleepAdv.choose} adaptOff={!isAdaptEnabled()} />
 
           {/* Next workout card — accent-tinted surface, so the title stays
               readable in light mode (the old hardcoded dark gradient left it

@@ -4,7 +4,10 @@ import { getExerciseCue } from '../lib/exerciseCues';
 import { getExerciseVideo, getExerciseVideoSlug } from '../lib/exerciseVideos.mjs';
 import VIDEO_EDGES from '../lib/exerciseVideoEdges.json';
 import ExerciseSwapSheet from './ExerciseSwapSheet';
-import { recommend, explain, isAdaptEnabled, markTooHard, restoreTooHard, tooHardAtFor } from '../lib/workoutAdapt.mjs';
+import { recommend, explain, isAdaptEnabled, markTooHard, restoreTooHard, tooHardAtFor, easeForSleep } from '../lib/workoutAdapt.mjs';
+import useSleepAdvice from '../lib/useSleepAdvice';
+import SleepAdviceCard from './SleepAdviceCard';
+import { keepOnLeave } from '../lib/sessionKeep.mjs';
 import { easierVariant, equipmentOk, normalizeUserEquipment } from '../lib/exerciseLibrary.mjs';
 
 const videoFor = (name) => getExerciseVideo(name, import.meta.env.BASE_URL);
@@ -144,6 +147,8 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
   const [swapOpen, setSwapOpen] = useState(false);
   const [swapUndo, setSwapUndo] = useState(null); // { idx, prev, to, permanent } — shown for a few seconds
   const [xpAnimated, setXpAnimated] = useState(0);
+  // Today's sleep log → an approve/skip suggestion; approved = lighter weight suggestions.
+  const sleepAdv = useSleepAdvice(api, true);
   const perfApplied = useRef(!!restore);
   const wakeLockRef = useRef(null);
   const touchXRef = useRef(null);
@@ -485,8 +490,11 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
     }
   }
 
+  // The dialog says "Your progress is saved — you can continue later", so leaving must not delete
+  // the saved session when something was done (it used to: QA finding F4). With nothing done there
+  // is nothing to resume, so it is dropped as before.
   function handleExit() {
-    clearActiveSession();
+    if (!keepOnLeave(exs)) clearActiveSession();
     onDiscard();
   }
 
@@ -610,9 +618,12 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
   const primaryName = isHe ? cur.name : getEnglishName(cur.name);
   const perf = lastPerf[cur.name];
   // Progression suggestion from the user's own history (can be switched off in Settings).
-  const adaptRec = (isAdaptEnabled() && perf && cur.mode === 'reps')
+  const baseRec = (isAdaptEnabled() && perf && cur.mode === 'reps')
     ? recommend({ recent: perf.recent || [{ date: perf.date, sets: perf.sets }], targetReps: cur.targetReps, tooHardAt: tooHardAtFor(cur.name) })
     : null;
+  // A short night the user approved: the suggestion is one weight step lighter
+  // (still just a suggestion — nothing is applied until it is tapped).
+  const adaptRec = sleepAdv.easeOn ? easeForSleep(baseRec) : baseRec;
   const curSetIdx = cur.sets.findIndex(s => !s.done);
   const allDone = exs.every(e => e.sets.every(s => s.done));
   const restSecs = restSecondsFor(cur);
@@ -680,6 +691,13 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
               <button type="button" className="ws-btn-ghost" onClick={() => setConfirmExit(false)}>{isHe ? 'המשך אימון' : 'Keep training'}</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Short night, not answered yet: ask once, right where the weights are chosen */}
+      {sleepAdv.advice.level === 'adjust' && sleepAdv.choice === null && (
+        <div style={{ marginTop: 12 }}>
+          <SleepAdviceCard compact advice={sleepAdv.advice} choice={sleepAdv.choice} onChoose={sleepAdv.choose} adaptOff={!isAdaptEnabled()} />
         </div>
       )}
 
@@ -933,7 +951,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
                 {isHe ? 'התחל תרגיל' : 'Start exercise'}
               </button>
               <button type="button" className="ws-transition__demo" onClick={() => openTutorialFor(toEx.name)}>
-                {isHe ? 'צפייה בהדגמה' : 'Watch demo'}
+                {isHe ? 'צפייה בהדגמה ביוטיוב' : 'Watch demo on YouTube'}
               </button>
             </div>
           </div>

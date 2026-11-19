@@ -493,8 +493,8 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
         ) : (
           <div style={{ textAlign: 'center', padding: '20px 12px', color: 'var(--text-3)', fontSize: 13 }}>
             {isHe
-              ? 'עדיין לא רשמת שינה — הוסף את הלילה האחרון בלוח המחוונים כדי לקבל XP ומדידת התאוששות.'
-              : 'No sleep logged yet — log last night on the dashboard to earn XP and track recovery.'}
+              ? 'עדיין לא רשמת שינה — הוסף את הלילה האחרון בלוח המחוונים כדי לקבל XP, והמלצה לאימון ולתזונה אחרי לילה קצר.'
+              : 'No sleep logged yet — log last night on the dashboard to earn XP and get workout and nutrition tips after a short night.'}
           </div>
         )}
       </div>

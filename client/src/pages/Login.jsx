@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { useLegal } from '../context/LegalContext';
+import { friendlyError } from '../lib/netError.mjs';
 
 const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
 
@@ -258,7 +259,7 @@ export default function Login() {
       setRecoveryAuth(null);
       navigate(recoveryAuth.user.onboardingComplete ? '/dashboard' : '/onboarding');
     } catch (err) {
-      setError(err.message);
+      setError(friendlyError(err, isHe));
     } finally {
       setLoading(false);
     }
@@ -281,11 +282,16 @@ export default function Login() {
       if (!res.ok) {
         throw new Error(pickServerMsg(data, 'שגיאה בשליחת הקוד', 'Failed to send the code'));
       }
-      setMessage(t.codeSent);
+      // The server answers the same way whether or not the address has an
+      // account (so it can't be probed), so the note says "if" and points to
+      // the spam folder and to Google as the fallback.
+      setMessage(isHe
+        ? 'אם יש חשבון עם האימייל הזה, נשלח אליו קוד. לא הגיע? בדוק בספאם או אמת עם Google.'
+        : 'If an account exists for this email, we sent it a code. Nothing yet? Check spam, or verify with Google.');
       setResetMode('code');
       setResendIn(45);
     } catch (err) {
-      setError(err.message);
+      setError(friendlyError(err, isHe));
     } finally {
       setLoading(false);
     }
@@ -324,7 +330,7 @@ export default function Login() {
       // email they just reset — they only have to type the new password.
       setEmail(resetEmail.trim());
     } catch (err) {
-      setError(err.message);
+      setError(friendlyError(err, isHe));
     } finally {
       setLoading(false);
     }
@@ -452,10 +458,10 @@ export default function Login() {
               <label className="field-label" style={{ marginBottom: 0 }}>{t.password}</label>
               <a
                 onClick={() => {
-                  // Account recovery is handled via Google Sign-In (no email
-                  // service to maintain). The email-code flow still exists in
-                  // code and can be re-enabled if SMTP/an email API is ever
-                  // configured — see resetMode 'email'.
+                  // Recovery opens on "verify with Google" (fastest when the
+                  // address is a Google one) and offers the email-code flow
+                  // (resetMode 'email') for everyone else. The server sends
+                  // the code through Resend (RESEND_API_KEY / EMAIL_FROM).
                   setResetEmail(email);
                   setResetMode('google');
                 }}
@@ -619,9 +625,17 @@ export default function Login() {
                 </button>
                 <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 14, lineHeight: 1.5, textAlign: 'center' }}>
                   {isHe
-                    ? 'נרשמת עם אימייל שאינו Google? פנה אלינו ונשחזר לך את החשבון.'
-                    : 'Signed up with a non-Google email? Contact us and we’ll recover your account.'}
+                    ? 'נרשמת עם אימייל שאינו Google, או שאין לך גישה לחשבון Google שלו?'
+                    : 'Signed up with a non-Google email, or can’t use Google for it?'}
                 </p>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => { setError(''); setMessage(''); setResetMode('email'); }}
+                  style={{ marginTop: 6, width: '100%', justifyContent: 'center' }}
+                >
+                  <span>{isHe ? 'שלח לי קוד לאימייל' : 'Email me a reset code'}</span>
+                </button>
               </>
             )}
 
@@ -695,6 +709,16 @@ export default function Login() {
                     <ArrowIcon />
                   </button>
                 </form>
+                <button
+                  type="button"
+                  onClick={() => { setError(''); setMessage(''); setResetMode('google'); }}
+                  style={{
+                    display: 'block', margin: '12px auto 0', background: 'none', border: 'none',
+                    color: 'var(--accent)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  {isHe ? 'מעדיף לאמת עם Google' : 'Verify with Google instead'}
+                </button>
               </>
             )}
 

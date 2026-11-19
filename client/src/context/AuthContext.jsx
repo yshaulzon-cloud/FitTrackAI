@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { readSavedLang } from './LanguageContext';
+import { fetchOrNetworkError, readJsonSafe, serverMessage } from '../lib/netError.mjs';
 
 const AuthContext = createContext(null);
 
@@ -42,16 +43,23 @@ export function AuthProvider({ children }) {
 
   function pickMsg(data) {
     const isHe = readSavedLang() !== 'en';
-    return (isHe && data.messageHe) ? data.messageHe : (data.message || 'Server error');
+    return (isHe && data.messageHe) ? data.messageHe : (data.message || serverMessage(isHe));
+  }
+
+  // fetch + JSON that never leaks "Failed to fetch" or "Unexpected token <" to the screen (QA Q3):
+  // a dropped connection becomes a localised error with code NETWORK, a non-JSON body becomes {}.
+  async function request(url, options) {
+    const res = await fetchOrNetworkError(fetch, url, options, readSavedLang() !== 'en');
+    const data = await readJsonSafe(res);
+    return { res, data };
   }
 
   async function login(email, password) {
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    const { res, data } = await request(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    const data = await res.json();
     if (!res.ok) throw new Error(pickMsg(data));
     localStorage.setItem('token', data.token);
     setToken(data.token);
@@ -129,12 +137,11 @@ export function AuthProvider({ children }) {
       ? await loginWithGoogleNative()
       : await loginWithGoogleWeb();
 
-    const res = await fetch(`${API_BASE}/auth/google`, {
+    const { res, data } = await request(`${API_BASE}/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credential),
     });
-    const data = await res.json();
     if (!res.ok) throw new Error(pickMsg(data));
     if (!deferCommit) commitAuth(data.token, data.user);
     return data;
@@ -148,12 +155,11 @@ export function AuthProvider({ children }) {
   }
 
   async function register(email, password) {
-    const res = await fetch(`${API_BASE}/auth/register`, {
+    const { res, data } = await request(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    const data = await res.json();
     if (!res.ok) throw new Error(pickMsg(data));
     localStorage.setItem('token', data.token);
     setToken(data.token);
@@ -168,7 +174,7 @@ export function AuthProvider({ children }) {
   }
 
   async function api(path, options = {}) {
-    const res = await fetch(`${API_BASE}${path}`, {
+    const { res, data } = await request(`${API_BASE}${path}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -176,7 +182,6 @@ export function AuthProvider({ children }) {
         ...options.headers,
       },
     });
-    const data = await res.json();
     if (!res.ok) {
       // `code` / `status` let a caller react to a specific failure (e.g. FOOD_NOT_FOUND)
       // without parsing the translated message.

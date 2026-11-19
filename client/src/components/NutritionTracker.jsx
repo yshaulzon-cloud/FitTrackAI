@@ -8,6 +8,8 @@ import { hasTargets } from '../lib/dayTarget.mjs';
 import ManualMealForm from './ManualMealForm';
 import { describeLogResult, remainingLine, restoreValuesOf } from '../lib/logFeedback.mjs';
 import { defaultGrams, parseGrams, portionNumbers, shareOfTarget, pickPayload } from '../lib/foodPick.mjs';
+import useSleepAdvice from '../lib/useSleepAdvice';
+import { nutritionNote } from '../lib/sleepAdvice.mjs';
 
 // The menu's total against the target it is meant to meet (calories + protein), so
 // every menu, daily or weekly, shows where it stands — and, when no menu really
@@ -297,6 +299,8 @@ function LoggedMealRow({ meal, isHe, t, onDelete }) {
 export default function NutritionTracker({ targets, todayData, api, onUpdate, showXP, dayType }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
+  // A short night (≤ 6 h, logged today) gets one contextual line. It never changes the target.
+  const sleepNote = nutritionNote(useSleepAdvice(api, dayType?.type === 'training').advice);
 
   const [foodInput, setFoodInput] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -538,22 +542,27 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
     const typeLabel = (type) => isHe ? (typeHe[type] || type) : (typeEn[type] || type);
     const dateStr = new Date().toLocaleDateString(isHe ? 'he-IL' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
+    // Menu text is written into an HTML page: escape it, so a quote or an angle bracket in a meal name can
+    // never turn into markup (audit S14).
+    const esc = (v) => String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
     function renderDayHTML(dayMenu, title) {
       const meals = dayMenu.meals.map(m => `
         <div class="meal-card">
-          <div class="meal-type">${typeLabel(m.type)}</div>
-          <div class="meal-name">${isHe ? m.he : (m.en || m.he)}</div>
+          <div class="meal-type">${esc(typeLabel(m.type))}</div>
+          <div class="meal-name">${esc(isHe ? m.he : (m.en || m.he))}</div>
           <div class="meal-macros">
-            <span class="m-cal">${m.calories} ${isHe ? 'קק"ל' : 'kcal'}</span>
-            <span class="m-p">${isHe ? 'חלבון' : 'protein'} ${m.protein}g</span>
-            <span class="m-c">${isHe ? 'פחמ\'' : 'carbs'} ${m.carbs}g</span>
-            <span class="m-f">${isHe ? 'שומן' : 'fat'} ${m.fat}g</span>
+            <span class="m-cal">${esc(m.calories)} ${isHe ? 'קק"ל' : 'kcal'}</span>
+            <span class="m-p">${isHe ? 'חלבון' : 'protein'} ${esc(m.protein)}g</span>
+            <span class="m-c">${isHe ? 'פחמ\'' : 'carbs'} ${esc(m.carbs)}g</span>
+            <span class="m-f">${isHe ? 'שומן' : 'fat'} ${esc(m.fat)}g</span>
           </div>
         </div>`).join('');
-      return `<div class="day-title">${title}</div>${meals}
+      return `<div class="day-title">${esc(title)}</div>${meals}
         <div class="day-total">
-          <span>${isHe ? 'סה"כ' : 'Total'}: ${dayMenu.totalCalories} ${isHe ? 'קק"ל' : 'kcal'}</span>
-          <span>${isHe ? 'חלבון' : 'Protein'}: ${dayMenu.totalProtein}g</span>
+          <span>${isHe ? 'סה"כ' : 'Total'}: ${esc(dayMenu.totalCalories)} ${isHe ? 'קק"ל' : 'kcal'}</span>
+          <span>${isHe ? 'חלבון' : 'Protein'}: ${esc(dayMenu.totalProtein)}g</span>
         </div>`;
     }
 
@@ -576,7 +585,7 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${pageTitle} — Areto</title>
+<title>${esc(pageTitle)} — Areto</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#080C13;color:#e2e8f0;padding:24px;max-width:700px;margin:0 auto;direction:${isHe ? 'rtl' : 'ltr'}}
@@ -602,7 +611,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#080C13;color:#e2e8f0;pa
 <body>
 <div class="header">
   <div class="logo">Areto</div>
-  <div class="subtitle">${pageTitle} · ${dateStr}</div>
+  <div class="subtitle">${esc(pageTitle)} · ${esc(dateStr)}</div>
 </div>
 ${content}
 <div class="back-hint no-print">${isHe ? 'אפשר גם לסגור את הכרטיסייה הזו כדי לחזור' : 'You can also just close this tab to go back'}</div>
@@ -1048,6 +1057,13 @@ ${content}
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {sleepNote && (
+        <div role="note" style={{ marginTop: 14, display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, lineHeight: 1.55, color: 'var(--text-3)' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8F8AF7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: 'none', marginTop: 2 }}><path d="M20 14A8.5 8.5 0 1 1 10 4a7 7 0 0 0 10 10z" /></svg>
+          <span>{isHe ? sleepNote.he : sleepNote.en}</span>
         </div>
       )}
 

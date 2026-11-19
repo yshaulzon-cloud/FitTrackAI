@@ -75,6 +75,31 @@ module.exports = [
   // ── sweets ────────────────────────────────────────────────────────────
   { keys: ['שוקולד', 'שוקולד חלב', 'שוקולד מריר'], cube: 5, basis: 'typical', note: 'a 100 g bar is ~20 squares' },
 
+  // ── added Nov 2026 with their USDA SR Legacy household measures (each note names the FDC record) ──
+  { keys: ['סוכר'], serving: 4.2, tsp: 4.2, tbsp: 12.6, cup: 200, basis: 'usda', note: 'granulated sugar: 1 tsp = 4.2 g, 1 cup = 200 g (FDC 169655); 1 tbsp = 3 tsp (derived)' },
+  { keys: ['קמח'], serving: 7.8, tbsp: 7.8, tsp: 2.6, cup: 125, basis: 'usda', note: 'all-purpose flour: 1 cup = 125 g (FDC 168894); tbsp and tsp are derived from the cup (1/16, 1/48)' },
+  { keys: ['סוכר חום'], serving: 4.6, tsp: 4.6, cup: 220, basis: 'usda', note: 'brown sugar, packed: 1 tsp = 4.6 g, 1 cup = 220 g (FDC 168833)' },
+  { keys: ['סירופ מייפל'], serving: 20, tbsp: 20, cup: 315, basis: 'usda', note: 'maple syrup, 1 tbsp = 20 g, 1 cup = 315 g (FDC 169661)' },
+  { keys: ['קקאו'], serving: 5.4, tbsp: 5.4, cup: 86, basis: 'usda', note: 'cocoa powder, 1 tbsp = 5.4 g, 1 cup = 86 g (FDC 169593)' },
+  { keys: ['שמן קנולה'], serving: 14, tbsp: 14, tsp: 4.5, cup: 218, basis: 'usda', note: 'canola oil, 1 tbsp = 14 g (FDC 172336)' },
+  { keys: ['שמן חמניות'], serving: 13.6, tbsp: 13.6, tsp: 4.5, cup: 218, basis: 'usda', note: 'sunflower oil, 1 tbsp = 13.6 g (FDC 171025)' },
+  { keys: ['שמן שומשום'], serving: 4.5, tsp: 4.5, cup: 218, basis: 'usda', note: 'sesame oil, 1 tsp = 4.5 g, 1 cup = 218 g (FDC 171016)' },
+  { keys: ['צימוקים'], cup: 145, basis: 'usda', note: 'raisins, 1 cup (not packed) = 145 g (FDC 168165)' },
+  { keys: ['בוטנים'], cup: 146, basis: 'usda', note: 'peanuts, 1 cup = 146 g (FDC 172430)' },
+  { keys: ['אגוזי לוז'], cup: 135, basis: 'usda', note: 'hazelnuts, 1 cup whole = 135 g (FDC 170581)' },
+  { keys: ['שומשום'], serving: 9, tbsp: 9, cup: 144, basis: 'usda', note: 'sesame seeds, 1 tbsp = 9 g, 1 cup = 144 g (FDC 170150)' },
+  { keys: ['שמנת מתוקה'], serving: 15, tbsp: 15, cup: 238, basis: 'usda', note: 'heavy cream, 1 tbsp = 15 g, 1 cup fluid = 238 g (FDC 170859)' },
+  { keys: ['מיץ תפוחים'], cup: 248, serving: 248, basis: 'usda', note: 'apple juice, 1 cup = 248 g (FDC 173933)' },
+  { keys: ['מיץ ענבים'], cup: 253, serving: 253, basis: 'usda', note: 'grape juice, 1 cup = 253 g (FDC 173042)' },
+  { keys: ['מיץ גזר'], cup: 236, serving: 236, basis: 'usda', note: 'carrot juice, 1 cup = 236 g (FDC 170491)' },
+  { keys: ['מיץ עגבניות'], cup: 243, serving: 243, basis: 'usda', note: 'tomato juice, 1 cup = 243 g (FDC 170545)' },
+  { keys: ['מיץ לימון'], cup: 244, basis: 'usda', note: 'lemon juice, 1 cup = 244 g (FDC 167747)' },
+  { keys: ['מיץ אננס'], cup: 250, serving: 250, basis: 'usda', note: 'pineapple juice, 1 cup = 250 g (FDC 169947)' },
+  { keys: ['רסק עגבניות'], serving: 16, tbsp: 16, cup: 262, basis: 'usda', note: 'tomato paste, 1 tbsp = 16 g, 1 cup = 262 g (FDC 170459)' },
+  { keys: ['רוטב עגבניות'], serving: 132, basis: 'usda', note: 'pasta sauce, 1 serving (1/2 cup) = 132 g (FDC 171192)' },
+  { keys: ['רוטב ברביקיו'], serving: 17, tbsp: 17, cup: 279, basis: 'usda', note: 'barbecue sauce, 1 tbsp = 17 g, 1 cup = 279 g (FDC 174523)' },
+  { keys: ['חומץ'], serving: 14.9, tbsp: 14.9, tsp: 5, cup: 238, basis: 'usda', note: 'distilled vinegar, 1 tbsp = 14.9 g (FDC 172237)' },
+
   // ── the FOOD_DB value is per portion, not per 100 g ───────────────────
   // Kept as they are (values are for the nutrition audit, docs/nutrition-audit.md):
   // "שייק חלבון" 120 kcal / 25 g protein is one shake. Treating one shake as 100 g makes

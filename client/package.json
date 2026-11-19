@@ -14,10 +14,10 @@
   },
   "dependencies": {
     "@capacitor-mlkit/barcode-scanning": "^8.1.0",
-    "@capacitor/android": "^8.3.3",
+    "@capacitor/android": "^8.4.3",
     "@capacitor/app": "^8.1.0",
-    "@capacitor/cli": "^8.3.3",
-    "@capacitor/core": "^8.3.3",
+    "@capacitor/cli": "^8.4.3",
+    "@capacitor/core": "^8.4.3",
     "@capacitor/local-notifications": "^8.1.0",
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
@@ -25,7 +25,7 @@
     "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.27.0"
+    "react-router-dom": "^6.30.6"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",

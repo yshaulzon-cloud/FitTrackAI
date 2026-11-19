@@ -54,8 +54,13 @@ function startOfUserDay(tz, ref = new Date()) {
   // 2. Treat that date's midnight as if it were UTC, then subtract the zone
   //    offset to get the true UTC instant of local midnight.
   const guessUTC = Date.UTC(y, m - 1, d, 0, 0, 0);
-  const offset = tzOffsetMs(tz, new Date(guessUTC));
-  return new Date(guessUTC - offset);
+  const first = guessUTC - tzOffsetMs(tz, new Date(guessUTC));
+  // 3. The offset was read at the UTC guess, which can fall on the other side of a clock change
+  //    than the real local midnight (QA Q6: on the day the clocks go back, Israel's midnight
+  //    came out as 01:00). Read the offset again at the candidate instant; when it differs, the
+  //    candidate was across the change, and the second reading is the right one.
+  const second = guessUTC - tzOffsetMs(tz, new Date(first));
+  return new Date(second);
 }
 
 // Local midnight `days` calendar days away from the day containing `ref`.

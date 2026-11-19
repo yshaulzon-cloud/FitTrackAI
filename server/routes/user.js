@@ -400,6 +400,58 @@ router.delete(
 );
 
 // ────────────────────────────────────────────────────────────
+// Export data — everything we hold about the signed-in user, as JSON (Settings → Privacy & data).
+// Only the user's own documents (every query is scoped by req.userId); the password hash, reset code
+// and other internal fields are never included.
+// ────────────────────────────────────────────────────────────
+const exportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  // Counted per signed-in user: `auth` has already run when this does.
+  keyGenerator: (req) => `export:${req.userId}`,
+  message: { message: 'יותר מדי בקשות ייצוא, נסה שוב מאוחר יותר', messageEn: 'Too many export requests — try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.get('/export', auth, exportLimiter, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const own = { userId };
+    const strip = '-__v -userId';
+    const [user, measurements, nutrition, workouts, sleep, progression] = await Promise.all([
+      User.findById(userId).select('email name profile onboardingComplete createdAt updatedAt').lean(),
+      Measurement.find(own).select(strip).sort({ date: 1 }).lean(),
+      Nutrition.find(own).select(strip).sort({ createdAt: 1 }).lean(),
+      Workout.find(own).select(strip).sort({ createdAt: 1 }).lean(),
+      Sleep.find(own).select(strip).sort({ createdAt: 1 }).lean(),
+      Progression.findOne(own).select(strip).lean(),
+    ]);
+    if (!user) return res.status(404).json({ message: 'המשתמש לא נמצא' });
+    res.json({
+      format: 'areto-export-v1',
+      exportedAt: new Date().toISOString(),
+      account: {
+        email: user.email,
+        name: user.name || null,
+        onboardingComplete: !!user.onboardingComplete,
+        createdAt: user.createdAt || null,
+        updatedAt: user.updatedAt || null,
+      },
+      profile: user.profile || null,
+      measurements,
+      nutrition,
+      workouts,
+      sleep,
+      progression: progression || null,
+    });
+  } catch (error) {
+    console.error('Export error:', error.message);
+    res.status(500).json({ message: 'שגיאה בייצוא הנתונים' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────
 // Reset data — wipe all logged data but keep the account
 // ────────────────────────────────────────────────────────────
 router.post('/reset-data', auth, async (req, res) => {
@@ -471,7 +523,7 @@ router.post(
   auth,
   [
     body('newPassword')
-      .isLength({ min: 8 }).withMessage('הסיסמה חייבת להכיל לפחות 8 תווים')
+      .isLength({ min: 8, max: 128 }).withMessage('הסיסמה חייבת להכיל 8 עד 128 תווים')
       .matches(/\d/).withMessage('הסיסמה חייבת לכלול לפחות ספרה אחת'),
   ],
   async (req, res) => {

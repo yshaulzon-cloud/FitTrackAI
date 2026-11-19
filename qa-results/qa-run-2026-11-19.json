@@ -1,0 +1,185 @@
+{
+ "date": "2026-11-19",
+ "tally": {
+  "PASS": 21,
+  "DEVICE": 1
+ },
+ "results": [
+  {
+   "id": "M1",
+   "area": "matrix",
+   "title": "overflow / clipped text / console errors on 72 screen captures (3 viewports × he/en × dark/light × 6 screens)",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "F1",
+   "area": "auth",
+   "title": "login: wrong password shows an error; right password reaches the dashboard; logout returns to a public page",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "F2",
+   "area": "auth",
+   "title": "first run: intro → onboarding → create account → dashboard",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "F3",
+   "area": "auth",
+   "title": "forgot password: the reset sheet opens; the e-mail code route is offered next to Google",
+   "status": "DEVICE",
+   "detail": "the Google verification step needs a Google account; the e-mail code step is checked here up to \"code requested\" (the isolated server has no mail provider, and the answer is the same for known and unknown addresses)",
+   "sev": ""
+  },
+  {
+   "id": "F4",
+   "area": "workout",
+   "title": "live workout: start, swap an exercise and undo, exit and resume, tick every set, finish; the workout is saved once",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "F5",
+   "area": "nutrition",
+   "title": "nutrition: free text logs a meal, an unknown food is refused with a clear message, a logged meal can be deleted",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "F5b",
+   "area": "nutrition",
+   "title": "daily menu loads, a meal can be swapped, PDF export opens a printable page",
+   "status": "PASS",
+   "detail": "swap changed the menu",
+   "sev": ""
+  },
+  {
+   "id": "F6",
+   "area": "sleep",
+   "title": "sleep: log 5 h → the workout tab offers the sleep suggestion; double-click on save logs one night",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "F7",
+   "area": "journey",
+   "title": "journey tabs (progress / badges / goals) open without errors",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "F8",
+   "area": "settings",
+   "title": "settings: equipment, notifications, accessibility and body-data screens open; theme and language switch applies",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "F8b",
+   "area": "settings",
+   "title": "security screen: no \"two-factor auth\" toggle (it was a local flag that protected nothing)",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "F9a",
+   "area": "account",
+   "title": "privacy & data: \"Export\" downloads a JSON file with the account data and no secrets",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "F9",
+   "area": "account",
+   "title": "privacy & data: reset empties the data; delete removes the account (login fails afterwards)",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "E1",
+   "area": "edge",
+   "title": "expired token → the app sends the user to a public page instead of a broken dashboard",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "E2",
+   "area": "edge",
+   "title": "offline: a failed request shows a message and the app stays usable (no uncaught error)",
+   "status": "PASS",
+   "detail": "a localized message is shown",
+   "sev": ""
+  },
+  {
+   "id": "E3",
+   "area": "edge",
+   "title": "slow server (Render waking up): the app shows a loading state, not a blank screen, and recovers",
+   "status": "PASS",
+   "detail": "loading text: Areto\nתזונה · אימונים · תוצאות",
+   "sev": ""
+  },
+  {
+   "id": "E4",
+   "area": "edge",
+   "title": "double-click on \"add meal\" logs one meal",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "E5",
+   "area": "edge",
+   "title": "a brand-new user (no meals, no workouts, no sleep) sees every tab without errors",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "E6",
+   "area": "edge",
+   "title": "an existing user with missing profile fields (no equipment, no timezone) still loads every tab",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "E7",
+   "area": "edge",
+   "title": "extreme values are refused (age 2, weight 999, manual meal 99999 kcal, sleep 1e9)",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "E9",
+   "area": "edge",
+   "title": "food database: a new food (apple juice) is recognised with a sensible amount; an unknown food is refused with 422 and nothing is saved",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  },
+  {
+   "id": "E8",
+   "area": "edge",
+   "title": "midnight in Asia/Jerusalem: 23:59 and 00:01 fall on different local days (streak / sleep day boundaries)",
+   "status": "PASS",
+   "detail": "",
+   "sev": ""
+  }
+ ]
+}

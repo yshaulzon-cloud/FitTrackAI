@@ -95,7 +95,7 @@ Express API, CommonJS modules. MongoDB via Mongoose.
 **`server/utils/calculations.js`** — the core engine, all pure functions:
 - `calculateTDEE` / `calculateCalorieTarget` / `calculateMacros` — Mifflin-St Jeor (default) or Katch-McArdle (when body-fat % is known)
 - `generateWorkoutPlan` — builds a weekly split (push/pull/legs/upper-lower) from `profile.goal` + `profile.experience` + `workoutsPerWeek`
-- `estimateNutrition` — 3-pass lookup against `FOOD_DB` (substring → prefix → Levenshtein fuzzy). When nothing matches, the route falls back to a generic 350 kcal placeholder (`source: 'default'`). There is **no AI/external service** in the app (the Gemini fallback was removed in Nov 2026); the `'ai'` value stays in the `Nutrition.source` enum only so old records still load
+- `estimateNutrition` — 3-pass lookup against `FOOD_DB` (substring → prefix → Levenshtein fuzzy). When nothing matches, the route falls back to a generic 350 kcal placeholder (`source: 'default'`). There is **no AI/external service** in the app (the Gemini fallback was removed in Nov 2026); the `'ai'` value stays in the `Nutrition.source` enum only so old records still load The text is read by `server/utils/foodText.js`, which understands negation: a food after "בלי / ללא / without / no" is not counted ("קפה בלי סוכר" = coffee only).
 - `FOOD_DB` — large array of Hebrew/English keyed food entries with cal/protein/carbs/fat/fiber
 
 **Nutrition logging flow:** `POST /nutrition/log` receives a free-text Hebrew description → `estimateNutrition()` → generic placeholder if not found → saves `Nutrition` document → triggers XP check.
@@ -119,10 +119,10 @@ Server requires a `.env` in `server/`:
 ```
 MONGODB_URI=          # MongoDB Atlas connection string (database: bodysync; Atlas Cluster0, AWS eu-north-1)
 JWT_SECRET=           # Long random string
-RESEND_API_KEY=       # Password-reset email in production (HTTPS; Render free tier blocks SMTP)
+RESEND_API_KEY=       # Password-reset email (the only mail transport; HTTPS, because Render free tier blocks SMTP)
 EMAIL_FROM=           # Sender on the Resend-verified domain
-EMAIL_USER=           # Local-dev only: Gmail address for SMTP fallback
-EMAIL_PASS=           # Local-dev only: Gmail 16-char app password
+RESET_CODE_LOG=       # Local dev only: 1 = print the reset code to the console instead of e-mailing it (ignored when NODE_ENV=production)
+GLOBAL_RATE_LIMIT_MAX= # Test servers only: raises the global limiter (default 120/min per user, else per IP). Never set in production
 CORS_ORIGIN=          # Comma-separated production origins (blank = allow all in dev)
 GOOGLE_CLIENT_ID=     # 674273831957-r79t2lo52fpddlairlldu9gvihkjvf7h.apps.googleusercontent.com
 ```

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
 import { updateReminderState } from '../lib/notifications';
+import { notifySleepChanged } from '../lib/useSleepAdvice';
 
 // Prototype sleep sheet: a fixed set of hour chips rather than a drag gauge.
 // '9+' logs 9 — the server only needs the qualifying threshold, and a single
@@ -81,6 +82,7 @@ export default function SleepTracker({ api, showXP }) {
       setTodaySleep(res.sleep);
       setRecommendation(res.recommendation);
       updateReminderState({ sleepLoggedToday: true }, { isHe });
+      notifySleepChanged(); // workout / nutrition tabs re-read last night's sleep
       if (res.xpResults?.length > 0) {
         for (const xp of res.xpResults) if (xp.xpGained && showXP) showXP(xp);
       }

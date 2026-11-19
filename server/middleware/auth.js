@@ -9,7 +9,16 @@ const auth = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Only HS256 is ever issued (routes/auth.js), so only HS256 is accepted: an algorithm
+    // the server never uses is not a door worth leaving open.
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+
+    // userId is always a 24-hex string in a token we signed. Anything else (an object such
+    // as {"$ne":null}, a number) must never reach a query, even though it takes the signing
+    // secret to forge one.
+    if (typeof decoded.userId !== 'string' || !/^[a-f\d]{24}$/i.test(decoded.userId)) {
+      return res.status(401).json({ message: 'אימות נכשל' });
+    }
 
     const user = await User.findById(decoded.userId).select('+passwordChangedAt');
     if (!user) {

@@ -382,11 +382,12 @@ function calculateExerciseCalories(met, weightKg, durationMinutes) {
 /**
  * Food database. Values per 100g (cooked/prepared unless noted otherwise).
  *
- * SOURCES ARE MIXED AND MOSTLY UNRECORDED. Entries that were compared with a USDA FoodData Central
- * record (120 so far, SR Legacy, plus a few manufacturer labels) carry the record number in a
- * comment and are guarded by utils/usdaCheck.test.js; the audit is docs/nutrition-audit.md
- * (scripts/usda-verify.js, scripts/food-audit.js). Every other entry has no recorded source: do not
- * read a section title below as one.
+ * SOURCES ARE MIXED, AND MOST ENTRIES (about two thirds) HAVE NO RECORDED SOURCE. 236 entries were mapped by
+ * hand to one USDA FoodData Central SR Legacy record (plus 3 corrected from manufacturer labels in USDA
+ * Branded); the ones whose value was set or corrected from a record carry the FDC number in a comment, and all
+ * 236 are guarded by utils/usdaCheck.test.js. The per-entry status (verified / not verified, and why) is in
+ * docs/nutrition-audit.md section 13 (scripts/usda-verify.js, scripts/food-audit.js). Every other entry is an
+ * unverified estimate: do not read a section title below as a source.
  * Format: { cal, p (protein), c (carbs), f (fat), fb (fiber) }
  *
  * Search order: longer/more specific Hebrew terms first, then English,
@@ -409,8 +410,8 @@ const FOOD_DB = [
   { keys: ['סינטה בקר', 'סינטה', 'sirloin'], cal: 240, p: 25, c: 0, f: 15, fb: 0 },
   { keys: ['שייטל בקר', 'שייטל'], cal: 160, p: 27, c: 0, f: 5, fb: 0 },
   { keys: ['בשר טחון', 'ground beef'], cal: 185, p: 24, c: 0, f: 10, fb: 0 },
-  { keys: ['לשון בקר', 'beef tongue'], cal: 284, p: 15, c: 0, f: 25, fb: 0 },
-  { keys: ['כבד בקר', 'beef liver'], cal: 175, p: 27, c: 0, f: 4.5, fb: 0 },
+  { keys: ['לשון בקר', 'beef tongue'], cal: 284, p: 19.3, c: 0, f: 22.3, fb: 0 }, // simmered, USDA FDC 170598 (was 284/15/0/25)
+  { keys: ['כבד בקר', 'beef liver'], cal: 175, p: 26.5, c: 5.2, f: 4.7, fb: 0 }, // pan-fried, USDA FDC 168627 (was 175/27/0/4.5: the carbs were missing)
   { keys: ['קבב', 'kebab'], cal: 250, p: 18, c: 2, f: 20, fb: 0 },
   { keys: ['המבורגר', 'hamburger', 'burger'], cal: 230, p: 22, c: 1, f: 15, fb: 0 },
   { keys: ['סטייק', 'steak', 'סטייק בקר', 'beef steak'], cal: 210, p: 28, c: 0, f: 10, fb: 0 },
@@ -610,7 +611,7 @@ const FOOD_DB = [
 
   // === Plant Milks ===
   { keys: ['חלב סויה', 'soy milk'], cal: 38, p: 3.5, c: 1.3, f: 2.1, fb: 0 },
-  { keys: ['חלב שקדים', 'almond milk'], cal: 19, p: 0.7, c: 0.7, f: 1.6, fb: 0 },
+  { keys: ['חלב שקדים', 'almond milk'], cal: 15, p: 0.4, c: 1.3, f: 1, fb: 0.2 }, // unsweetened, USDA FDC 174832 (was 19/0.7/0.7/1.6)
   { keys: ['חלב שיבולת שועל', 'oat milk'], cal: 48, p: 0.8, c: 5.1, f: 2.7, fb: 0 },
   { keys: ['חלב קוקוס', 'coconut milk'], cal: 25, p: 0.2, c: 1, f: 2, fb: 0 },
 
@@ -629,12 +630,12 @@ const FOOD_DB = [
   { keys: ['פלנטיין', 'plantain'], cal: 120, p: 1.3, c: 31, f: 0.4, fb: 12 },
   { keys: ['אטריות סובה', 'soba'], cal: 99, p: 5, c: 21, f: 0.1, fb: 13 },
   { keys: ['אטריות זכוכית', 'glass noodles'], cal: 120, p: 0, c: 30, f: 0, fb: 0 },
-  { keys: ['אורז פרא', 'wild rice'], cal: 150, p: 6, c: 30, f: 0.5, fb: 11 },
+  { keys: ['אורז פרא', 'wild rice'], cal: 101, p: 4, c: 21.3, f: 0.3, fb: 1.8 }, // cooked, USDA FDC 168897 (was 150/6/30/0.5/11)
   { keys: ['כוסמין', 'spelt'], cal: 128, p: 5.5, c: 26, f: 0.8, fb: 0 },
   { keys: ['ג\'יקמה', 'jicama'], cal: 38, p: 0.7, c: 8.8, f: 0.1, fb: 4.9 }, // USDA FDC 170073 (was 38/0.7/9/0.1/14)
   { keys: ['לחם שיפון', 'rye bread'], cal: 250, p: 9, c: 48, f: 3, fb: 9 },
   { keys: ['טפיוקה', 'tapioca'], cal: 360, p: 0.5, c: 88, f: 0.3, fb: 9 },
-  { keys: ['קמח תירס', 'masa'], cal: 363, p: 8.4, c: 76, f: 1.2, fb: 9 },
+  { keys: ['קמח תירס', 'masa'], cal: 363, p: 8.5, c: 76.6, f: 3.7, fb: 6.4 }, // masa harina, USDA FDC 169694 (was 363/8.4/76/1.2/9)
   { keys: ['שעועית אדזו', 'adzuki'], cal: 146, p: 9, c: 28, f: 0.5, fb: 11 },
   { keys: ['שעועית מונג', 'mung beans'], cal: 105, p: 7, c: 19, f: 0.4, fb: 0 },
   { keys: ['עדשים שחורות', 'black lentils'], cal: 94, p: 9, c: 15, f: 0.4, fb: 11 },
@@ -654,17 +655,17 @@ const FOOD_DB = [
   { keys: ['בשר ארנב', 'rabbit'], cal: 170, p: 23, c: 0, f: 8, fb: 0 },
   { keys: ['פניר', 'paneer'], cal: 350, p: 16, c: 2, f: 22, fb: 0 },
   { keys: ['חלומי', 'halloumi'], cal: 320, p: 21, c: 2, f: 25, fb: 0 },
-  { keys: ['אנשובי', 'anchovies'], cal: 210, p: 20, c: 0, f: 14, fb: 0 },
+  { keys: ['אנשובי', 'anchovies'], cal: 210, p: 28.9, c: 0, f: 9.7, fb: 0 }, // canned in oil, drained, USDA FDC 174183 (was 210/20/0/14)
   { keys: ['הרינג', 'herring'], cal: 200, p: 18, c: 0, f: 14, fb: 0 },
-  { keys: ['מולים', 'mussels'], cal: 104, p: 12, c: 4, f: 2.2, fb: 0 },
+  { keys: ['מולים', 'mussels'], cal: 172, p: 23.8, c: 7.4, f: 4.5, fb: 0 }, // cooked (moist heat), USDA FDC 174217 (was the RAW record 86/11.9/3.7/2.2; the DB convention is cooked)
   { keys: ['בילטונג', 'biltong'], cal: 270, p: 50, c: 2, f: 6, fb: 0 },
   { keys: ['סויה קלויה', 'roasted soy'], cal: 440, p: 38, c: 30, f: 20, fb: 0 },
-  { keys: ['כבד טלה', 'lamb liver'], cal: 137, p: 20, c: 2, f: 5, fb: 0 },
+  { keys: ['כבד טלה', 'lamb liver'], cal: 220, p: 30.6, c: 2.5, f: 8.8, fb: 0 }, // cooked (braised), USDA FDC 172532 (was the raw record 137/20/2/5)
   { keys: ['דג הליבוט', 'halibut'], cal: 110, p: 21, c: 0, f: 2.3, fb: 0 },
-  { keys: ['שליו', 'quail'], cal: 134, p: 22, c: 0, f: 4.5, fb: 0 },
+  { keys: ['שליו', 'quail'], cal: 134, p: 22, c: 0, f: 4.5, fb: 0 }, // RAW meat only, USDA FDC 172419: SR Legacy has no cooked meat-only quail record (only 'cooked, total edible' with skin: 227/25.1/0/14.1), so this stays raw and says so
   { keys: ['טופו מעושן', 'smoked tofu'], cal: 140, p: 13, c: 2, f: 9, fb: 0 },
   { keys: ['דג סול', 'sole'], cal: 91, p: 18, c: 0, f: 1.2, fb: 0 },
-  { keys: ['צלופח', 'eel'], cal: 184, p: 18, c: 0, f: 12, fb: 0 },
+  { keys: ['צלופח', 'eel'], cal: 236, p: 23.7, c: 0, f: 15, fb: 0 }, // cooked (dry heat), USDA FDC 174194 (was the raw record 184/18/0/12)
   { keys: ['סרטן', 'crab'], cal: 97, p: 19.4, c: 0, f: 1.5, fb: 0 }, // cooked crab, USDA FDC 174202 (was 155/18/0/1.5: 155 kcal is a crab CAKE, the macros are plain crab)
 
   // === Expanded Fruits & Vegetables (source not recorded) ===
@@ -687,7 +688,7 @@ const FOOD_DB = [
   { keys: ['לבבות דקל', 'hearts of palm'], cal: 28, p: 2.5, c: 4.6, f: 0.6, fb: 0 },
   { keys: ['ארטישוק ירושלמי', 'jerusalem artichoke'], cal: 73, p: 2, c: 17, f: 0, fb: 0 },
   { keys: ['קולרבי', 'kohlrabi'], cal: 27, p: 1.7, c: 6, f: 0.1, fb: 0 },
-  { keys: ['רגלת הגינה', 'purslane'], cal: 16, p: 1.3, c: 3.4, f: 0.1, fb: 0 },
+  { keys: ['רגלת הגינה', 'purslane'], cal: 20, p: 2, c: 3.4, f: 0.4, fb: 0 }, // raw, USDA FDC 169274, fibre not listed there (was 16/1.3/3.4/0.1)
   { keys: ['קייל', 'kale'], cal: 35, p: 2.9, c: 4.4, f: 1.5, fb: 4.1 }, // USDA FDC 168421 (was 39/2.6/6/1/11)
   { keys: ['תאנים טריות', 'fresh figs'], cal: 74, p: 0.8, c: 19, f: 0.3, fb: 11 },
   { keys: ['תאנה', 'תאנים', 'fig', 'figs'], cal: 74, p: 0.8, c: 19, f: 0.3, fb: 11 },
@@ -880,7 +881,7 @@ const FOOD_DB = [
   { keys: ['גבינה בולגרית 5%'], cal: 120, p: 14, c: 2, f: 5, fb: 0 },
   { keys: ['גבינה בולגרית 24%'], cal: 280, p: 16, c: 2, f: 24, fb: 0 },
   { keys: ['לבאנה 10%'], cal: 160, p: 8, c: 5, f: 10, fb: 0 },
-  { keys: ['גבינת פטה', 'feta'], cal: 250, p: 14, c: 1, f: 20, fb: 0 },
+  { keys: ['גבינת פטה', 'feta'], cal: 265, p: 14.2, c: 3.9, f: 21.5, fb: 0 }, // USDA FDC 173420 (was 250/14/1/20)
   // Home-cooked dishes
   { keys: ['מוסקה', 'moussaka'], cal: 160, p: 12, c: 8, f: 9, fb: 2 },
   { keys: ['פלפל ממולא', 'stuffed pepper'], cal: 130, p: 7, c: 15, f: 4, fb: 2 },
@@ -964,7 +965,7 @@ const FOOD_DB = [
   // Hot drinks
   { keys: ['תה ירוק', 'green tea'], cal: 1, p: 0, c: 0.2, f: 0, fb: 0 },
   { keys: ['תה שחור', 'black tea'], cal: 1, p: 0, c: 0.2, f: 0, fb: 0 },
-  { keys: ['אספרסו', 'espresso'], cal: 5, p: 0.1, c: 0.7, f: 0.2, fb: 0 },
+  { keys: ['אספרסו', 'espresso'], cal: 9, p: 0.1, c: 1.7, f: 0.2, fb: 0 }, // restaurant-prepared, USDA FDC 171891 (was 5/0.1/0.7/0.2)
   { keys: ['אמריקנו', 'americano'], cal: 5, p: 0.1, c: 0.7, f: 0.2, fb: 0 },
 
   // Cold drinks
@@ -979,7 +980,7 @@ const FOOD_DB = [
   { keys: ['שמפניה', 'champagne'], cal: 76, p: 0.3, c: 2.6, f: 0, fb: 0 },
 
   // Sauces
-  { keys: ['רוטב סויה', 'soy sauce'], cal: 60, p: 8, c: 5.5, f: 0, fb: 0 },
+  { keys: ['רוטב סויה', 'soy sauce'], cal: 53, p: 8.1, c: 4.9, f: 0.6, fb: 0.8 }, // shoyu, USDA FDC 174277 (was 60/8/5.5/0)
   { keys: ['רוטב טריאקי', 'teriyaki'], cal: 165, p: 6, c: 40, f: 0, fb: 0 },
 
   // Citrus / stone fruits
@@ -1083,9 +1084,9 @@ const FOOD_DB = [
   { keys: ['אוסובוקו', 'ossobuco', 'veal ossobuco'], cal: 160, p: 20, c: 0, f: 8, fb: 0 },
   { keys: ['קבנוס', 'kabanos', 'kabanosy'], cal: 450, p: 22, c: 2, f: 40, fb: 0 },
   { keys: ['מרגז', 'merguez'], cal: 300, p: 15, c: 1, f: 25, fb: 0 },
-  { keys: ['קרפיון', 'carp'], cal: 127, p: 17.8, c: 0, f: 5.6, fb: 0 },
-  { keys: ['תמנון', 'octopus'], cal: 82, p: 14.9, c: 2.2, f: 1, fb: 0 },
-  { keys: ['אבלון', 'abalone'], cal: 105, p: 17.1, c: 6, f: 0.8, fb: 0 },
+  { keys: ['קרפיון', 'carp'], cal: 162, p: 22.9, c: 0, f: 7.2, fb: 0 }, // cooked (dry heat), USDA FDC 174185 (was the raw record 127/17.8/0/5.6)
+  { keys: ['תמנון', 'octopus'], cal: 164, p: 29.8, c: 4.4, f: 2.1, fb: 0 }, // cooked (moist heat), USDA FDC 174249 (was the raw record 82/14.9/2.2/1)
+  { keys: ['אבלון', 'abalone'], cal: 189, p: 19.6, c: 11.1, f: 6.8, fb: 0 }, // cooked (fried, USDA's only cooked abalone), FDC 174213 (was the raw record 105/17.1/6/0.8)
   { keys: ['סורסטרומינג', 'surstromming', 'fermented herring'], cal: 120, p: 15, c: 0, f: 6, fb: 0 },
 
   // Soft drinks
@@ -1156,7 +1157,7 @@ const FOOD_DB = [
   { keys: ['בוביוטי', 'bobotie'], cal: 243, p: 15.8, c: 17, f: 13, fb: 2.5 },
 
   // Exotic fruits & vegetables
-  { keys: ["פיג'ויה", 'feijoa'], cal: 55, p: 1, c: 10, f: 0.8, fb: 6 },
+  { keys: ["פיג'ויה", 'feijoa'], cal: 61, p: 0.7, c: 15.2, f: 0.4, fb: 6.4 }, // USDA FDC 168176 (was 55/1/10/0.8/6)
   { keys: ["ג'קפרוט", 'jackfruit'], cal: 95, p: 1.7, c: 23.2, f: 0.6, fb: 1.5 },
   { keys: ['חמציץ', 'sorrel', 'wood sorrel'], cal: 22, p: 2, c: 3.2, f: 0.7, fb: 2.9 },
   { keys: ["צ'רימויה", 'cherimoya', 'custard apple'], cal: 75, p: 1.5, c: 17.7, f: 0.6, fb: 3 },
@@ -1196,6 +1197,41 @@ const FOOD_DB = [
   { keys: ['סודה', 'מים מוגזים', 'club soda', 'soda water', 'sparkling water', 'seltzer'], cal: 0, p: 0, c: 0, f: 0, fb: 0 },
   { keys: ['תה', 'tea'], cal: 1, p: 0, c: 0.3, f: 0, fb: 0 }, // "תה ירוק" / "green tea" already exist above
   { keys: ['קפה שחור', 'קפה', 'קפה נמס', 'black coffee', 'coffee', 'instant coffee'], cal: 1, p: 0.1, c: 0, f: 0, fb: 0 },
+
+  // === Added Nov 2026 (nutrition task 5) — every entry below is one USDA SR Legacy record, per 100 g,
+  // verified by scripts/usda-verify.js (FDC id in the comment) and guarded by utils/usdaCheck.test.js.
+  // Sweeteners, flours, oils
+  // Plain sugar and flour were held back until the text engine understood negation ("קפה בלי סוכר", "עוגה ללא קמח"
+  // no longer count them; see utils/foodText.js NEGATORS). Added Nov 2026 after that fix.
+  { keys: ['סוכר', 'סוכר לבן', 'sugar', 'white sugar', 'granulated sugar'], cal: 387, p: 0, c: 100, f: 0, fb: 0 }, // granulated, USDA FDC 169655
+  { keys: ['קמח', 'קמח לבן', 'קמח חיטה', 'flour', 'white flour', 'wheat flour', 'all purpose flour'], cal: 364, p: 10.3, c: 76.3, f: 1, fb: 2.7 }, // all-purpose, enriched, bleached, USDA FDC 168894
+  { keys: ['סוכר חום', 'brown sugar'], cal: 380, p: 0.1, c: 98.1, f: 0, fb: 0 }, // USDA FDC 168833
+  { keys: ['סירופ מייפל', 'maple syrup'], cal: 260, p: 0, c: 67, f: 0.1, fb: 0 }, // USDA FDC 169661
+  { keys: ['קקאו', 'אבקת קקאו', 'cocoa', 'cocoa powder'], cal: 228, p: 19.6, c: 57.9, f: 13.7, fb: 37 }, // dry powder, unsweetened, USDA FDC 169593
+  { keys: ['שמן קנולה', 'canola oil'], cal: 884, p: 0, c: 0, f: 100, fb: 0 }, // USDA FDC 172336
+  { keys: ['שמן חמניות', 'sunflower oil'], cal: 884, p: 0, c: 0, f: 100, fb: 0 }, // USDA FDC 171025
+  { keys: ['שמן שומשום', 'sesame oil'], cal: 884, p: 0, c: 0, f: 100, fb: 0 }, // USDA FDC 171016
+  // Nuts, seeds, dried fruit
+  { keys: ['צימוקים', 'raisins'], cal: 299, p: 3.3, c: 79.3, f: 0.3, fb: 4.5 }, // dark, seedless, USDA FDC 168165
+  { keys: ['בוטנים', 'peanuts'], cal: 567, p: 25.8, c: 16.1, f: 49.2, fb: 8.5 }, // raw, USDA FDC 172430
+  { keys: ['אגוזי לוז', 'hazelnuts'], cal: 628, p: 15, c: 16.7, f: 60.8, fb: 9.7 }, // USDA FDC 170581
+  { keys: ['שומשום', 'sesame seeds'], cal: 573, p: 17.7, c: 23.5, f: 49.7, fb: 11.8 }, // whole, dried, USDA FDC 170150
+  { keys: ['קוקוס מגורד', 'shredded coconut', 'desiccated coconut'], cal: 660, p: 6.9, c: 23.7, f: 64.5, fb: 16.3 }, // dried, not sweetened, USDA FDC 170170
+  // Dairy
+  { keys: ['שמנת מתוקה', 'שמנת להקצפה', 'heavy cream', 'whipping cream'], cal: 340, p: 2.8, c: 2.8, f: 36.1, fb: 0 }, // heavy whipping, USDA FDC 170859
+  { keys: ['גבינת עיזים', 'goat cheese'], cal: 264, p: 18.5, c: 0, f: 21.1, fb: 0 }, // soft type, USDA FDC 173435
+  // Juices (before: "מיץ תפוחים" was read as the apple fruit, 180 g)
+  { keys: ['מיץ תפוחים', 'apple juice'], cal: 46, p: 0.1, c: 11.3, f: 0.1, fb: 0.2 }, // unsweetened, USDA FDC 173933
+  { keys: ['מיץ ענבים', 'grape juice'], cal: 60, p: 0.4, c: 14.8, f: 0.1, fb: 0.2 }, // unsweetened, USDA FDC 173042
+  { keys: ['מיץ גזר', 'carrot juice'], cal: 40, p: 1, c: 9.3, f: 0.2, fb: 0.8 }, // canned, USDA FDC 170491
+  { keys: ['מיץ עגבניות', 'tomato juice'], cal: 17, p: 0.9, c: 3.5, f: 0.3, fb: 0.4 }, // canned, no salt, USDA FDC 170545
+  { keys: ['מיץ לימון', 'lemon juice'], cal: 22, p: 0.4, c: 6.9, f: 0.2, fb: 0.3 }, // raw, USDA FDC 167747
+  { keys: ['מיץ אננס', 'pineapple juice'], cal: 53, p: 0.4, c: 12.9, f: 0.1, fb: 0.2 }, // unsweetened, USDA FDC 169947
+  // Sauces (before: "רוטב פסטה" was read as pasta, "רוטב עגבניות" as a tomato)
+  { keys: ['רסק עגבניות', 'tomato paste'], cal: 82, p: 4.3, c: 18.9, f: 0.5, fb: 4.1 }, // canned, no salt, USDA FDC 170459
+  { keys: ['רוטב עגבניות', 'רוטב פסטה', 'רוטב מרינרה', 'tomato sauce', 'pasta sauce', 'marinara'], cal: 50, p: 1.4, c: 7.4, f: 1.6, fb: 1.8 }, // spaghetti/marinara, ready-to-serve, USDA FDC 171192
+  { keys: ['רוטב ברביקיו', 'bbq sauce', 'barbecue sauce'], cal: 172, p: 0.8, c: 40.8, f: 0.6, fb: 0.9 }, // USDA FDC 174523
+  { keys: ['חומץ', 'vinegar'], cal: 18, p: 0, c: 0, f: 0, fb: 0 }, // distilled, USDA FDC 172237
 
   // === Generic / catch-all (last resort) ===
   { keys: ['עוף', 'chicken'], cal: 200, p: 25, c: 0, f: 10, fb: 0 },
@@ -1552,7 +1588,10 @@ function generateWorkoutPlan(profile) {
   return { days: plan, notes };
 }
 
-// ── Sleep Recommendations (based on NSF/CDC research) ──────────
+// ── Sleep Recommendations ──────────────────────────────────────
+// The age ranges are the National Sleep Foundation's (Hirshkowitz et al. 2015,
+// Sleep Health 1(1):40-43): teenagers 8-10, adults 7-9, older adults 7-8.
+// See docs/sleep-research.md for the sources behind everything sleep-related.
 function getSleepRecommendation(age, hadWorkoutToday) {
   // Age-based recommended range (hours) - app minimum age is 13
   let min, max;
@@ -1561,7 +1600,13 @@ function getSleepRecommendation(age, hadWorkoutToday) {
   else if (age <= 64) { min = 7; max = 9; }
   else { min = 7; max = 8; }
 
-  // Workout day bonus: resistance/strength training adds 1-2 hours need
+  // GAMIFICATION ONLY — not a physiological claim. This +1 h only raises the
+  // "great sleep" XP tier on a training day (routes/sleep.js → checkSleepGoal);
+  // it is NOT shown to the user as a recommended range. An earlier comment said
+  // strength training "adds 1-2 hours need"; no source that was actually opened
+  // supports that (docs/sleep-research.md, section "calculations.js:1564").
+  // Recommendation: remove it. Left as is because XP tiers must not change
+  // without a product decision.
   const workoutBonus = hadWorkoutToday ? 1 : 0;
 
   return {

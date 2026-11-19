@@ -27,6 +27,8 @@ import {
   syncReminders,
 } from '../lib/notifications';
 import { useReminderSync } from '../lib/useReminderSync';
+import { friendlyError } from '../lib/netError.mjs';
+import { exportFileName, exportJson, exportCounts, exportDelivery } from '../lib/exportData.mjs';
 import {
   CATEGORIES, CATEGORY_LABELS, NOTIF_TYPES, readPrefs, writeEnabled, writeTime, writeWeekday,
   writeMaster, writeCategory, fmtTime, isQuietTime, isActive,
@@ -1021,8 +1023,49 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
   // active from first paint, not just while this screen happens to be open.
   const { textSize, setTextSize, reduceMotion, setReduceMotion, highContrast, setHighContrast } = useAccessibility();
 
-  const [tfa, setTfaState] = useState(() => localStorage.getItem('sec:tfa') === '1');
-  const setTfa = (v) => { localStorage.setItem('sec:tfa', v ? '1' : '0'); setTfaState(v); };
+  // (There used to be a "two-factor auth" toggle here. It only wrote a localStorage flag; the server has no
+  // second factor, so it promised protection that did not exist. Removed — QA finding F8b.)
+
+  // Export my data: GET /user/export → a JSON file (share sheet / download / clipboard, by device).
+  const [exporting, setExporting] = useState(false);
+  async function handleExportData() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const data = await api('/user/export');
+      const text = exportJson(data);
+      const name = exportFileName();
+      const file = typeof File === 'function' ? new File([text], name, { type: 'application/json' }) : null;
+      const how = exportDelivery({
+        canShareFile: !!(file && navigator.canShare && navigator.canShare({ files: [file] })),
+        isNative: !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()),
+        isTouch: !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches),
+        canCopy: !!(navigator.clipboard && navigator.clipboard.writeText),
+      });
+      if (how === 'share') {
+        await navigator.share({ files: [file], title: name });
+      } else if (how === 'clipboard') {
+        await navigator.clipboard.writeText(text);
+        flashToast(isHe ? 'הנתונים הועתקו ללוח. הדבק אותם בקובץ או בהודעה לעצמך' : 'Your data was copied. Paste it into a file or a note to keep it');
+        return;
+      } else {
+        const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+        const a = document.createElement('a');
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      }
+      const c = exportCounts(data);
+      flashToast(isHe
+        ? `הנתונים יוצאו: ${c.meals} ארוחות, ${c.workouts} אימונים, ${c.sleep} לילות שינה`
+        : `Exported: ${c.meals} meals, ${c.workouts} workouts, ${c.sleep} nights of sleep`);
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // the user closed the share sheet
+      flashToast(friendlyError(err, isHe, isHe ? 'הייצוא נכשל' : 'Export failed'));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   // Password reset (reuses /auth/forgot-password + /auth/reset-password)
   const [pwStep, setPwStep] = useState('idle'); // idle | code-sent | done
@@ -1039,11 +1082,11 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email }),
       });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.message); }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message); }
       flashToast(isHe ? 'קוד נשלח לאימייל שלך' : 'Code sent to your email');
       setPwStep('code-sent');
     } catch (err) {
-      setPwError(err.message || (isHe ? 'שגיאה בשליחת הקוד' : 'Failed to send code'));
+      setPwError(friendlyError(err, isHe, isHe ? 'שגיאה בשליחת הקוד' : 'Failed to send code'));
     } finally { setPwLoading(false); }
   }
 
@@ -1064,7 +1107,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
       setPwCode(''); setPwNew('');
       setTimeout(() => setPwStep('idle'), 4000);
     } catch (err) {
-      setPwError(err.message || (isHe ? 'שגיאה באיפוס הסיסמה' : 'Reset failed'));
+      setPwError(friendlyError(err, isHe, isHe ? 'שגיאה באיפוס הסיסמה' : 'Reset failed'));
     } finally { setPwLoading(false); }
   }
 
@@ -1696,11 +1739,6 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
       {/* ── Security ──────────────────────────────────────────── */}
       {screen === 'security' && (
         <div className="st2-screen">
-          <ToggleRow
-            label={isHe ? 'אימות דו-שלבי' : 'Two-factor auth'}
-            sub={isHe ? 'הגנה נוספת בכניסה' : 'Extra protection on sign-in'}
-            value={tfa} onChange={setTfa}
-          />
           {!user?.googleId && (
             <div className="st2-section-block">
               <div className="st2-block-title">{isHe ? 'איפוס סיסמה' : 'Reset password'}</div>
@@ -1778,8 +1816,8 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
                 <div className="st2-danger-label">{isHe ? 'ייצוא נתונים' : 'Export data'}</div>
                 <div className="st2-danger-sub">{isHe ? 'הורדת הנתונים כ-JSON.' : 'Download your data as JSON.'}</div>
               </div>
-              <button className="st2-danger-btn" onClick={() => flashToast(isHe ? "פיצ'ר בפיתוח" : 'Coming soon')}>
-                {isHe ? 'ייצוא' : 'Export'}
+              <button className="st2-danger-btn" onClick={handleExportData} disabled={exporting}>
+                {exporting ? (isHe ? 'מייצא…' : 'Exporting…') : (isHe ? 'ייצוא' : 'Export')}
               </button>
             </div>
 

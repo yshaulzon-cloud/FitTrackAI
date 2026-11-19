@@ -119,7 +119,13 @@ const DESCRIPTOR_WORDS = new Set([
   'sliced', 'chopped', 'cooked', 'plain', 'homemade',
 ]);
 const FILLER = new Set(['של', 'of', 'מ', 'מן', 'ה']); // between a quantity and its food: "2 כוסות של חלב"
-const STOPWORDS = new Set(['עם', 'של', 'על', 'את', 'או', 'גם', 'ללא', 'בלי', 'with', 'and', 'or', 'of', 'the', 'in', 'on', 'without', 'plus']);
+const STOPWORDS = new Set(['עם', 'של', 'על', 'את', 'או', 'גם', 'ללא', 'בלי', 'ובלי', 'וללא', 'with', 'and', 'or', 'of', 'the', 'in', 'on', 'without', 'plus']);
+// Negation: a food named right after one of these is NOT in the meal ("קפה בלי סוכר", "tea with no sugar").
+// It covers the foods that follow joined by a connector ("בלי חלב וסוכר", "no milk or sugar") and stops at the
+// first other word ("בלי סוכר עם חלב" → the milk counts). The negated words are consumed, so they are not
+// counted, not reported as "not understood" and do not take a quantity.
+const NEGATORS = new Set(['בלי', 'ללא', 'ובלי', 'וללא', 'without', 'no']);
+const NEG_CONNECTORS = new Set(['ו', 'או', 'גם', 'ולא', 'and', 'or', 'nor']);
 
 function numberOf(tok) {
   if (/^\d+(\u0001\d+)?$/.test(tok)) return parseFloat(tok.replace('\u0001', '.'));
@@ -192,22 +198,29 @@ function createEstimator(db, portions = []) {
   // Foods, left to right, longest name first. Words that are not foods are skipped.
   function findFoods(tokens) {
     const foods = [];
+    const negated = [];
     const taken = new Array(tokens.length).fill(false);
+    let negating = false;
     let i = 0;
     while (i < tokens.length) {
+      if (NEGATORS.has(tokens[i])) { negating = true; i++; continue; }
       const m = matchAt(tokens, i);
       if (m) {
-        foods.push({ start: i, end: i + m.len, ei: m.ei, fuzzy: false });
         for (let k = i; k < i + m.len; k++) taken[k] = true;
+        if (negating) negated.push({ start: i, end: i + m.len, ei: m.ei });
+        else foods.push({ start: i, end: i + m.len, ei: m.ei, fuzzy: false });
         i += m.len;
-      } else i++;
+      } else {
+        if (negating && !NEG_CONNECTORS.has(tokens[i])) negating = false;
+        i++;
+      }
     }
     // A conservative typo catch: one wrong letter in a long single word, same first letter,
     // and only one food it could be. Anything shorter or more ambiguous stays "not found".
     if (!foods.length) {
       for (let k = 0; k < tokens.length; k++) {
         const w = tokens[k];
-        if (w.length < 6 || !HEBREW.test(w) || numberOf(w) !== null || STOPWORDS.has(w) || UNIT_OF.has(w)) continue;
+        if (taken[k] || w.length < 6 || !HEBREW.test(w) || numberOf(w) !== null || STOPWORDS.has(w) || UNIT_OF.has(w)) continue;
         const near = singleWordKeys.filter((key) => key[0] === w[0] && Math.abs(key.length - w.length) <= 1 && levenshtein(w, key) === 1);
         if (near.length === 1) {
           const cand = index.get(near[0]).find((c) => c.words.length === 1);
@@ -216,7 +229,7 @@ function createEstimator(db, portions = []) {
         }
       }
     }
-    return { foods, taken };
+    return { foods, taken, negated };
   }
 
   // Quantity groups from the words that are not part of a food name.
@@ -315,9 +328,11 @@ function createEstimator(db, portions = []) {
 
   function parse(text) {
     const tokens = tokenize(text);
-    if (!tokens.length) return { foods: [], unmatched: [] };
-    const { foods, taken } = findFoods(tokens);
-    if (!foods.length) return { foods: [], unmatched: [] };
+    if (!tokens.length) return { foods: [], unmatched: [], without: [] };
+    const { foods, taken, negated } = findFoods(tokens);
+    // Foods the text says are NOT in the meal ("בלי סוכר"): named here so a screen can say so, never counted.
+    const without = negated.map((f) => tokens.slice(f.start, f.end).join(' '));
+    if (!foods.length) return { foods: [], unmatched: [], without };
     const groups = findQuantities(tokens, taken);
     attach(foods, groups, tokens);
 
@@ -357,7 +372,7 @@ function createEstimator(db, portions = []) {
       out.push({ entry: db[breadEi], grams: 2 * slice, quantityAssumed: true, basis: 'default', fuzzy: false, name: '' });
     }
 
-    return { unmatched, foods: out };
+    return { unmatched, foods: out, without };
   }
 
   const englishNameOf = (entry) => entry.keys.find((k) => /^[a-zA-Z0-9 %'\-\/().]+$/.test(k)) || null;
