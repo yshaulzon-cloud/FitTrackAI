@@ -51,7 +51,7 @@
 | `GET /health` | PASS | `curl -s https://bodysync-api-admm.onrender.com/health` ← `200 {"status":"ok","version":"1.0.9"}` תוך 0.6 שניות (שרת חם) |
 | זמן התעוררות (cold start) | לא אומת | השרת היה חם בזמן הבדיקה. בתוכנית החינמית של Render התעוררות ארוכה (כדקה); מצב הטעינה באפליקציה נבדק מקומית (E3) |
 | גרסת הפריסה מול הקוד | לא אומת | `/health` מחזיר `1.0.9` וגם הקוד `API_VERSION = '1.0.9'`, אבל המספר לא מתעדכן בכל פריסה ולכן לא מוכיח שהקומיט האחרון פרוס. **המלצה:** להעלות את `API_VERSION` בעת הפריסה הבאה |
-| CORS | PASS | בקשה עם `Origin: https://evil.example` ← אין `Access-Control-Allow-Origin` (המשתנה `CORS_ORIGIN` מוגדר). **ראו FAIL קטן:** הסירוב חוזר כ-**500** (יתוקן ל-403 אחרי פריסת S9) |
+| CORS | PASS | בקשה עם `Origin: https://evil.example` ← אין `Access-Control-Allow-Origin` (המשתנה `CORS_ORIGIN` מוגדר). ~~הסירוב חוזר כ-500~~ **אומת אחרי הפריסה (2026-11-19): מקור זר ← 403**, המקור של האפליקציה ← 200 עם `access-control-allow-origin` |
 | כותרות הלקוח (`curl -I https://app.digtal-c.co.il`) | FAIL | אין CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy. ערכים מוצעים ונבדקו מקומית ב-security-audit-r2.md |
 | משתני Render | **FAIL חלקי (2026-11-19, שמות בלבד)** | מוגדרים `MONGODB_URI`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `CORS_ORIGIN`, `NODE_VERSION`; **חסרים `RESEND_API_KEY` ו-`EMAIL_FROM`**; שאריות שלא בשימוש: `EMAIL_USER`, `EMAIL_PASS`, `BREVO_API_KEY` |
 | כללי הרשת ב-Atlas | לא אומת (ידני) | טבלה למטה |
