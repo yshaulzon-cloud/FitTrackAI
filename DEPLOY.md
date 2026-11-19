@@ -55,56 +55,63 @@ works (or create a new one):
 
 ---
 
-## C. Frontend → Wangus subdomain
+## C. Frontend → Vangus subdomain (`app.digtal-c.co.il`)
 
-### C.1 Create the subdomain in Wangus cPanel
+The hosting company is spelled "Wangus" elsewhere in this repo; its panel is Plesk at `vangus.io`. **The web client is not deployed by git or by Render.** Pushing to `master` only redeploys the API; the web build has to be uploaded by hand (C.4). Until that is done the site keeps serving the old build.
 
-1. Log in to your Wangus control panel.
-2. **Subdomains** → create `app` under `digtal-c.co.il`.
-3. Set the document root to something like `/public_html/app/`.
-4. Wangus will provision SSL automatically (Let's Encrypt). Verify in
-   **SSL/TLS Status** that the new subdomain has a green lock.
+### C.1 The subdomain (already exists)
 
-### C.2 Update the Render URL in `client/.env.production`
+`app.digtal-c.co.il` lives in the Vangus Plesk panel (`https://c6.vangus.io:8443`) as its own entry under **אתרי אינטרנט ודומיינים** (Websites & Domains), with its own site folder `app.digtal-c.co.il` and working HTTPS. The same Plesk subscription hosts other, unrelated sites: only ever use the **File Manager** button of the `app.digtal-c.co.il` entry and never touch the others. If the subdomain ever has to be recreated, add `app` under `digtal-c.co.il` in that panel and make sure SSL is enabled for it.
 
-Open `client/.env.production` and replace the placeholder:
+### C.2 The API URL in `client/.env.production`
+
+`client/.env.production` already points at the live API:
 ```
-VITE_API_URL=https://bodysync-api.onrender.com
+VITE_API_URL=https://bodysync-api-admm.onrender.com
 ```
-with your actual Render URL from step B.6.
+Keep the `-admm` suffix: the bare `bodysync-api.onrender.com` does not exist. If you recreate the Render service, put its URL from step B.6 here before building.
 
 ### C.3 Build the frontend
 
 From the project root:
 ```bash
 cd client
-npm install         # only first time
 npm run build       # produces client/dist/
 ```
 
-You should see `dist/` containing:
-- `index.html`
-- `logo.png`
-- `assets/index-XXX.js` and `assets/index-XXX.css`
-- `.htaccess` (auto-copied from `public/`)
+Do not run `npm install` inside this project folder on the owner's I: drive: it corrupts `node_modules`. Install on a copy on the C: drive and copy `node_modules` back.
 
-### C.4 Upload `dist/` to Wangus
+`dist/` contains:
+- `index.html`, `privacy.html`, `delete-account.html`, `logo.png`, `streak-logo.png`
+- `assets/` with hashed files (`index-XXXX.js`, `index-XXXX.css`, `web-XXXX.js`)
+- `exercise-videos/` (about 150 MB, never changes between releases)
+- `.htaccess` (copied from `public/`; already on the host)
 
-Two options:
+### C.4 Upload to Vangus (Plesk File Manager)
 
-**Option 1 — File Manager (cPanel):**
-1. cPanel → **File Manager** → `/public_html/app/`
-2. Delete anything that's there (except `.well-known/` if it exists for SSL).
-3. Upload all contents of `client/dist/` (drag-and-drop the **contents**, not the folder itself).
-4. Make sure `.htaccess` is included — File Manager hides dotfiles by default; toggle "Show Hidden Files" in Settings.
+A normal release changes only `index.html` and a few hashed files in `assets/`. Do not re-upload all of `dist/`.
 
-**Option 2 — FTP (faster for repeated deploys):**
-1. Get FTP credentials from cPanel → **FTP Accounts**.
-2. Use FileZilla → connect → upload contents of `client/dist/` to `/public_html/app/`.
+1. Plesk → **אתרי אינטרנט ודומיינים** → the `app.digtal-c.co.il` entry → **File Manager**. It opens the site's root folder.
+2. Find out which `assets/` files are missing on the host. The host answers HTTP 200 with `index.html` for **any** path that does not exist, so a 200 proves nothing. Compare the `Content-Type` (`application/javascript` or `text/css` means it exists, `text/html` means it does not) or a hash:
+   ```bash
+   curl -s -o /dev/null -w "%{http_code} %{content_type}\n" https://app.digtal-c.co.il/assets/<file>
+   ```
+3. Save the current `index.html` first, so you can roll back: `curl -s https://app.digtal-c.co.il/ -o index.html.bak`.
+4. Open `assets/` → **הוספת קובץ חדש** (Add new file) → **העלה קובץ** (Upload file) and pick every missing file from `client/dist/assets/` (several at once is fine). Leave the old hashed files where they are: they make a rollback trivial.
+5. Go up one level and upload `privacy.html` / `delete-account.html` only if they changed. `.htaccess` only if `client/public/.htaccess` changed.
+6. Upload `index.html` **last**, so the page never points at assets that are not there yet.
+7. When a file already exists, Plesk asks **להחליף את הקבצים הקיימים?** (Replace the existing files?). Click **החלף** (Replace). The dialog is easy to miss, and if it is left open the old file silently stays.
+
+**Rollback:** upload the saved old `index.html` (and `privacy.html` if it was replaced). The old `assets/` files are still on the host.
 
 ### C.5 Verify
 
-Visit `https://app.digtal-c.co.il` in a browser:
+First check that the host serves exactly what you built:
+```bash
+curl -s https://app.digtal-c.co.il/ | sha256sum    # must equal: sha256sum client/dist/index.html
+```
+
+Then visit `https://app.digtal-c.co.il` in a browser (hard refresh with Ctrl+Shift+R):
 - Splash screen should appear with the Areto logo.
 - After ~2 seconds, the Login page should render.
 - Try logging in. If you get a CORS error, check that:
@@ -134,10 +141,10 @@ When you want to push a frontend change:
 ```bash
 cd client
 npm run build
-# upload client/dist/ contents to /public_html/app/ via FTP
+# then upload the changed files by hand: see C.4 (Plesk File Manager), verify with C.5
 ```
 
-When you push backend changes to GitHub, Render redeploys automatically.
+When you push backend changes to GitHub, Render redeploys automatically. It does **not** deploy the web client.
 
 ---
 
@@ -154,6 +161,12 @@ When you push backend changes to GitHub, Render redeploys automatically.
 
 **Site loads but assets (JS/CSS) 404**
 → The path inside `index.html` is wrong. Make sure you uploaded the `assets/` folder along with `index.html`.
+
+**Blank page, and the browser console complains about a JS/CSS file with MIME type `text/html`**
+→ `index.html` points at a hashed file in `assets/` that was not uploaded. The host answers `index.html` (HTTP 200) for a missing file instead of a 404. Upload the missing file (see C.4) or put the previous `index.html` back.
+
+**The site still shows the old version after a deploy**
+→ Check what the host really serves: `curl -s https://app.digtal-c.co.il/ | grep -o 'assets/[^"]*'` and compare with `client/dist/index.html`. If they differ, `index.html` was not replaced (the replace dialog in C.4 step 7 was missed).
 
 **Render deploy fails**
 → Check the build log for the missing env var name. Set it in Render dashboard → Environment.
