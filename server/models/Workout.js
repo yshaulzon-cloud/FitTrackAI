@@ -45,4 +45,9 @@ const workoutSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Same access pattern as Nutrition: always one user's sessions, usually newest
+// first (history, last-workout lookups, "trained today"). Without an index every
+// such query scanned the whole collection. Not unique on purpose.
+workoutSchema.index({ userId: 1, date: -1 });
+
 module.exports = mongoose.model('Workout', workoutSchema);

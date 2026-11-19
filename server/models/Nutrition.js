@@ -52,4 +52,11 @@ const nutritionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Every read of this collection is "this user's days" — a single day range
+// (today's log), the latest 30 days, or all of a user's days (streak, export,
+// account delete). Without an index each of those scanned the WHOLE collection,
+// which gets slow as users and days pile up. Not unique on purpose: the build
+// must never fail on existing data, and the code already tolerates a day doc.
+nutritionSchema.index({ userId: 1, date: -1 });
+
 module.exports = mongoose.model('Nutrition', nutritionSchema);
