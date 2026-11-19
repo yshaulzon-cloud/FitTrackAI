@@ -34,8 +34,11 @@ works (or create a new one):
 4. The first deploy will pause asking for the secret env vars. Set them now:
    - `MONGODB_URI` → the Atlas string from step A.5
    - `JWT_SECRET` → any long random string (`openssl rand -hex 64`)
-   - `EMAIL_USER` → `bodysync11@gmail.com` (or your own Gmail)
-   - `EMAIL_PASS` → 16-char Gmail app password (Google account → Security → 2FA → App passwords)
+   - `GOOGLE_CLIENT_ID` → the Web OAuth client ID used for Google Sign-In (Google Cloud Console → APIs & Services → Credentials)
+   - `RESEND_API_KEY` → Resend → API Keys → Create API Key, permission **Sending access**, limited to your verified domain. Password-reset codes go out through Resend over HTTPS, because Render's free tier blocks SMTP. (Gmail / `EMAIL_USER` / `EMAIL_PASS` are no longer used.)
+   - `EMAIL_FROM` → a sender on that Resend-verified domain, e.g. `Areto <no-reply@digtal-c.co.il>`
+
+   The sending domain must show **Verified** in Resend before mail is delivered: add the DKIM TXT (`resend._domainkey`) and the `send` MX + SPF TXT records Resend lists to the domain's DNS zone. Do not add Resend's optional root (`@`) MX if the domain already has mail.
 5. Click **Apply**. First build takes ~3 minutes.
 6. Once status is **Live**, copy the URL — likely `https://bodysync-api.onrender.com`.
 7. Smoke test:
