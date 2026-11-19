@@ -42,7 +42,11 @@ android {
                 signingConfig signingConfigs.release
             }
             minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // "-optimize" variant: the plain proguard-android.txt carries
+            // -dontoptimize, which left R8 shrinking and obfuscating (94% each)
+            // but optimizing 0% — Play Console flagged "DEX code optimization: low".
+            // Capacitor's own consumer rules keep the plugin classes/methods.
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
