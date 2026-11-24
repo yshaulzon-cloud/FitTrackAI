@@ -30,7 +30,7 @@ export default function ExerciseSwapSheet({ exerciseName, inSession = [], equipm
         {alternatives.length === 0 ? (
           <div className="sw-sheet__empty">
             {isHe
-              ? 'לא נמצאה חלופה שמתאימה לציוד שלך ולא כבר באימון. אפשר לעדכן את הציוד בהגדרות ← ציוד.'
+              ? 'לא נמצאה חלופה שמתאימה לציוד שלך ואינה כבר באימון. אפשר לעדכן את הציוד בהגדרות ← ציוד.'
               : 'No alternative matches your equipment and isn’t already in this workout. You can update your equipment in Settings → Equipment.'}
           </div>
         ) : (

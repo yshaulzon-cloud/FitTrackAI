@@ -129,11 +129,11 @@ export function explain(rec, isHe) {
   const kg = isHe ? 'ק״ג' : 'kg';
   switch (r.code) {
     case 'topRange': return isHe ? `הגעת ל-${r.reps} חזרות בכל הסטים עם ${r.from} ${kg}` : `You hit ${r.reps} reps on every set at ${r.from} ${kg}`;
-    case 'topRangeBodyweight': return isHe ? `עשית ${r.reps} חזרות בכל הסטים, אפשר להוסיף חזרה` : `You did ${r.reps} reps on every set — add one`;
+    case 'topRangeBodyweight': return isHe ? `עשית ${r.reps} חזרות בכל הסטים. אפשר להוסיף חזרה` : `You did ${r.reps} reps on every set. Add one`;
     case 'tooHard': return isHe ? 'סימנת שהתרגיל היה קשה מדי, אז מורידים קצת' : 'You flagged it as too hard, so a little lighter';
     case 'missedTwice': return isHe ? 'פעמיים ברציפות לא הגעת למינימום החזרות, אז מורידים קצת' : 'You missed the minimum reps twice in a row, so a little lighter';
     case 'sleepEase': return isHe ? `בגלל השינה הקצרה, צעד אחד קל יותר מ-${r.from} ${kg}` : `Because of the short sleep, one step lighter than ${r.from} ${kg}`;
-    case 'missedOnce': return isHe ? 'בפעם שעברה לא הגעת למינימום החזרות, נשארים באותו משקל' : 'You missed the minimum reps last time — same weight';
+    case 'missedOnce': return isHe ? 'בפעם שעברה לא הגעת למינימום החזרות. נשארים באותו משקל' : 'You missed the minimum reps last time. Same weight';
     default: return isHe ? 'אותו משקל, חזרה אחת יותר מפעם שעברה' : 'Same weight, one more rep than last time';
   }
 }

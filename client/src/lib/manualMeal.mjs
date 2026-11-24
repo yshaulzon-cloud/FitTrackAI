@@ -61,5 +61,5 @@ export function manualErrorText(field, code, isHe) {
     const max = `${MANUAL_LIMITS[field].toLocaleString('en-US')} ${unit}`;
     return isHe ? `${names[field]}: עד ${max}` : `${names[field]}: ${max} at most`;
   }
-  return isHe ? `${names[field]}: יש להזין מספר` : `${names[field]}: enter a number`;
+  return isHe ? `${names[field]}: הזן מספר` : `${names[field]}: enter a number`;
 }

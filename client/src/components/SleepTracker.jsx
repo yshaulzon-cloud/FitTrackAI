@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLang } from '../context/LanguageContext';
 import { updateReminderState } from '../lib/notifications';
-import { notifySleepChanged } from '../lib/useSleepAdvice';
+import { notifySleepChanged, SLEEP_CHANGED_EVENT } from '../lib/useSleepAdvice';
+import { sleepWeek, nightsLabel } from '../lib/sleepWeek.mjs';
 
 // Prototype sleep sheet: a fixed set of hour chips rather than a drag gauge.
 // '9+' logs 9 — the server only needs the qualifying threshold, and a single
@@ -43,8 +44,26 @@ export default function SleepTracker({ api, showXP }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
+  // Last 30 days from /sleep/history (null until it loads, and if it never does:
+  // the weekly card then simply is not shown).
+  const [history, setHistory] = useState(null);
+  const apiRef = useRef(api);
+  apiRef.current = api;
 
   useEffect(() => { loadData(); }, []);
+
+  // A night was (re)logged: re-read the history so the weekly card updates
+  // without a reload. On failure the card keeps showing what it had.
+  useEffect(() => {
+    const refresh = async () => {
+      try {
+        const rows = await apiRef.current('/sleep/history');
+        if (Array.isArray(rows)) setHistory(rows);
+      } catch { /* keep the previous numbers */ }
+    };
+    window.addEventListener(SLEEP_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(SLEEP_CHANGED_EVENT, refresh);
+  }, []);
 
   // Lock body scroll while the sheet is up.
   useEffect(() => {
@@ -58,7 +77,12 @@ export default function SleepTracker({ api, showXP }) {
 
   async function loadData() {
     try {
-      const res = await api('/sleep/today');
+      // Both requests are sent together and awaited together, so the row and the
+      // weekly card appear in the same frame instead of the card popping in later.
+      const [todayRes, historyRes] = await Promise.allSettled([api('/sleep/today'), api('/sleep/history')]);
+      if (historyRes.status === 'fulfilled' && Array.isArray(historyRes.value)) setHistory(historyRes.value);
+      if (todayRes.status === 'rejected') throw todayRes.reason;
+      const res = todayRes.value;
       setTodaySleep(res.sleep);
       setRecommendation(res.recommendation);
       if (res.sleep) {
@@ -93,6 +117,8 @@ export default function SleepTracker({ api, showXP }) {
       setSaving(false);
     }
   }
+
+  const week = useMemo(() => (history ? sleepWeek(history) : null), [history]);
 
   if (loading) return null;
 
@@ -147,6 +173,40 @@ export default function SleepTracker({ api, showXP }) {
           <path d={isHe ? 'M14 6l-6 6 6 6' : 'M10 6l6 6-6 6'} />
         </svg>
       </button>
+
+      {/* Weekly summary: average hours and quality over the last 7 days. Not
+          tappable; hidden when no night was logged in the window. */}
+      {week && week.nights > 0 && (
+        <div
+          role="group"
+          aria-label={isHe ? 'סיכום שינה שבועי' : 'Weekly sleep summary'}
+          style={{
+            marginTop: 14, background: 'var(--surface)',
+            border: '1px solid var(--border-faint)', borderRadius: 18,
+            padding: '15px 18px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, fontSize: 12.5, color: 'var(--text-3)' }}>
+            <span style={{ fontWeight: 600 }}>{isHe ? 'השבוע האחרון' : 'Last 7 days'}</span>
+            <span>{nightsLabel(week.nights, isHe)}</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', marginTop: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: 'var(--text-1)', lineHeight: 1.2 }}>
+                {week.avgHours}
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-3)' }}>{' '}{isHe ? 'שעות' : 'h'}</span>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3 }}>{isHe ? 'ממוצע שעות שינה' : 'Average sleep'}</div>
+            </div>
+            <div style={{ minWidth: 0, borderInlineStart: '1px solid var(--border-faint)', paddingInlineStart: 18 }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: 'var(--text-1)', lineHeight: 1.2 }}>
+                {qLabel(week.avgQuality)}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3 }}>{isHe ? 'איכות שינה ממוצעת' : 'Average quality'}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom sheet */}
       {open && (

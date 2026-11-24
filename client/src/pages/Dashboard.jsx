@@ -537,7 +537,7 @@ function MacroRing({ caloriePct, calorieTarget, calorieProgress, isHe }) {
             {(calorieTarget || 0).toLocaleString()}
           </text>
           <text x="70" y="88" textAnchor="middle" fontFamily="Heebo" fontSize="10" fill="var(--text-3)" letterSpacing="0.04em">
-            {isHe ? 'יעד היום · התחל' : "today's target · go"}
+            {isHe ? 'יעד היום · התחל' : "Today's target · start"}
           </text>
         </>
       ) : (
@@ -704,7 +704,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
   if (!hasLoggedToday) {
     nextTitle = !targetKnown
       ? (isHe ? 'התחל את היום' : 'Start your day')
-      : (isHe ? `התחל את היום — ${calorieTarget.toLocaleString()} קלוריות ביעד` : `Start your day — ${calorieTarget.toLocaleString()} kcal target`);
+      : (isHe ? `התחל את היום: ${calorieTarget.toLocaleString()} קלוריות ביעד` : `Start your day: ${calorieTarget.toLocaleString()} kcal target`);
     nextSub = isHe ? 'רשום את הארוחה הראשונה כדי להתחיל לעקוב.' : 'Log your first meal to start tracking.';
     nextAction = () => setActiveTab('nutrition');
   } else if (proteinRemaining > 30) {
@@ -717,7 +717,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
     nextAction = () => setActiveTab('workout');
   } else {
     nextTitle = isHe ? 'כל הכבוד! עמדת ביעדים להיום' : 'Great work! All goals done for today';
-    nextSub = isHe ? 'אכלת טוב ואימנת — נח ותתאושש.' : 'You ate well and trained — rest and recover.';
+    nextSub = isHe ? 'אכלת טוב ואימנת. נח ותתאושש.' : 'You ate well and trained. Rest and recover.';
     nextAction = () => {};
   }
 
@@ -813,7 +813,7 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
             {userName ? `${getGreeting(lang)}, ${userName}` : (isHe ? 'ברוך שובך' : 'Welcome back')}
           </h1>
           <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8F8AF7', background: 'rgba(143,138,247,.1)', borderRadius: 999, padding: '3px 10px', flexShrink: 0 }}>
-            {isHe ? `רמה ${progressionData?.level ?? 1}` : `LVL ${progressionData?.level ?? 1}`}
+            {isHe ? `רמה ${progressionData?.level ?? 1}` : `Level ${progressionData?.level ?? 1}`}
           </span>
         </div>
         <div style={{ fontSize: 13.5, color: '#7C8798', marginTop: 4 }}>{formatDate(lang)}</div>
@@ -1103,7 +1103,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
         body: JSON.stringify({ email: user.email, code: pwCode.trim(), newPassword: pwNew }),
       });
       setPwStep('done');
-      flashToast(isHe ? 'הסיסמה שונתה בהצלחה' : 'Password changed successfully');
+      flashToast(isHe ? 'הסיסמה שונתה' : 'Password changed');
       setPwCode(''); setPwNew('');
       setTimeout(() => setPwStep('idle'), 4000);
     } catch (err) {
@@ -1222,8 +1222,8 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
 
   const screenTitles = {
     home:     isHe ? 'הגדרות'          : 'Settings',
-    body:     isHe ? 'נתוני גוף'       : 'Body Data',
-    goal:     isHe ? 'מטרת אימון'      : 'Training Goal',
+    body:     isHe ? 'נתוני גוף'       : 'Body data',
+    goal:     isHe ? 'מטרת אימון'      : 'Training goal',
     equipment: isHe ? 'ציוד'           : 'Equipment',
     notif:    isHe ? 'התראות'           : 'Notifications',
     display:  isHe ? 'תצוגה'           : 'Display',
@@ -1231,27 +1231,27 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     access:   isHe ? 'נגישות'          : 'Accessibility',
     account:  isHe ? 'חשבון'           : 'Account',
     security: isHe ? 'אבטחה'           : 'Security',
-    privacy:  isHe ? 'פרטיות ונתונים'  : 'Privacy & Data',
+    privacy:  isHe ? 'פרטיות ונתונים'  : 'Privacy & data',
   };
 
   const allItems = [
-    { screen: 'body',     label: isHe ? 'משקל וגובה'   : 'Weight & Height' },
+    { screen: 'body',     label: isHe ? 'משקל וגובה'   : 'Weight & height' },
     { screen: 'body',     label: isHe ? 'מגדר'          : 'Gender' },
-    { screen: 'goal',     label: isHe ? 'ירידה במשקל'   : 'Cut' },
+    { screen: 'goal',     label: isHe ? 'חיטוב'   : 'Cut' },
     { screen: 'goal',     label: isHe ? 'עלייה במסה'    : 'Bulk' },
     { screen: 'equipment', label: isHe ? 'ציוד זמין'     : 'Available equipment' },
     { screen: 'equipment', label: isHe ? 'חדר כושר'      : 'Gym' },
     { screen: 'notif',    label: isHe ? 'תזכורת אימון'  : 'Workout reminder' },
-    { screen: 'notif',    label: isHe ? 'ארוחת בוקר'    : 'Breakfast reminder' },
-    { screen: 'notif',    label: isHe ? 'ארוחת צהריים'  : 'Lunch reminder' },
-    { screen: 'notif',    label: isHe ? 'ארוחת ערב'     : 'Dinner reminder' },
+    { screen: 'notif',    label: isHe ? 'תזכורת ארוחת בוקר'    : 'Breakfast reminder' },
+    { screen: 'notif',    label: isHe ? 'תזכורת ארוחת צהריים'  : 'Lunch reminder' },
+    { screen: 'notif',    label: isHe ? 'תזכורת ארוחת ערב'     : 'Dinner reminder' },
     { screen: 'notif',    label: isHe ? 'תזכורת שינה'   : 'Sleep reminder' },
     { screen: 'notif',    label: isHe ? 'התראת רצף'     : 'Streak alert' },
     { screen: 'notif',    label: isHe ? 'סיכום שבועי'   : 'Weekly recap' },
     { screen: 'notif',    label: isHe ? 'שעת התראה'     : 'Reminder time' },
     { screen: 'display',  label: isHe ? 'ערכת צבעים'    : 'Theme' },
     { screen: 'access',   label: isHe ? 'גודל טקסט'     : 'Text size' },
-    { screen: 'account',  label: isHe ? 'שם פרטי'       : 'Name' },
+    { screen: 'account',  label: isHe ? 'שם פרטי'       : 'First name' },
     { screen: 'security', label: isHe ? 'סיסמה'         : 'Password' },
     { screen: 'privacy',  label: isHe ? 'מחיקת חשבון'   : 'Delete account' },
   ];
@@ -1266,9 +1266,9 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
     : 0;
 
   const sections = [
-    { id: 'body',     icon: 'user',    label: isHe ? 'נתוני גוף'      : 'Body Data',      sub: isHe ? 'משקל, גובה, מגדר'       : 'Weight, height, gender',
+    { id: 'body',     icon: 'user',    label: isHe ? 'נתוני גוף'      : 'Body data',      sub: isHe ? 'משקל, גובה, מגדר'       : 'Weight, height, gender',
       value: weight && height ? (isHe ? `${weight} ק״ג · ${height}` : `${weight} kg · ${height}`) : null },
-    { id: 'goal',     icon: 'target',  label: isHe ? 'מטרת אימון'     : 'Training Goal',  sub: isHe ? 'חיתוך, בנייה, שמירה'     : 'Cut, bulk, maintain',
+    { id: 'goal',     icon: 'target',  label: isHe ? 'מטרת אימון'     : 'Training goal',  sub: isHe ? 'חיטוב, עלייה במסה, שמירה'     : 'Cut, bulk, maintain',
       value: goalLabels[goal] || null },
     { id: 'equipment', icon: 'dumbbell', label: isHe ? 'ציוד'          : 'Equipment',      sub: isHe ? 'מה זמין לך, להחלפת תרגילים' : 'What you have, for exercise swaps',
       value: equipment.length ? (isHe ? `${equipment.length} נבחרו` : `${equipment.length} selected`) : null },
@@ -1281,14 +1281,14 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
       value: lang === 'he' ? 'עברית' : 'English' },
     { id: 'access',   icon: 'sliders', label: isHe ? 'נגישות'          : 'Accessibility',  sub: isHe ? 'גודל טקסט, ניגודיות'    : 'Text size, contrast' },
     { id: 'security', icon: 'lock',    label: isHe ? 'אבטחה'           : 'Security',       sub: isHe ? 'סיסמה ואימות'            : 'Password and auth' },
-    { id: 'privacy',  icon: 'shield',  label: isHe ? 'פרטיות ונתונים'  : 'Privacy & Data', sub: isHe ? 'ייצוא, איפוס, מחיקה'    : 'Export, reset, delete' },
+    { id: 'privacy',  icon: 'shield',  label: isHe ? 'פרטיות ונתונים'  : 'Privacy & data', sub: isHe ? 'ייצוא, איפוס, מחיקה'    : 'Export, reset, delete' },
   ];
 
   // The prototype groups the eight sections under three headers.
   const navGroups = [
     { label: isHe ? 'פרופיל'          : 'Profile',            ids: ['body', 'goal', 'equipment', 'account'] },
     { label: isHe ? 'העדפות'          : 'Preferences',        ids: ['notif', 'display', 'language', 'access'] },
-    { label: isHe ? 'פרטיות ואבטחה'   : 'Privacy & Security', ids: ['security', 'privacy'] },
+    { label: isHe ? 'פרטיות ואבטחה'   : 'Privacy & security', ids: ['security', 'privacy'] },
   ];
 
   // Results render inside <SettingsSearch/>; here we only need to know whether
@@ -1393,7 +1393,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
         )}
         {item.enabled && quiet && (
           <div className="st2-notif-hint">
-            {isHe ? 'השעה הזאת (23:00–06:00) עלולה להעיר אותך. אפשר לבחור שעה אחרת.' : 'This time (11 pm–6 am) may wake you. Pick another time if you like.'}
+            {isHe ? 'השעה הזאת, בין 23:00 ל-06:00, עלולה להעיר אותך. אפשר לבחור שעה אחרת.' : 'This time, between 11 pm and 6 am, may wake you. Pick another time if you like.'}
           </div>
         )}
       </div>
@@ -1493,7 +1493,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
       {screen === 'body' && (
         <div className="st2-screen">
           <p className="st2-section-desc">
-            {isHe ? 'משקל וגובה משפיעים ישירות על יעד הקלוריות שלך.' : 'Weight and height directly drive your calorie target.'}
+            {isHe ? 'משקל וגובה משפיעים ישירות על יעד הקלוריות שלך.' : 'Weight and height directly affect your calorie target.'}
           </p>
           <div className="st2-field-row">
             <div className="st2-field">
@@ -1618,7 +1618,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4l1.7 4.6 4.8 1.7-4.8 1.7L12 16.6l-1.7-4.6-4.8-1.7 4.8-1.7z" /></svg>
               </span>
               <span>
-                {isHe ? <>יעד יומי: <strong>{liveCalories.toLocaleString()} קל'</strong></> : <>Daily target: <strong>{liveCalories.toLocaleString()} kcal</strong></>}
+                {isHe ? <>יעד יומי: <strong>{liveCalories.toLocaleString()} קק״ל</strong></> : <>Daily target: <strong>{liveCalories.toLocaleString()} kcal</strong></>}
               </span>
             </div>
           )}
@@ -1714,7 +1714,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
           </div>
           <div style={{ marginTop: 20 }}>
             <ToggleRow label={isHe ? 'הפחת תנועה' : 'Reduce motion'} sub={isHe ? 'פחות אנימציות' : 'Fewer animations'} value={reduceMotion} onChange={setReduceMotion} />
-            <ToggleRow label={isHe ? 'ניגודיות גבוהה' : 'High contrast'} sub={isHe ? 'מתאר כהה יותר' : 'Stronger outlines'} value={highContrast} onChange={setHighContrast} />
+            <ToggleRow label={isHe ? 'ניגודיות גבוהה' : 'High contrast'} sub={isHe ? 'קווי מתאר בולטים יותר' : 'Stronger outlines'} value={highContrast} onChange={setHighContrast} />
           </div>
         </div>
       )}
@@ -1767,7 +1767,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
                   <label className="st2-label">{isHe ? 'סיסמה חדשה' : 'New password'}</label>
                   <input
                     type="password" value={pwNew} onChange={e => setPwNew(e.target.value)}
-                    placeholder={isHe ? 'לפחות 8 תווים + ספרה' : 'At least 8 chars + digit'}
+                    placeholder={isHe ? 'לפחות 8 תווים, כולל ספרה אחת' : 'At least 8 characters, including a digit'}
                     style={{ ...inputStyle, direction: 'ltr', marginBottom: 10 }}
                     autoComplete="new-password"
                   />
@@ -1803,12 +1803,12 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
               : 'Your data is encrypted and used only to compute personal targets. We never sell data.'}
           </p>
           <div className="st2-links">
-            <button className="st2-link-btn" onClick={openPrivacy}>{isHe ? '› מדיניות פרטיות' : '› Privacy Policy'}</button>
-            <button className="st2-link-btn" onClick={openTerms}>{isHe ? '› תנאי שימוש' : '› Terms of Service'}</button>
+            <button className="st2-link-btn" onClick={openPrivacy}>{isHe ? '› מדיניות פרטיות' : '› Privacy policy'}</button>
+            <button className="st2-link-btn" onClick={openTerms}>{isHe ? '› תנאי שימוש' : '› Terms of service'}</button>
           </div>
 
           <div className="st2-danger-section">
-            <div className="st2-danger-title">{isHe ? 'פעולות מסוכנות' : 'Danger Zone'}</div>
+            <div className="st2-danger-title">{isHe ? 'פעולות מסוכנות' : 'Danger zone'}</div>
 
 
             <div className="st2-danger-row">
@@ -1824,7 +1824,7 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
             <div className="st2-danger-row">
               <div>
                 <div className="st2-danger-label">{isHe ? 'איפוס נתונים' : 'Reset all data'}</div>
-                <div className="st2-danger-sub">{isHe ? 'מחיקת אימונים, ארוחות ומדידות. החשבון נשמר.' : 'Wipe workouts, meals, and measurements.'}</div>
+                <div className="st2-danger-sub">{isHe ? 'מחיקת אימונים, ארוחות ומדידות. החשבון נשמר.' : 'Wipe workouts, meals, and measurements. Your account stays.'}</div>
               </div>
               <button className="st2-danger-btn st2-danger-btn--red" onClick={() => { setConfirmText(''); setSheet('reset'); }}>
                 {isHe ? 'אפס' : 'Reset'}

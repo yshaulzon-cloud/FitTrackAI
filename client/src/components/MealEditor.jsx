@@ -69,9 +69,9 @@ export default function MealEditor({ meal, api, isHe, onSave, onCancel }) {
           <li key={i} style={{ background: 'var(--bg-input, var(--fill-faint))', border: '1px solid var(--border-faint)', borderRadius: 12, padding: '10px 12px' }}>
             <div style={{ fontSize: 13.5, color: 'var(--text-1)', overflowWrap: 'anywhere' }}>{isHe ? it.name.he : (it.name.en || it.name.he)}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-              <button type="button" style={btn} onClick={() => step(i, -10)} aria-label={isHe ? 'הפחת 10 גרם' : 'Less by 10 g'}>−</button>
+              <button type="button" style={btn} onClick={() => step(i, -10)} aria-label={isHe ? 'הפחת 10 גרם' : 'Decrease by 10 g'}>−</button>
               <span dir="ltr" style={{ minWidth: 56, textAlign: 'center', fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{gramsLabel(it.grams, isHe)}</span>
-              <button type="button" style={btn} onClick={() => step(i, 10)} aria-label={isHe ? 'הוסף 10 גרם' : 'More by 10 g'}>+</button>
+              <button type="button" style={btn} onClick={() => step(i, 10)} aria-label={isHe ? 'הוסף 10 גרם' : 'Increase by 10 g'}>+</button>
               <span style={{ flex: 1, fontSize: 12, color: 'var(--text-3)', textAlign: 'end', fontVariantNumeric: 'tabular-nums' }}>{it.estimated ? '~' : ''}{it.calories} {isHe ? 'קק״ל' : 'kcal'} · {it.protein}g</span>
               <button type="button" style={{ ...btn, fontSize: 13 }} onClick={() => { setPicker({ kind: 'replace', idx: i }); setQuery(''); }} aria-label={isHe ? 'החלף מאכל' : 'Replace food'}>⇄</button>
               <button type="button" style={{ ...btn, color: '#E5484D' }} onClick={() => setItems((prev) => removeItem(prev, i))} aria-label={isHe ? 'הסר מאכל' : 'Remove food'}>×</button>

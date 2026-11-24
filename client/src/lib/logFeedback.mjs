@@ -36,7 +36,7 @@ function unmatchedNote(meal, isHe) {
   const words = Array.isArray(meal && meal.unmatched) ? meal.unmatched.filter(Boolean) : [];
   if (!words.length) return null;
   const list = words.join(', ');
-  return isHe ? `לא זיהינו: ${list} — לא נספרו בחישוב.` : `Not recognised: ${list} — not counted.`;
+  return isHe ? `לא זיהינו: ${list}. לא נספרו בחישוב.` : `Not recognized: ${list}. Not counted.`;
 }
 
 // → { text, hasNotes }. `text` is up to four lines (joined with \n): what was added,

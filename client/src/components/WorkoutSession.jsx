@@ -519,7 +519,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
             </svg>
           </div>
           <h1 className="ws-done__title">
-            {isHe ? `כל הכבוד${firstName ? `, ${firstName}` : ''}! 🎉` : `Well done${firstName ? `, ${firstName}` : ''}! 🎉`}
+            {isHe ? `כל הכבוד${firstName ? `, ${firstName}` : ''}! 🎉` : `Great work${firstName ? `, ${firstName}` : ''}! 🎉`}
           </h1>
           <p className="ws-done__sub">
             {dayName ? `${dayName} · ` : ''}{isHe ? 'הושלם' : 'complete'}
@@ -685,7 +685,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
         <div className="ws-confirm">
           <div className="ws-confirm__box">
             <div className="ws-confirm__title">{isHe ? 'לצאת מהאימון?' : 'Leave workout?'}</div>
-            <div className="ws-confirm__sub">{isHe ? 'ההתקדמות שלך תישמר — תוכל להמשיך מאוחר יותר.' : 'Your progress is saved — you can continue later.'}</div>
+            <div className="ws-confirm__sub">{isHe ? 'ההתקדמות שלך תישמר. תוכל להמשיך מאוחר יותר.' : 'Your progress is saved. You can continue later.'}</div>
             <div className="ws-confirm__actions">
               <button type="button" className="ws-btn-danger" onClick={handleExit}>{isHe ? 'צא' : 'Leave'}</button>
               <button type="button" className="ws-btn-ghost" onClick={() => setConfirmExit(false)}>{isHe ? 'המשך אימון' : 'Keep training'}</button>
@@ -863,7 +863,7 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
         <ClockIcon color="var(--violet)" />
         <span>
           {allDone
-            ? (isHe ? 'כל הסטים הושלמו — מעולה!' : 'All sets done — great work!')
+            ? (isHe ? 'כל הסטים הושלמו. מעולה!' : 'All sets done. Great work!')
             : (isHe
                 ? `מנוחה של ${restSecs} שנ׳ תתחיל אוטומטית בסיום הסט`
                 : `A ${restSecs}s rest starts automatically when you finish the set`)}

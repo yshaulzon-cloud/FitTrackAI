@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
 import { historyTargetFor, adherencePct, hasTargets } from '../lib/dayTarget.mjs';
+import { sleepWeek } from '../lib/sleepWeek.mjs';
 
 // Same small line-icon set as BMICard.jsx/ProgressionPanel.jsx — used for the
 // personal-records list, which used to render flame/dumbbell/clock emoji.
@@ -241,25 +242,15 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
     });
   }, [nutritionHistory, todayCalories, calorieTarget, baseTarget, range, bucketsCount, daysPerBucket]); // eslint-disable-line
 
-  // 7-day sleep entries (real data)
-  const last7Sleep = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(today.getDate() - (6 - i));
-      d.setHours(0, 0, 0, 0);
-      const log = sleepHistory.find(s => {
-        const sd = new Date(s.date);
-        sd.setHours(0, 0, 0, 0);
-        return sd.getTime() === d.getTime();
-      });
-      return {
-        label: dayLabels[d.getDay()],
-        hours: log?.hours || 0,
-        quality: log?.quality,
-        isToday: i === 6,
-      };
-    });
-  }, [sleepHistory]); // eslint-disable-line
+  // 7-day sleep entries (real data). The window and the average come from
+  // lib/sleepWeek.mjs, the same helper the sleep card on the Today tab uses.
+  const sleepStats = useMemo(() => sleepWeek(sleepHistory, today), [sleepHistory]); // eslint-disable-line
+  const last7Sleep = useMemo(() => sleepStats.days.map((d, i) => ({
+    label: dayLabels[d.date.getDay()],
+    hours: d.hours,
+    quality: d.quality,
+    isToday: i === 6,
+  })), [sleepStats, isHe]); // eslint-disable-line
 
   // Last night's sleep (most recent log within the past 2 days)
   const lastNightSleep = useMemo(() => {
@@ -288,10 +279,7 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
     : calorieTarget;
   const calorieAdherence = adherencePct(loggedDays.map(d => ({ consumed: d.value, target: d.target })));
 
-  const sleepDays = last7Sleep.filter(d => d.hours > 0);
-  const avgSleep = sleepDays.length
-    ? Math.round((sleepDays.reduce((s, d) => s + d.hours, 0) / sleepDays.length) * 10) / 10
-    : 0;
+  const avgSleep = sleepStats.avgHours; // 0 when no night was logged
 
   // Pick the "headline" metric that's most relevant
   let headline;
@@ -300,11 +288,11 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
       sign: '✓',
       cls: 'positive',
       title: isHe
-        ? `יעד שבועי הושלם — ${workoutsThisWeek}/${workoutTarget} אימונים`
-        : `Weekly target hit — ${workoutsThisWeek}/${workoutTarget} workouts`,
+        ? `יעד שבועי הושלם: ${workoutsThisWeek}/${workoutTarget} אימונים`
+        : `Weekly target hit: ${workoutsThisWeek}/${workoutTarget} workouts`,
       sub: isHe
-        ? <>תמשיך — אתה <strong>בקצב היעד</strong>.</>
-        : <>Keep going — you're <strong>on goal pace</strong>.</>,
+        ? <>תמשיך, אתה <strong>בקצב היעד</strong>.</>
+        : <>Keep going, you're <strong>on goal pace</strong>.</>,
     };
   } else if (workoutsThisWeek > 0) {
     headline = {
@@ -323,8 +311,8 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
       cls: 'neutral',
       title: isHe ? 'עדיין אין אימונים השבוע' : 'No workouts this week yet',
       sub: isHe
-        ? <>התחל היום — אפילו אימון <strong>של 20 דקות</strong> סופר.</>
-        : <>Start today — even a <strong>20-minute</strong> session counts.</>,
+        ? <>התחל היום. אפילו אימון <strong>של 20 דקות</strong> סופר.</>
+        : <>Start today. Even a <strong>20-minute</strong> session counts.</>,
     };
   }
 
@@ -366,7 +354,7 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
     if (hottest && hottest.caloriesBurned > 0) {
       records.push({
         icon: 'flame',
-        name: isHe ? 'הכי הרבה קלוריות' : 'Most calories burned',
+        name: isHe ? 'הכי הרבה קלוריות שנשרפו' : 'Most calories burned',
         sub: new Date(hottest.date).toLocaleDateString(isHe ? 'he-IL' : 'en-US', { day: 'numeric', month: 'short' }),
         value: `${hottest.caloriesBurned} ${t.kcal}`,
       });
@@ -455,16 +443,16 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
               <div style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.5 }}>
                 {lastNightSleep.hours >= sleepTargetMax ? (
                   isHe
-                    ? <>שינה מצוינת — מרבית את ההתאוששות.</>
-                    : <>Great sleep — maximum recovery.</>
+                    ? <>שינה מצוינת, וזה עוזר להתאוששות.</>
+                    : <>Great sleep. It helps recovery.</>
                 ) : lastNightSleep.hours >= sleepTargetMin ? (
                   isHe
                     ? <>בטווח המומלץ. שמור על קצב כזה.</>
                     : <>In the recommended range. Keep it up.</>
                 ) : (
                   isHe
-                    ? <>מתחת ליעד — נסה להוסיף שעה.</>
-                    : <>Below target — try to add an hour.</>
+                    ? <>מתחת ליעד. נסה להוסיף שעה.</>
+                    : <>Below target. Try to add an hour.</>
                 )}
               </div>
               {sleepXP > 0 && (
@@ -493,8 +481,8 @@ export default function Progress({ nutrition, todayNutrition, workoutHistory, pr
         ) : (
           <div style={{ textAlign: 'center', padding: '20px 12px', color: 'var(--text-3)', fontSize: 13 }}>
             {isHe
-              ? 'עדיין לא רשמת שינה — הוסף את הלילה האחרון בלוח המחוונים כדי לקבל XP, והמלצה לאימון ולתזונה אחרי לילה קצר.'
-              : 'No sleep logged yet — log last night on the dashboard to earn XP and get workout and nutrition tips after a short night.'}
+              ? 'עדיין לא רשמת שינה. הוסף את הלילה האחרון בלשונית היום כדי לקבל XP והמלצה לאימון ולתזונה אחרי לילה קצר.'
+              : 'No sleep logged yet. Log last night on the Today tab to earn XP and get workout and nutrition tips after a short night.'}
           </div>
         )}
       </div>

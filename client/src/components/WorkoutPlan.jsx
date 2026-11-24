@@ -359,7 +359,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   function lastPerf(ex) {
     const p = perfMap[ex.name];
     if (!p) return null;
-    if (p.bestWeight > 0) return { value: `${p.bestWeight} ${isHe ? 'ק"ג' : 'kg'}`, label: isHe ? 'פעם קודמת' : 'last time' };
+    if (p.bestWeight > 0) return { value: `${p.bestWeight} ${isHe ? 'ק״ג' : 'kg'}`, label: isHe ? 'פעם קודמת' : 'last time' };
     const s = p.sets?.[0];
     if (s?.reps) return { value: `${s.reps}`, label: isHe ? 'חזרות' : 'reps' };
     if (s?.durationSec) return { value: `${Math.round(s.durationSec)}${isHe ? ' שנ׳' : 's'}`, label: isHe ? 'זמן' : 'time' };
@@ -496,7 +496,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               {isHe ? 'האימון של היום הושלם' : "Today's workout is done"}
             </div>
             <div style={{ fontSize: 14, color: 'var(--text-3)', fontWeight: 500 }}>
-              {getDayName(todayWorkout?.dayName || dayTitle, lang)} — {isHe ? 'כל הכבוד!' : 'nice work!'}
+              {getDayName(todayWorkout?.dayName || dayTitle, lang)}. {isHe ? 'כל הכבוד!' : 'Great work!'}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -526,12 +526,12 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                 )}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>
-                {maxPerWeek - doneThisWeek > 0 ? (isHe ? `עוד ${maxPerWeek - doneThisWeek} השבוע` : `${maxPerWeek - doneThisWeek} left this week`) : (isHe ? 'שבוע מלא' : 'week complete')}
+                {maxPerWeek - doneThisWeek > 0 ? (isHe ? `עוד ${maxPerWeek - doneThisWeek} השבוע` : `${maxPerWeek - doneThisWeek} left this week`) : (isHe ? 'שבוע מלא' : 'Week complete')}
               </div>
             </div>
           )}
           <div style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.5, marginTop: 12, textAlign: 'center' }}>
-            {isHe ? 'מערכת האימון החי — מעקב סטים, משקלים וטיימר מנוחה — תיפתח באימון הבא שלך.' : 'The live workout — set tracking, weights and rest timer — opens on your next session.'}
+            {isHe ? 'האימון החי, עם מעקב סטים, משקלים וטיימר מנוחה, ייפתח באימון הבא שלך.' : 'The live workout, with set tracking, weights and a rest timer, opens on your next session.'}
           </div>
         </div>
       )}
@@ -551,7 +551,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               {isHe ? 'היעד השבועי הושלם!' : 'Weekly goal complete!'}
             </div>
             <div style={{ fontSize: 14, color: 'var(--text-3)', fontWeight: 500 }}>
-              {isHe ? `כל ${maxPerWeek} האימונים של המחזור — בוצעו` : `All ${maxPerWeek} workouts of the cycle — done`}
+              {isHe ? `כל ${maxPerWeek} האימונים של המחזור בוצעו` : `All ${maxPerWeek} workouts of the cycle are done`}
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
@@ -572,8 +572,8 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             ))}
           </div>
           <div style={{ padding: 14, borderRadius: 14, background: 'var(--accent-glow, rgba(47,227,194,.06))', border: '1px solid rgba(47,227,194,.2)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, fontWeight: 500 }}>
-            <span style={{ color: 'var(--accent)', fontWeight: 800 }}>{isHe ? 'המחזור הבא ייפתח בהמשך.' : 'The next cycle unlocks soon.'}</span>{' '}
-            {isHe ? 'הגוף בונה שריר במנוחה — נצל את הימים הקרובים להתאוששות, שינה ותזונה טובה.' : 'Muscle is built during rest — use the coming days for recovery, sleep and good nutrition.'}
+            <span style={{ color: 'var(--accent)', fontWeight: 800 }}>{isHe ? 'המחזור הבא ייפתח בהמשך.' : 'The next cycle opens soon.'}</span>{' '}
+            {isHe ? 'השרירים נבנים בזמן ההתאוששות. נצל את הימים הקרובים לשינה ולתזונה טובה.' : 'Muscle is built while you recover. Use the coming days for sleep and good nutrition.'}
           </div>
         </div>
       )}
@@ -670,7 +670,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                         </span>
                         <span style={{ display: 'block', fontSize: 12, color: '#7C8798', marginTop: 2 }}>
                           {ex.sets}×{ex.reps}
-                          {last?.weight ? ` · ${isHe ? 'פעם קודמת' : 'last'} ${last.weight}${isHe ? ' ק״ג' : 'kg'}` : ''}
+                          {last?.weight ? ` · ${isHe ? 'פעם קודמת' : 'last time'} ${last.weight}${isHe ? ' ק״ג' : ' kg'}` : ''}
                         </span>
                       </span>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5E6B7E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

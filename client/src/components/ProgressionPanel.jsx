@@ -317,7 +317,7 @@ export default function ProgressionPanel({ api, view = 'prog' }) {
             </div>
           ) : (
             <div className="bdg-empty">
-              {isHe ? 'עדיין אין תגים — כל פעילות מקרבת אותך.' : 'No badges yet — every activity gets you closer.'}
+              {isHe ? 'עדיין אין תגים. כל פעילות מקרבת אותך.' : 'No badges yet. Every activity gets you closer.'}
             </div>
           )}
 

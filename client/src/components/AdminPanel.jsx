@@ -147,7 +147,7 @@ export default function AdminPanel({ api }) {
                   <span style={{ color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <AIc type="person" size={13} /> {u.profile.age} {lang === 'he' ? 'שנים' : 'y/o'}
                   </span>
-                  <span>{u.profile.weight} {t.kg} | {u.profile.height} {lang === 'he' ? 'ס"מ' : 'cm'}</span>
+                  <span>{u.profile.weight} {t.kg} | {u.profile.height} {lang === 'he' ? 'ס״מ' : 'cm'}</span>
                   <span style={{
                     padding: '1px 8px',
                     borderRadius: '8px',

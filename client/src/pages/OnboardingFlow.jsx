@@ -32,17 +32,17 @@ const QUESTION_STEPS = ['goal', 'experience', 'equipment', 'frequency', 'body'];
 // (see generateWorkoutPlan in server/utils/calculations.js).
 function splitAdvice(n, isHe) {
   if (n <= 2) return isHe
-    ? 'עם 2 אימונים בשבוע נבנה לך אימוני Full Body — כל שריר נעבד פעמיים בשבוע.'
-    : 'At 2 a week you get full-body sessions — every muscle trained twice weekly.';
+    ? 'עם 2 אימונים בשבוע נבנה לך אימוני Full Body. כל שריר נעבד פעמיים בשבוע.'
+    : 'With 2 workouts a week you get full-body sessions. Every muscle is trained twice a week.';
   if (n === 3) return isHe
-    ? 'עם 3 אימונים בשבוע נבנה לך פיצול Push / Pull / Legs — קלאסי ויעיל.'
-    : 'At 3 a week you get a push / pull / legs split — classic and efficient.';
+    ? 'עם 3 אימונים בשבוע נבנה לך פיצול Push / Pull / Legs. קלאסי ויעיל.'
+    : 'With 3 workouts a week you get a push / pull / legs split. Classic and efficient.';
   if (n === 4) return isHe
-    ? 'עם 4 אימונים בשבוע נבנה לך פיצול פלג גוף עליון / תחתון — איזון טוב בין התאוששות להתקדמות.'
-    : 'At 4 a week you get an upper / lower split — a good balance of recovery and progress.';
+    ? 'עם 4 אימונים בשבוע נבנה לך פיצול פלג גוף עליון / תחתון. איזון טוב בין התאוששות להתקדמות.'
+    : 'With 4 workouts a week you get an upper / lower split. A good balance of recovery and progress.';
   return isHe
-    ? `עם ${n} אימונים בשבוע נבנה לך פיצול Push / Pull / Legs מורחב — יותר נפח לכל קבוצת שריר.`
-    : `At ${n} a week you get an extended push / pull / legs split — more volume per muscle group.`;
+    ? `עם ${n} אימונים בשבוע נבנה לך פיצול Push / Pull / Legs מורחב. יותר נפח לכל קבוצת שריר.`
+    : `With ${n} workouts a week you get an extended push / pull / legs split. More volume per muscle group.`;
 }
 
 // Which split generateWorkoutPlan actually builds at this frequency — kept in
@@ -275,7 +275,7 @@ export default function OnboardingFlow() {
       next();
     } catch (err) {
       submitLockRef.current = false;
-      setAuthError(err.message || (isHe ? 'התחברות עם Google נכשלה' : 'Google sign-in failed'));
+      setAuthError(err.message || (isHe ? 'התחברות עם Google נכשלה' : 'Google login failed'));
     } finally {
       setGoogleLoading(false);
     }
@@ -541,7 +541,7 @@ export default function OnboardingFlow() {
                     onClick={() => selectFrequency(n)}
                   >
                     {n}
-                    {n === 4 && <span className="ob-freq__rec">{isHe ? 'מומלץ' : 'Best'}</span>}
+                    {n === 4 && <span className="ob-freq__rec">{isHe ? 'מומלץ' : 'Recommended'}</span>}
                   </button>
                 ))}
               </div>
@@ -563,8 +563,8 @@ export default function OnboardingFlow() {
         {/* ═══ BODY (optional, always has sensible defaults) ═══ */}
         {key === 'body' && (
           <div className="wizard-step">
-            <h1 className="ob-title">{isHe ? 'בוא נדייק את התוכנית' : "Let's fine-tune the plan"}</h1>
-            <p className="ob-sub">{isHe ? 'אופציונלי — אפשר לדלג ולהוסיף מאוחר יותר.' : "Optional — you can skip and add this later."}</p>
+            <h1 className="ob-title">{isHe ? 'כוונן את התוכנית' : 'Fine-tune your plan'}</h1>
+            <p className="ob-sub">{isHe ? 'אופציונלי. אפשר לדלג ולהוסיף אחר כך.' : 'Optional. You can skip this and add it later.'}</p>
             <div className="ob-body" style={{ gap: 18 }}>
               <div>
                 <div className="ob-field__label">{t.genderLabel}</div>
@@ -688,7 +688,7 @@ export default function OnboardingFlow() {
               <div className="ob-body" style={{ gap: 10 }}>
                 <button type="button" onClick={handleGoogleSignup} disabled={googleLoading || authLoading} className="ob-google">
                   <GoogleMark />
-                  <span>{googleLoading ? (isHe ? 'מתחבר…' : 'Signing in…') : (isHe ? 'המשך עם Google' : 'Continue with Google')}</span>
+                  <span>{googleLoading ? (isHe ? 'מתחבר…' : 'Logging in…') : (isHe ? 'המשך עם Google' : 'Continue with Google')}</span>
                 </button>
 
                 <div className="ob-divider"><span />{isHe ? 'או' : 'or'}<span /></div>
@@ -721,7 +721,7 @@ export default function OnboardingFlow() {
                     <input
                       id="flow-password" className="ob-input" style={{ fontSize: 15.5, fontWeight: 400, direction: 'ltr', textAlign: isHe ? 'right' : 'left' }}
                       type={showPassword ? 'text' : 'password'}
-                      placeholder={isHe ? 'לפחות 8 תווים + ספרה' : 'At least 8 chars + 1 number'}
+                      placeholder={isHe ? 'לפחות 8 תווים, כולל ספרה אחת' : 'At least 8 characters, including a digit'}
                       value={password} onChange={(e) => setPassword(e.target.value)} dir="ltr" autoComplete="new-password"
                     />
                   </div>
@@ -766,8 +766,8 @@ export default function OnboardingFlow() {
               <h1 className="ob-center__title">{isHe ? 'תזכורת קטנה, הרגל גדול' : 'A small reminder, a big habit'}</h1>
               <p className="ob-center__sub">
                 {isHe
-                  ? 'תזכורת אחת ביום לאימון או לרישום ארוחה. בלי ספאם — מבטיחים.'
-                  : 'One reminder a day to train or log a meal. No spam — promise.'}
+                  ? 'תזכורת אחת ביום לאימון או לרישום ארוחה. בלי ספאם.'
+                  : 'One reminder a day to train or log a meal. No spam.'}
               </p>
               <div className="ob-perks">
                 {[
@@ -830,14 +830,14 @@ export default function OnboardingFlow() {
 function ValueProp({ isHe, slide, setSlide, onSkip, onNext }) {
   const slides = isHe
     ? [
-        { icon: 'target', title: 'תוכנית שנבנית בשבילך', desc: 'כמה שאלות קצרות — ותקבל תוכנית אימונים ותזונה אישית. לא תבנית גנרית.' },
-        { icon: 'chart',  title: 'התקדמות שרואים', desc: 'גרפים יומיים ושבועיים, מעקב משקל, שינה ורצף הרגלים — הכל במקום אחד.' },
-        { icon: 'flame',  title: 'בונים הרגל, לא רק אימון', desc: 'תזכורות חכמות ורצף ימים שומרים אותך במסלול, גם בשבועות עמוסים.' },
+        { icon: 'target', title: 'תוכנית שנבנית בשבילך', desc: 'כמה שאלות קצרות, ותקבל תוכנית אימונים ותזונה אישית. לא תבנית גנרית.' },
+        { icon: 'chart',  title: 'התקדמות שרואים', desc: 'גרפים יומיים ושבועיים, מעקב משקל, שינה ורצף הרגלים. הכל במקום אחד.' },
+        { icon: 'flame',  title: 'בונים הרגל, לא רק אימון', desc: 'תזכורות ורצף ימים שומרים אותך במסלול, גם בשבועות עמוסים.' },
       ]
     : [
-        { icon: 'target', title: 'A plan built for you', desc: "A few quick questions — and you get a personal training and nutrition plan. Not a generic template." },
-        { icon: 'chart',  title: 'Progress you can see', desc: 'Daily and weekly charts, weight tracking, sleep, and habit streaks — all in one place.' },
-        { icon: 'flame',  title: 'Building a habit, not just a workout', desc: 'Smart reminders and day streaks keep you on track, even in busy weeks.' },
+        { icon: 'target', title: 'A plan built for you', desc: 'A few quick questions, and you get a personal training and nutrition plan. Not a generic template.' },
+        { icon: 'chart',  title: 'Progress you can see', desc: 'Daily and weekly charts, weight tracking, sleep, and habit streaks. All in one place.' },
+        { icon: 'flame',  title: 'Building a habit, not just a workout', desc: 'Reminders and day streaks keep you on track, even in busy weeks.' },
       ];
   const s = slides[slide];
   return (
@@ -866,7 +866,7 @@ function ValueProp({ isHe, slide, setSlide, onSkip, onNext }) {
           ))}
         </div>
         <button type="button" className="ob-btn" onClick={onNext}>
-          {slide < 2 ? (isHe ? 'המשך' : 'Continue') : (isHe ? 'בוא נתחיל' : "Let's start")}
+          {slide < 2 ? (isHe ? 'המשך' : 'Continue') : (isHe ? 'בוא נתחיל' : 'Get started')}
         </button>
       </div>
     </div>

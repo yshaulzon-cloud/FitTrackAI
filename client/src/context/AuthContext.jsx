@@ -102,7 +102,7 @@ export function AuthProvider({ children }) {
   function loginWithGoogleWeb() {
     return new Promise((resolve, reject) => {
       if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
-        reject(new Error('Google Sign-In not available — please refresh the page.'));
+        reject(new Error('Google login isn\'t available. Please refresh the page.'));
         return;
       }
       const tokenClient = window.google.accounts.oauth2.initTokenClient({
@@ -120,7 +120,7 @@ export function AuthProvider({ children }) {
           resolve({ accessToken: response.access_token });
         },
         error_callback: (err) => {
-          reject(new Error(err?.message || 'Google sign-in was cancelled'));
+          reject(new Error(err?.message || 'Google login was canceled'));
         },
       });
       tokenClient.requestAccessToken({ prompt: 'select_account' });

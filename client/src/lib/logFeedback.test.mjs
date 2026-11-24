@@ -65,8 +65,8 @@ test('describeLogResult: an assumed amount is stated, with the grams', () => {
 test('describeLogResult: words that were not recognised are listed as not counted', () => {
   const d = describeLogResult(res({ calories: 100, protein: 10 }, { unmatched: ['קינואה', 'סומסום'] }), true);
   assert.equal(d.hasNotes, true);
-  assert.match(d.text, /לא זיהינו: קינואה, סומסום — לא נספרו בחישוב\./);
-  assert.match(describeLogResult(res({ calories: 1, protein: 1 }, { unmatched: ['quinoa'] }), false).text, /Not recognised: quinoa — not counted\./);
+  assert.match(d.text, /לא זיהינו: קינואה, סומסום\. לא נספרו בחישוב\./);
+  assert.match(describeLogResult(res({ calories: 1, protein: 1 }, { unmatched: ['quinoa'] }), false).text, /Not recognized: quinoa\. Not counted\./);
 });
 
 test('describeLogResult: a hand-typed meal says so', () => {

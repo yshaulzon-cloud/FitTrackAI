@@ -112,12 +112,12 @@ function JourneyChart({ startWeight, currentWeight, targetWeight, isHe }) {
         {isHe ? 'התחלה' : 'START'}
       </text>
       <text x={xStart} y={TRACK_Y + 46} textAnchor="middle" fontFamily="Heebo" fontSize="14" fontWeight="800" fill="var(--text-1)">
-        {startWeight} {isHe ? 'ק"ג' : 'kg'}
+        {startWeight} {isHe ? 'ק״ג' : 'kg'}
       </text>
       {/* If the user is at the start, mark the start cap with an "אתה כאן" pill BELOW the value */}
       {overlapsStart && (
         <text x={xStart} y={TRACK_Y + 64} textAnchor="middle" fontFamily="Heebo" fontSize="10" fontWeight="700" fill="var(--accent)" letterSpacing="0.08em">
-          {isHe ? '· אתה כאן ·' : '· YOU ARE HERE ·'}
+          {isHe ? '· אתה כאן ·' : '· You are here ·'}
         </text>
       )}
 
@@ -127,11 +127,11 @@ function JourneyChart({ startWeight, currentWeight, targetWeight, isHe }) {
         {isHe ? 'יעד' : 'TARGET'}
       </text>
       <text x={xTarget} y={TRACK_Y + 46} textAnchor="middle" fontFamily="Heebo" fontSize="14" fontWeight="800" fill="var(--success)">
-        {targetWeight} {isHe ? 'ק"ג' : 'kg'}
+        {targetWeight} {isHe ? 'ק״ג' : 'kg'}
       </text>
       {overlapsTarget && (
         <text x={xTarget} y={TRACK_Y + 64} textAnchor="middle" fontFamily="Heebo" fontSize="10" fontWeight="700" fill="var(--accent)" letterSpacing="0.08em">
-          {isHe ? '· הגעת ·' : '· YOU MADE IT ·'}
+          {isHe ? '· הגעת ·' : '· You made it ·'}
         </text>
       )}
 
@@ -142,10 +142,10 @@ function JourneyChart({ startWeight, currentWeight, targetWeight, isHe }) {
           <circle r="10" fill="var(--bg-0)" stroke="#2FE3C2" strokeWidth="3" />
           <circle r="3"  fill="#2FE3C2" />
           <text y={-30} textAnchor="middle" fontFamily="Heebo" fontSize="11" fontWeight="700" fill="var(--accent)" letterSpacing="0.06em">
-            {isHe ? 'אתה כאן' : 'YOU ARE HERE'}
+            {isHe ? 'אתה כאן' : 'You are here'}
           </text>
           <text y={-14} textAnchor="middle" fontFamily="Heebo" fontSize="14" fontWeight="800" fill="var(--accent)">
-            {currentWeight} {isHe ? 'ק"ג' : 'kg'}
+            {currentWeight} {isHe ? 'ק״ג' : 'kg'}
           </text>
         </g>
       )}
@@ -153,7 +153,7 @@ function JourneyChart({ startWeight, currentWeight, targetWeight, isHe }) {
       {/* Bottom legend with stats — sits at the very bottom */}
       <text x={W / 2} y={H - 8} textAnchor="middle" fontFamily="Assistant" fontSize="12" fill="#93A0B4">
         {isHe
-          ? `עברת ${covered.toFixed(1)} ק"ג · נשארו ${remaining.toFixed(1)} ק"ג · ${pct}% הושלם`
+          ? `עברת ${covered.toFixed(1)} ק״ג · נשארו ${remaining.toFixed(1)} ק״ג · ${pct}% הושלם`
           : `${covered.toFixed(1)} kg covered · ${remaining.toFixed(1)} kg to go · ${pct}% complete`}
       </text>
     </svg>
@@ -174,7 +174,7 @@ function JourneyChartVertical({ startWeight, currentWeight, targetWeight, isHe }
   const TRACK_X = W / 2;
   const PIN_LABEL_X = TRACK_X + 80; // side column for the current-pin label
   const innerH = H - PAD_T - PAD_B;
-  const kg = isHe ? 'ק"ג' : 'kg';
+  const kg = isHe ? 'ק״ג' : 'kg';
 
   const total = Math.abs(targetWeight - startWeight) || 0.01;
   const covered = Math.max(0, Math.min(total, Math.abs(currentWeight - startWeight)));
@@ -212,7 +212,7 @@ function JourneyChartVertical({ startWeight, currentWeight, targetWeight, isHe }
       {/* Target cap — labels ABOVE the circle, centred */}
       {overlapsTarget && (
         <text x={TRACK_X} y={yTarget - 68} textAnchor="middle" fontFamily="Heebo" fontSize="11" fontWeight="700" fill="var(--accent)" letterSpacing="0.06em">
-          {isHe ? '· הגעת ·' : '· YOU MADE IT ·'}
+          {isHe ? '· הגעת ·' : '· You made it ·'}
         </text>
       )}
       <text x={TRACK_X} y={yTarget - 42} textAnchor="middle" fontFamily="Heebo" fontSize="12" fontWeight="700" fill="#22c55e" letterSpacing="0.04em">
@@ -233,7 +233,7 @@ function JourneyChartVertical({ startWeight, currentWeight, targetWeight, isHe }
       </text>
       {overlapsStart && (
         <text x={TRACK_X} y={yStart + 76} textAnchor="middle" fontFamily="Heebo" fontSize="11" fontWeight="700" fill="var(--accent)" letterSpacing="0.06em">
-          {isHe ? '· אתה כאן ·' : '· YOU ARE HERE ·'}
+          {isHe ? '· אתה כאן ·' : '· You are here ·'}
         </text>
       )}
 
@@ -244,7 +244,7 @@ function JourneyChartVertical({ startWeight, currentWeight, targetWeight, isHe }
           <circle r="10" fill="var(--bg-0)" stroke="#2FE3C2" strokeWidth="3" />
           <circle r="3"  fill="#2FE3C2" />
           <text x={PIN_LABEL_X - TRACK_X} y={-3} textAnchor="middle" fontFamily="Heebo" fontSize="11" fontWeight="700" fill="var(--accent)" letterSpacing="0.04em">
-            {isHe ? 'אתה כאן' : 'YOU ARE HERE'}
+            {isHe ? 'אתה כאן' : 'You are here'}
           </text>
           <text x={PIN_LABEL_X - TRACK_X} y={15} textAnchor="middle" fontFamily="Heebo" fontSize="15" fontWeight="800" fill="var(--accent)">
             {currentWeight} {kg}
@@ -566,25 +566,25 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
     const aligned = avgBalance < 0;
     heroTitle = aligned
       ? (isHe ? `בגירעון ממוצע ${Math.abs(avgBalance)} קלוריות ביום` : `Average deficit of ${Math.abs(avgBalance)} kcal/day`)
-      : (isHe ? `מעל היעד ב-${avgBalance} קלוריות ביום בממוצע` : `Avg ${avgBalance} kcal over target/day`);
+      : (isHe ? `מעל היעד ב-${avgBalance} קלוריות ביום בממוצע` : `Averaging ${avgBalance} kcal/day over target`);
     heroSub = aligned
       ? (isHe ? 'הקצב הזה תומך בירידה במשקל. תמשיך.' : 'This pace supports weight loss. Keep it up.')
-      : (isHe ? 'כדי לרדת במשקל צריך גירעון. הקטן מנות או הוסף אימון.' : 'You need a deficit to lose weight. Smaller portions or more cardio.');
+      : (isHe ? 'כדי לרדת במשקל צריך גירעון. הקטן מנות או הוסף אימון.' : 'You need a deficit to lose weight. Smaller portions or an extra workout.');
   } else if (goalDir === 'bulk') {
     const aligned = avgBalance > 0;
     heroTitle = aligned
       ? (isHe ? `בעודף ממוצע ${avgBalance} קלוריות ביום` : `Average surplus of ${avgBalance} kcal/day`)
-      : (isHe ? `מתחת ליעד ב-${Math.abs(avgBalance)} קלוריות ביום בממוצע` : `Avg ${Math.abs(avgBalance)} kcal under target/day`);
+      : (isHe ? `מתחת ליעד ב-${Math.abs(avgBalance)} קלוריות ביום בממוצע` : `Averaging ${Math.abs(avgBalance)} kcal/day under target`);
     heroSub = aligned
       ? (isHe ? 'הקצב הזה תומך בעלייה במסה. תמשיך.' : 'This pace supports muscle gain. Keep it up.')
-      : (isHe ? 'בלי עודף לא תעלה במסה. הוסף ארוחה או חטיף עתיר חלבון.' : 'Without a surplus, you won\'t gain. Add a meal or protein-rich snack.');
+      : (isHe ? 'בלי עודף לא תעלה במסה. הוסף ארוחה או חטיף עתיר חלבון.' : 'Without a surplus, you won\'t gain mass. Add a meal or protein-rich snack.');
   } else {
     const aligned = Math.abs(avgBalance) < 200;
     heroTitle = aligned
-      ? (isHe ? `יציב ביעד · ממוצע ${avgBalance > 0 ? '+' : ''}${avgBalance} קלוריות` : `Holding at target · avg ${avgBalance > 0 ? '+' : ''}${avgBalance} kcal`)
+      ? (isHe ? `יציב ביעד · ממוצע ${avgBalance > 0 ? '+' : ''}${avgBalance} קלוריות` : `Holding at target · average ${avgBalance > 0 ? '+' : ''}${avgBalance} kcal`)
       : (isHe ? `סטייה של ${Math.abs(avgBalance)} קלוריות מהיעד` : `Off target by ${Math.abs(avgBalance)} kcal`);
     heroSub = aligned
-      ? (isHe ? 'אתה שומר על המשקל. שמור על הקצב.' : 'You\'re maintaining. Keep this rhythm.')
+      ? (isHe ? 'אתה שומר על המשקל. שמור על הקצב.' : 'You\'re maintaining your weight. Keep this pace.')
       : (isHe ? 'נסה להישאר קרוב יותר ליעד היומי.' : 'Try to stay closer to your daily target.');
   }
 
@@ -602,7 +602,7 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
         <div className="forecast-card__header">
           <div>
             <div className="forecast-card__eyebrow">
-              {isHe ? 'המסלול ליעד' : 'Journey to goal'}
+              {isHe ? 'המסלול ליעד' : 'Path to your goal'}
             </div>
             <h2 className="forecast-card__title">
               {Math.abs(profile.weight - targetWeight) < 0.5
@@ -611,11 +611,11 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
                 ? (isHe ? `יותר מחצי הדרך · ${journeyPct}%` : `More than halfway · ${journeyPct}%`)
                 : journeyPct > 0
                 ? (isHe ? `${journeyPct}% מהדרך` : `${journeyPct}% of the way`)
-                : (isHe ? 'נקודת ההתחלה' : 'Starting line')}
+                : (isHe ? 'נקודת ההתחלה' : 'Starting point')}
             </h2>
             <div className="forecast-card__sub">
               {isHe
-                ? `${journeyCovered.toFixed(1)} ק"ג עברת · נשארו ${(journeyTotal - journeyCovered).toFixed(1)} ק"ג ל-${targetWeight} ק"ג`
+                ? `עברת ${journeyCovered.toFixed(1)} ק״ג · נשארו ${(journeyTotal - journeyCovered).toFixed(1)} ק״ג ל-${targetWeight} ק״ג`
                 : `${journeyCovered.toFixed(1)} kg covered · ${(journeyTotal - journeyCovered).toFixed(1)} kg left to ${targetWeight} kg`}
             </div>
           </div>
@@ -643,11 +643,11 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
             }}>
               {Math.abs(profile.weight - targetWeight) < 0.5
                 ? (isHe ? 'הגעת ליעד שלך 🎉' : 'You hit your goal 🎉')
-                : (isHe ? 'יעדך — שמירה על המשקל הנוכחי' : 'Your goal — maintain current weight')}
+                : (isHe ? 'היעד שלך: שמירה על המשקל הנוכחי' : 'Your goal: maintain current weight')}
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16 }}>
               {isHe
-                ? `המשקל הנוכחי: ${Math.round(profile.weight * 10) / 10} ק"ג. רוצה להמשיך הלאה?`
+                ? `המשקל הנוכחי: ${Math.round(profile.weight * 10) / 10} ק״ג. רוצה להמשיך הלאה?`
                 : `Current weight: ${Math.round(profile.weight * 10) / 10} kg. Ready for what's next?`}
             </div>
             <button
@@ -984,8 +984,8 @@ export default function BMICard({ bmiAnalysis, profile, calorieTarget: calorieTa
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-3)', margin: '0 0 20px', lineHeight: 1.55 }}>
               {isHe
-                ? 'הגעת ליעד הנוכחי שלך. בחר את הכיוון הבא — נחדש את חישוב הקלוריות, המאקרו והתוכנית.'
-                : 'You reached your current goal. Pick your next direction — we’ll re-tune calories, macros, and your plan.'}
+                ? 'הגעת ליעד הנוכחי שלך. בחר את הכיוון הבא. נחדש את חישוב הקלוריות, המאקרו והתוכנית.'
+                : 'You reached your current goal. Pick your next direction. We’ll update your calories, macros, and plan.'}
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

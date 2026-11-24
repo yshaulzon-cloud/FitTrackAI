@@ -10,6 +10,7 @@ import { describeLogResult, remainingLine, restoreValuesOf } from '../lib/logFee
 import { defaultGrams, parseGrams, portionNumbers, shareOfTarget, pickPayload } from '../lib/foodPick.mjs';
 import useSleepAdvice from '../lib/useSleepAdvice';
 import { nutritionNote } from '../lib/sleepAdvice.mjs';
+import { dayTypeNote } from '../lib/dayTypeNote.mjs';
 
 // The menu's total against the target it is meant to meet (calories + protein), so
 // every menu, daily or weekly, shows where it stands — and, when no menu really
@@ -45,8 +46,8 @@ function MenuTargetSummary({ meals, target, isHe, label, approximate }) {
       {approximate && (
         <div style={{ marginTop: 8, fontSize: 12.5, color: '#FFB648', lineHeight: 1.5 }}>
           {isHe
-            ? 'אין תפריט שמתאים בדיוק ליעד שלך. זה הקרוב ביותר שיש כרגע, אפשר להחליף ארוחות או לערוך אותן כדי להתקרב.'
-            : 'No menu matches your target exactly. This is the closest one available — swap or edit meals to get nearer.'}
+            ? 'אין תפריט שמתאים בדיוק ליעד שלך. זה הקרוב ביותר שיש כרגע. אפשר להחליף ארוחות או לערוך אותן כדי להתקרב.'
+            : 'No menu matches your target exactly. This is the closest one available. Swap or edit meals to get nearer.'}
         </div>
       )}
     </div>
@@ -553,7 +554,7 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
           <div class="meal-type">${esc(typeLabel(m.type))}</div>
           <div class="meal-name">${esc(isHe ? m.he : (m.en || m.he))}</div>
           <div class="meal-macros">
-            <span class="m-cal">${esc(m.calories)} ${isHe ? 'קק"ל' : 'kcal'}</span>
+            <span class="m-cal">${esc(m.calories)} ${isHe ? 'קק״ל' : 'kcal'}</span>
             <span class="m-p">${isHe ? 'חלבון' : 'protein'} ${esc(m.protein)}g</span>
             <span class="m-c">${isHe ? 'פחמ\'' : 'carbs'} ${esc(m.carbs)}g</span>
             <span class="m-f">${isHe ? 'שומן' : 'fat'} ${esc(m.fat)}g</span>
@@ -561,7 +562,7 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
         </div>`).join('');
       return `<div class="day-title">${esc(title)}</div>${meals}
         <div class="day-total">
-          <span>${isHe ? 'סה"כ' : 'Total'}: ${esc(dayMenu.totalCalories)} ${isHe ? 'קק"ל' : 'kcal'}</span>
+          <span>${isHe ? 'סה״כ' : 'Total'}: ${esc(dayMenu.totalCalories)} ${isHe ? 'קק״ל' : 'kcal'}</span>
           <span>${isHe ? 'חלבון' : 'Protein'}: ${esc(dayMenu.totalProtein)}g</span>
         </div>`;
     }
@@ -569,13 +570,13 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
     let content = '';
     let pageTitle = '';
     if (menuMode === 'weekly' && weeklyMenu) {
-      pageTitle = isHe ? 'התפריט השבועי שלי' : 'My Weekly Menu';
+      pageTitle = isHe ? 'התפריט השבועי שלי' : 'My weekly menu';
       const dayNames = isHe
         ? ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת']
         : ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
       content = weeklyMenu.map((d, i) => renderDayHTML(d, isHe ? `יום ${dayNames[i]}` : dayNames[i])).join('');
     } else if (menu) {
-      pageTitle = isHe ? 'התפריט היומי שלי' : 'My Daily Menu';
+      pageTitle = isHe ? 'התפריט היומי שלי' : 'My daily menu';
       content = renderDayHTML(menu, isHe ? 'ארוחות היום' : 'Today\'s meals');
     }
     if (!content) return null;
@@ -585,7 +586,7 @@ export default function NutritionTracker({ targets, todayData, api, onUpdate, sh
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(pageTitle)} — Areto</title>
+<title>${esc(pageTitle)} | Areto</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#080C13;color:#e2e8f0;padding:24px;max-width:700px;margin:0 auto;direction:${isHe ? 'rtl' : 'ltr'}}
@@ -1042,20 +1043,18 @@ ${content}
       {dayType && (
         <div style={{ marginTop: 14, display: 'flex', alignItems: 'flex-start', gap: 10, background: dayType.type === 'training' ? 'rgba(47,227,194,.08)' : 'rgba(143,138,247,.08)', border: `1px solid ${dayType.type === 'training' ? 'rgba(47,227,194,.22)' : 'rgba(143,138,247,.22)'}`, borderRadius: 14, padding: '10px 14px' }}>
           <div style={{ fontSize: 13.5, color: 'var(--text-1)', lineHeight: 1.6 }}>
-            <strong>{dayType.type === 'training' ? (isHe ? 'יום אימון' : 'Training day') : (isHe ? 'יום מנוחה' : 'Rest day')}</strong>
-            <span style={{ color: 'var(--text-3)' }}>
-              {' · '}
-              {dayType.deltaPct === 0
-                ? (isHe ? 'יעד היום כרגיל' : 'today\'s target as usual')
-                : (isHe
-                    ? `יעד היום מותאם ${dayType.deltaPct > 0 ? '+' : '−'}${Math.abs(dayType.deltaPct)}% (הממוצע השבועי לא משתנה)`
-                    : `today's target ${dayType.deltaPct > 0 ? '+' : '−'}${Math.abs(dayType.deltaPct)}% (weekly average unchanged)`)}
-            </span>
-            {dayType.type === 'rest' && (
-              <div style={{ color: 'var(--text-2)', fontSize: 12.5 }}>
-                {isHe ? 'מנוחה היא חלק מהאימון: השרירים בונים את עצמם בהתאוששות. גם ביום מנוחה, תיעוד ארוחה או שינה שומר על הרצף.' : 'Rest is part of training: muscle is built while you recover. Logging a meal or sleep still keeps your streak.'}
-              </div>
-            )}
+            {(() => {
+              const note = dayTypeNote(dayType, isHe);
+              return (
+                <>
+                  <strong>{note.label}</strong>
+                  <span style={{ color: 'var(--text-3)' }}>{' · '}{note.summary}</span>
+                  {note.detail && (
+                    <div style={{ color: 'var(--text-2)', fontSize: 12.5 }}>{note.detail}</div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -1168,7 +1167,7 @@ ${content}
                 isHe={isHe}
                 label={(isHe ? `סה״כ יום ${weeklyDayIdx + 1}` : `Day ${weeklyDayIdx + 1} total`)
                   + (weeklyMenu[weeklyDayIdx].dayTarget?.dayType
-                    ? ` · ${weeklyMenu[weeklyDayIdx].dayTarget.dayType.type === 'training' ? (isHe ? 'יום אימון' : 'training') : (isHe ? 'יום מנוחה' : 'rest')}`
+                    ? ` · ${weeklyMenu[weeklyDayIdx].dayTarget.dayType.type === 'training' ? (isHe ? 'יום אימון' : 'training day') : (isHe ? 'יום מנוחה' : 'rest day')}`
                     : '')}
               />
             )}
@@ -1257,7 +1256,7 @@ ${content}
         {notFound && (
           <div role="alert" style={{ marginTop: 12, padding: '12px 14px', borderRadius: 'var(--r-md)', background: 'rgba(255,182,72,.10)', border: '1px solid rgba(255,182,72,.30)' }}>
             <div style={{ fontSize: 14, color: 'var(--text-1)', lineHeight: 1.6, overflowWrap: 'anywhere' }}>
-              {isHe ? `לא מצאנו את ״${notFound.text}״ במאגר.` : `We couldn't find “${notFound.text}”.`}
+              {isHe ? `לא מצאנו את ״${notFound.text}״ במאגר.` : `We couldn't find “${notFound.text}” in the database.`}
             </div>
             <div style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.6, marginTop: 4 }}>
               {isHe
@@ -1312,12 +1311,12 @@ ${content}
                 {isHe ? 'כמות (גרם)' : 'Amount (grams)'}
               </label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button type="button" style={stepBtn} aria-label={isHe ? 'הפחת 10 גרם' : 'Less by 10 g'} onClick={() => setGrams(base - 10)} disabled={loading}>−</button>
+                <button type="button" style={stepBtn} aria-label={isHe ? 'הפחת 10 גרם' : 'Decrease by 10 g'} onClick={() => setGrams(base - 10)} disabled={loading}>−</button>
                 <input id="pick-grams" type="text" inputMode="numeric" dir="ltr" autoComplete="off" value={pick.gramsText} disabled={loading}
                   onChange={(e) => setPick((p) => ({ ...p, gramsText: e.target.value }))}
                   aria-invalid={!grams}
                   style={{ flex: 1, minWidth: 0, minHeight: 44, boxSizing: 'border-box', textAlign: 'center', padding: '8px 12px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 16 }} />
-                <button type="button" style={stepBtn} aria-label={isHe ? 'הוסף 10 גרם' : 'More by 10 g'} onClick={() => setGrams(base + 10)} disabled={loading}>+</button>
+                <button type="button" style={stepBtn} aria-label={isHe ? 'הוסף 10 גרם' : 'Increase by 10 g'} onClick={() => setGrams(base + 10)} disabled={loading}>+</button>
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                 {serving && serving !== 100 && (
@@ -1339,7 +1338,7 @@ ${content}
                     )}
                   </>
                 ) : (
-                  <span style={{ color: 'var(--danger)', fontSize: 13 }}>{isHe ? 'יש להזין כמות בגרמים (1–2000).' : 'Enter an amount in grams (1–2000).'}</span>
+                  <span style={{ color: 'var(--danger)', fontSize: 13 }}>{isHe ? 'הזן כמות בין 1 ל-2000 גרם.' : 'Enter an amount between 1 and 2000 grams.'}</span>
                 )}
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
@@ -1365,7 +1364,7 @@ ${content}
                 <span className="food-result__text">
                   <span className="food-result__name">{r.name}</span>
                   <span className="food-result__macros">
-                    {isHe ? '100 גרם' : '100g'} · {r.cal} {isHe ? 'קק״ל' : 'kcal'} · {r.p}g {isHe ? 'חלבון' : 'protein'} · {r.c}g {isHe ? 'פחמ׳' : 'carbs'} · {r.f}g {isHe ? 'שומן' : 'fat'}{r.fb != null ? ` · ${r.fb}g ${isHe ? 'סיבים' : 'fibre'}` : ''}
+                    {isHe ? '100 גרם' : '100g'} · {r.cal} {isHe ? 'קק״ל' : 'kcal'} · {r.p}g {isHe ? 'חלבון' : 'protein'} · {r.c}g {isHe ? 'פחמ׳' : 'carbs'} · {r.f}g {isHe ? 'שומן' : 'fat'}{r.fb != null ? ` · ${r.fb}g ${isHe ? 'סיבים' : 'fiber'}` : ''}
                   </span>
                 </span>
                 <span className="food-result__add" aria-hidden="true"><PlusIcon /></span>
@@ -1714,9 +1713,9 @@ ${content}
           </span>
           <div style={{ flex: 1 }}>
             <strong>{isHe ? 'מבוסס על המטרה שלך' : 'Based on your goal'}</strong>
-            {' — '}
+            {'. '}
             {isHe
-              ? `חלוקת חלבון של ~${targets.macros.proteinPerMeal}g לארוחה, ב-${targets.macros.mealsPerDay || 4} ארוחות בהפרשי ${targets.macros.mealInterval || '~3'} שעות, מקסימה את גירוי בניית השריר.`
+              ? `חלוקת חלבון של ~${targets.macros.proteinPerMeal}g לארוחה, ב-${targets.macros.mealsPerDay || 4} ארוחות בהפרשי ${targets.macros.mealInterval || '~3'} שעות, ממקסמת את סינתזת החלבון בשריר.`
               : `Splitting ~${targets.macros.proteinPerMeal}g protein per meal across ${targets.macros.mealsPerDay || 4} meals (every ${targets.macros.mealInterval || '~3'}h) maximizes muscle protein synthesis.`}
           </div>
         </div>

@@ -57,7 +57,7 @@ function heroFeatures(isHe) {
       icon: svg(<><circle cx="9" cy="12" r="5" /><circle cx="15" cy="12" r="5" /></>),
       title: isHe ? 'אימון ותזונה במקום אחד' : 'Training + nutrition in one place',
       desc: isHe
-        ? 'הקלוריות מתאימות את עצמן ליום אימון או ליום מנוחה'
+        ? 'הקלוריות מותאמות ליום אימון או ליום מנוחה'
         : 'Calories adapt to training and rest days',
     },
     {
@@ -66,7 +66,7 @@ function heroFeatures(isHe) {
       title: isHe ? 'סרטוני הדגמה לתרגילים' : 'Exercise demo videos',
       desc: isHe
         ? 'רואים איך מבצעים כל תרגיל, ישירות באימון'
-        : 'See exactly how to perform it, right in your workout',
+        : 'See how to do every exercise, right in your workout',
     },
     {
       key: 'equipment',
@@ -122,7 +122,7 @@ export default function Login() {
     if (reason) {
       sessionStorage.removeItem('logoutReason');
       if (reason === 'session_expired') {
-        setError(isHe ? 'הפעלה פגה — אנא התחבר מחדש' : 'Session expired — please sign in again');
+        setError(isHe ? 'ההתחברות פגה. התחבר שוב.' : 'Your session expired. Please log in again.');
       }
     }
   }, []);
@@ -206,7 +206,7 @@ export default function Login() {
       if (data.user.onboardingComplete) navigate('/dashboard');
       else navigate('/onboarding');
     } catch (err) {
-      setError(err.message || (isHe ? 'התחברות עם Google נכשלה' : 'Google sign-in failed'));
+      setError(err.message || (isHe ? 'התחברות עם Google נכשלה' : 'Google login failed'));
     } finally {
       setGoogleLoading(false);
     }
@@ -222,7 +222,7 @@ export default function Login() {
       setRecoveryAuth({ token: data.token, user: data.user });
       setResetMode('setpw');
     } catch (err) {
-      setError(err.message || (isHe ? 'התחברות עם Google נכשלה' : 'Google sign-in failed'));
+      setError(err.message || (isHe ? 'התחברות עם Google נכשלה' : 'Google login failed'));
     } finally {
       setGoogleLoading(false);
     }
@@ -417,7 +417,7 @@ export default function Login() {
                 </svg>
                 <span>
                   {googleLoading
-                    ? (isHe ? 'מתחבר…' : 'Signing in…')
+                    ? (isHe ? 'מתחבר…' : 'Logging in…')
                     : (isHe ? 'המשך עם Google' : 'Continue with Google')}
                 </span>
               </button>
@@ -497,8 +497,8 @@ export default function Login() {
                 }}
               >
                 {showPassword
-                  ? (isHe ? 'הסתר' : 'hide')
-                  : (isHe ? 'הצג' : 'show')}
+                  ? (isHe ? 'הסתר' : 'Hide')
+                  : (isHe ? 'הצג' : 'Show')}
               </span>
             </div>
 
@@ -507,7 +507,7 @@ export default function Login() {
             )}
 
             <button type="submit" className="btn-primary-cta" disabled={loading}>
-              <span>{loading ? t.loggingIn : (isHe ? 'היכנס' : 'Sign in')}</span>
+              <span>{loading ? t.loggingIn : (isHe ? 'התחבר' : 'Log in')}</span>
             </button>
           </form>
 
@@ -525,8 +525,8 @@ export default function Login() {
           <h1 className="hero-headline">
             {isHe ? (
               <>
-                בנה גוף בריא.<br/>
-                עקוב. תשתפר.<br/>
+                בנה את הגוף שלך.<br/>
+                עקוב. השתפר.<br/>
                 <span className="accent">בלי לנחש.</span>
               </>
             ) : (
@@ -539,8 +539,8 @@ export default function Login() {
           </h1>
           <p className="hero-sub">
             {isHe
-              ? 'תוכניות אימון ותזונה מדויקות שמתעדכנות בזמן אמת לפי ההתקדמות שלך.'
-              : 'Precise workout and nutrition plans that adapt in real time to your progress.'}
+              ? 'תוכניות אימון ותזונה שמתעדכנות לפי ההתקדמות שלך.'
+              : 'Workout and nutrition plans that adapt to your progress.'}
           </p>
         </div>
 
@@ -608,15 +608,15 @@ export default function Login() {
               <>
                 <p className="reset-sheet__body">
                   {isHe
-                    ? 'כדי לאפס סיסמה בבטחה נאמת שזה אתה דרך Google (עם אותו אימייל שנרשמת איתו) — ואז תבחר סיסמה חדשה.'
-                    : 'To reset your password securely we’ll verify it’s you via Google (the same email you signed up with) — then you’ll choose a new password.'}
+                    ? 'כדי לאפס סיסמה בבטחה נאמת שזה אתה דרך Google, עם אותו אימייל שנרשמת איתו. אחר כך תבחר סיסמה חדשה.'
+                    : 'To reset your password securely we’ll verify it’s you through Google, using the email you signed up with. Then you’ll choose a new password.'}
                 </p>
                 <div className="reset-note">
                   <GoogleMark />
                   <span>
                     {isHe
-                      ? 'שחזור החשבון עובר דרך Google — אין צורך לחכות למייל.'
-                      : 'Account recovery goes through Google — no waiting for an email.'}
+                      ? 'שחזור החשבון עובר דרך Google. אין צורך לחכות למייל.'
+                      : 'Account recovery goes through Google. No waiting for an email.'}
                   </span>
                 </div>
                 <button type="button" className="ob-google" onClick={handleGoogleRecovery} disabled={googleLoading} style={{ marginTop: 16 }}>
@@ -669,14 +669,14 @@ export default function Login() {
                         cursor: 'pointer', fontWeight: 500, userSelect: 'none',
                       }}
                     >
-                      {showNewPassword ? (isHe ? 'הסתר' : 'hide') : (isHe ? 'הצג' : 'show')}
+                      {showNewPassword ? (isHe ? 'הסתר' : 'Hide') : (isHe ? 'הצג' : 'Show')}
                     </span>
                   </div>
                   <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 6 }}>
                     {isHe ? 'לפחות 8 תווים, כולל ספרה אחת' : 'At least 8 characters, including a digit'}
                   </div>
                   <button type="submit" className="btn-primary-cta" disabled={loading || newPassword.length < 8} style={{ marginTop: 16 }}>
-                    <span>{loading ? (isHe ? 'שומר…' : 'Saving…') : (isHe ? 'קבע סיסמה והיכנס' : 'Set password & sign in')}</span>
+                    <span>{loading ? (isHe ? 'שומר…' : 'Saving…') : (isHe ? 'קבע סיסמה והתחבר' : 'Set password & log in')}</span>
                     <ArrowIcon />
                   </button>
                 </form>
@@ -789,7 +789,7 @@ export default function Login() {
                         userSelect: 'none',
                       }}
                     >
-                      {showNewPassword ? (isHe ? 'הסתר' : 'hide') : (isHe ? 'הצג' : 'show')}
+                      {showNewPassword ? (isHe ? 'הסתר' : 'Hide') : (isHe ? 'הצג' : 'Show')}
                     </span>
                   </div>
                   <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 6 }}>
