@@ -17,8 +17,8 @@ android {
         applicationId "com.areto.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 22
-        versionName "1.3.8"
+        versionCode 23
+        versionName "1.3.9"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -41,11 +41,20 @@ android {
             if (hasReleaseSigning) {
                 signingConfig signingConfigs.release
             }
+            // Opt-in only (./gradlew assembleRelease -ParetoTestSuffix=1): installs the
+            // build next to the Play version (com.areto.app.test) so an optimized APK can
+            // be tried on a phone without uninstalling the Play app. Never set it for an AAB.
+            if (project.hasProperty('aretoTestSuffix')) {
+                applicationIdSuffix ".test"
+            }
             minifyEnabled true
             // "-optimize" variant: the plain proguard-android.txt carries
-            // -dontoptimize, which left R8 shrinking and obfuscating (94% each)
-            // but optimizing 0% — Play Console flagged "DEX code optimization: low".
-            // Capacitor's own consumer rules keep the plugin classes/methods.
+            // -dontoptimize, which left R8 optimizing 0% and Play Console flagged
+            // "DEX code optimization: low".
+            // 1.3.8 (versionCode 22) shipped this WITHOUT the annotation keep rules in
+            // proguard-rules.pro and would not open on a real phone (NPE in
+            // Plugin.getPermissionStates at launch). Always run a new optimized build on
+            // a device with `adb logcat` attached before it goes anywhere near Play.
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
