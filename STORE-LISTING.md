@@ -76,9 +76,7 @@ Whether you're just starting out or fine-tuning your results, Areto gives you th
 | --- | --- | --- |
 | אייקון אפליקציה | 512×512 PNG | ✅ `play-assets/icon-512.png` |
 | Feature graphic | 1024×500 PNG | ✅ `play-assets/feature-graphic.png` |
-| צילום מסך 1 (תזונה) | 1080×1920 | ✅ `play-assets/screenshot-1-nutrition.png` |
-| צילום מסך 2 (סקירה) | 1080×1920 | ✅ `play-assets/screenshot-2-overview.png` |
-| צילום מסך 3 (XP) | 1080×1920 | ✅ `play-assets/screenshot-3-xp.png` |
+| צילומי מסך (7 לכל שפה, 2–8 מותר) | 1080×1920 | ⬜ הוכנו מחדש ב-2026-11-24 ב-`play-assets/screenshots/{he,en}/01…07-*.png` (הסקריפט: `make-store-screenshots-2026.mjs`). **טרם הועלו ל-Play Console.** הישנים (`screenshot-1-nutrition.png`, `-2-overview`, `-3-xp`) מיושנים ויוחלפו בהעלאה |
 | פוליסת פרטיות | URL ציבורי | ⬜ לפרסם — הקובץ מוכן: `client/public/privacy.html` |
 
 **פוליסת פרטיות:** הקובץ `client/public/privacy.html` עצמאי (עברית+אנגלית).
