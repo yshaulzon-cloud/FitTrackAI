@@ -96,7 +96,7 @@ const XP_EVENT_LABELS = {
 };
 
 // ─── Hero progress ring ───────────────────────────────────
-function LevelRing({ level, percent }) {
+function LevelRing({ level, percent, label }) {
   const r = 56;
   const c = 2 * Math.PI * r;
   const dash = (Math.min(percent, 100) / 100) * c;
@@ -122,7 +122,7 @@ function LevelRing({ level, percent }) {
         />
       </svg>
       <div className="xp-hero__ring-text">
-        <span className="xp-hero__ring-level">level</span>
+        <span className="xp-hero__ring-level">{label}</span>
         <span className="xp-hero__ring-num">{level}</span>
       </div>
     </div>
@@ -215,7 +215,7 @@ export default function ProgressionPanel({ api, view = 'prog' }) {
       {/* ─── Hero: Level ring + clear CTA ───────────────────── */}
       {showProg && (
       <div className="xp-hero">
-        <LevelRing level={data.level} percent={data.progressPercent} />
+        <LevelRing level={data.level} percent={data.progressPercent} label={isHe ? 'רמה' : 'Level'} />
         <div className="xp-hero__info">
           <div className="xp-hero__total">{data.totalXP.toLocaleString()} XP</div>
           <div className="xp-hero__cta-text">
