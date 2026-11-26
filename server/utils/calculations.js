@@ -1618,8 +1618,16 @@ function getSleepRecommendation(age, hadWorkoutToday) {
 }
 
 
-function calculateCycleStatus(workouts, maxPerWeek) {
-  if (!workouts || workouts.length === 0) return { limitReached: false, cycleCount: 0 };
+// A cycle is the 7 days from the first workout of a series; the next workout
+// after those 7 days opens a new one. `workouts` must be the user's WHOLE
+// history (any order): where today's cycle starts depends on every earlier one.
+// The client mirrors this in client/src/lib/workoutCycle.mjs.
+//   cycleCount   workouts in the running cycle (0 once its 7 days are over)
+//   limitReached the running cycle already holds maxPerWeek workouts
+//   cycleEndsAt  ISO time the full cycle ends; null while limitReached is false
+function calculateCycleStatus(workouts, maxPerWeek, now = Date.now()) {
+  const none = { limitReached: false, cycleCount: 0, cycleEndsAt: null };
+  if (!workouts || workouts.length === 0) return none;
   const sorted = [...workouts].sort((a, b) => new Date(a.date) - new Date(b.date));
   let cycleStart = new Date(sorted[0].date);
   let cycleCount = 0;
@@ -1628,8 +1636,10 @@ function calculateCycleStatus(workouts, maxPerWeek) {
     if ((wDate - cycleStart) / 86400000 >= 7) { cycleStart = wDate; cycleCount = 1; }
     else cycleCount++;
   }
-  const daysSinceCycleStart = (Date.now() - cycleStart) / 86400000;
-  return { limitReached: cycleCount >= maxPerWeek && daysSinceCycleStart < 7, cycleCount };
+  const endsAt = cycleStart.getTime() + 7 * 86400000;
+  if (now >= endsAt) return none;
+  const limitReached = cycleCount >= maxPerWeek;
+  return { limitReached, cycleCount, cycleEndsAt: limitReached ? new Date(endsAt).toISOString() : null };
 }
 module.exports = {
   calculateREE,

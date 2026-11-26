@@ -304,7 +304,11 @@ router.get('/history', auth, async (req, res) => {
       (w) => w.date >= today && w.date < todayEnd
     );
 
-    res.json({ workouts, streak, todayHasWorkout });
+    // The same cycle POST /complete enforces, computed over ALL workout dates
+    // (`workouts` above is only the latest 30, too few to find where it starts).
+    const cycle = calculateCycleStatus(allDates, workoutsPerWeek);
+
+    res.json({ workouts, streak, todayHasWorkout, cycle });
   } catch (error) {
     console.error('Workout history error:', error);
     res.status(500).json({ message: 'שגיאה בטעינת היסטוריית אימונים' });

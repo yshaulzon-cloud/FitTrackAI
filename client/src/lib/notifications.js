@@ -86,6 +86,43 @@ export function getReminderState() {
 let syncTimer = null;
 let langIsHe = true;
 
+// ── "workout goal reached" quiet time ───────────────────────────────
+// No workout reminder before this moment (the end of the full cycle, see
+// workoutCycle.mjs). Kept OUTSIDE the daily flags above: it has to survive a new
+// day and a restart where the workout history is not (or not yet) loaded.
+const QUIET_KEY = 'notif:workoutQuietUntil';
+let quietMemory = null; // used when storage is unavailable
+
+function readQuiet() {
+  try {
+    const raw = localStorage.getItem(QUIET_KEY);
+    return raw === null ? quietMemory : Number(raw);
+  } catch { return quietMemory; }
+}
+
+// until: ms epoch, or null when the goal is not reached. Report it only from a
+// workout history that actually loaded.
+export function setWorkoutQuietUntil(until, { isHe, sync = true } = {}) {
+  const next = Number(until) > Date.now() ? Number(until) : null;
+  const changed = readQuiet() !== next;
+  quietMemory = next;
+  try {
+    if (next === null) localStorage.removeItem(QUIET_KEY);
+    else localStorage.setItem(QUIET_KEY, String(next));
+  } catch { /* ignore */ }
+  if (typeof isHe === 'boolean') langIsHe = isHe;
+  if (sync && changed) requestReminderSync();
+}
+
+// The stored value while it is still in the future, otherwise null (and cleared).
+export function getWorkoutQuietUntil(now = Date.now()) {
+  const until = readQuiet();
+  if (until === null) return null;
+  if (until > now) return until;
+  setWorkoutQuietUntil(null, { sync: false });
+  return null;
+}
+
 export function updateReminderState(patch, { isHe, sync = true } = {}) {
   const base = getReminderState();
   const next = { ...base, ...patch, __date: dayKey() };
@@ -132,7 +169,8 @@ async function migrateLegacy(LN) {
 async function doSync({ isHe, askPermission }) {
   if (!isNative()) return { ok: true, scheduled: 0, permission: null };
   const prefs = readPrefs(localStorage);
-  const plan = buildPlan({ now: new Date(), prefs, state: getReminderState(), isHe });
+  const state = { ...getReminderState(), workoutQuietUntil: getWorkoutQuietUntil() };
+  const plan = buildPlan({ now: new Date(), prefs, state, isHe });
 
   let permission = await getNotificationPermissionStatus();
   if (permission !== 'granted' && plan.length > 0 && askPermission) {

@@ -126,7 +126,7 @@ export function clearActiveSession() {
   try { localStorage.removeItem(ACTIVE_SESSION_KEY); } catch { /* ignore */ }
 }
 
-export default function WorkoutSession({ planExercises, dayName, location, api, onFinish, onDiscard, restore, userName, userEquipment, onPermanentSwap }) {
+export default function WorkoutSession({ planExercises, dayName, location, api, onFinish, onDiscard, restore, userName, userEquipment, onPermanentSwap, onLimitReached }) {
   const { lang } = useLang();
   const isHe = lang === 'he';
 
@@ -483,7 +483,8 @@ export default function WorkoutSession({ planExercises, dayName, location, api, 
     } catch (err) {
       const msg = err?.message || '';
       if (msg === 'alreadyTrainedToday') setError(isHe ? 'כבר נרשם אימון היום' : 'Already logged a workout today');
-      else if (msg === 'weeklyLimitReached') setError(isHe ? 'הגעת למגבלה השבועית' : 'Weekly limit reached');
+      // The goal sheet explains it; the saved session stays, so it can be saved later.
+      else if (msg === 'weeklyLimitReached' && onLimitReached) onLimitReached();
       else setError(isHe ? 'שגיאה בשמירת האימון' : 'Error saving workout');
     } finally {
       setSaving(false);

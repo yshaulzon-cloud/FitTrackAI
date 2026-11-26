@@ -8,6 +8,8 @@ import { easierVariant, equipmentOk, normalizeUserEquipment } from '../lib/exerc
 import { toHomeExercises } from '../lib/homeExercises.mjs';
 import useSleepAdvice from '../lib/useSleepAdvice';
 import SleepAdviceCard from './SleepAdviceCard';
+import GoalReachedSheet from './GoalReachedSheet';
+import { cycleStatus } from '../lib/workoutCycle.mjs';
 import { isAdaptEnabled } from '../lib/workoutAdapt.mjs';
 
 // Muscle group translations
@@ -112,9 +114,11 @@ const MUSCLE_DOT = {
   'רגליים': '#2FE3C2', 'תאומים': '#4D9FFF', 'ליבה': '#FFB648', 'אירובי': '#2FE3C2', 'כללי': '#7C8798',
 };
 
-export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHistory, showXP, progressionData, dailyStreak = 0, userName, onGoHome }) {
+export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHistory, showXP, progressionData, dailyStreak = 0, userName, userId, onGoHome, onOpenGoalSettings }) {
   const { t, lang } = useLang();
   const isHe = lang === 'he';
+  // "You've reached your workout goal" sheet: null | { saveFailed }
+  const [goalSheet, setGoalSheet] = useState(null);
   const [dayDurations, setDayDurations] = useState({});
   const [completingDay, setCompletingDay] = useState(null);
   const [message, setMessage] = useState('');
@@ -177,31 +181,18 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   );
   const alreadyTrainedToday = !!todayWorkout;
 
-  // Check cycle-based limit (7 days from first workout of current series)
-  const maxPerWeek = profile?.workoutsPerWeek || 4;
-  const allWorkouts = (workoutHistory?.workouts || []).slice().sort(
-    (a, b) => new Date(a.date) - new Date(b.date)
-  );
-  let weeklyLimitReached = false;
-  if (allWorkouts.length > 0) {
-    let cycleStart = new Date(allWorkouts[0].date);
-    let cycleCount = 0;
+  // The cycle the server enforces (7 days from the first workout of a series),
+  // shared with the reminders and the home tab.
+  const cycle = cycleStatus(workoutHistory, profile?.workoutsPerWeek);
+  const maxPerWeek = cycle.goal;
+  const cycleDone = cycle.done; // drives the weekly-goal ring and counters
+  const weeklyLimitReached = cycle.met;
 
-    for (const w of allWorkouts) {
-      const wDate = new Date(w.date);
-      const daysSinceCycleStart = (wDate - cycleStart) / (1000 * 60 * 60 * 24);
-
-      if (daysSinceCycleStart >= 7) {
-        cycleStart = wDate;
-        cycleCount = 1;
-      } else {
-        cycleCount++;
-      }
-    }
-
-    const now = new Date();
-    const daysSinceCycleStart = (now - cycleStart) / (1000 * 60 * 60 * 24);
-    weeklyLimitReached = cycleCount >= maxPerWeek && daysSinceCycleStart < 7;
+  // A save the server refused because the cycle is full: say so, and reload so
+  // the numbers on the sheet are the server's.
+  function showSaveRefused() {
+    setGoalSheet({ saveFailed: true });
+    if (onComplete) onComplete();
   }
 
   // Day-tab labels: surface "Upper body" / "Lower body" instead of the
@@ -281,7 +272,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     } catch (err) {
       const msg = err?.message || '';
       if (msg === 'alreadyTrainedToday') setMessage(t.alreadyTrainedToday);
-      else if (msg === 'weeklyLimitReached') setMessage(t.weeklyLimitReached);
+      else if (msg === 'weeklyLimitReached') showSaveRefused();
       else setMessage(t.errorSavingWorkout);
       setCompletingDay(null);
     }
@@ -298,7 +289,7 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   }
 
   const isError = message === t.errorSavingWorkout;
-  const isWarning = message === t.alreadyTrainedToday || message === t.weeklyLimitReached;
+  const isWarning = message === t.alreadyTrainedToday;
   const workouts = workoutHistory?.workouts || [];
 
   const currentDay = days[safeDayIdx];
@@ -324,14 +315,6 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     })();
     return () => { cancelled = true; };
   }, [planNamesKey]); // eslint-disable-line
-
-  // Workouts logged since this week's Sunday — feeds the "done" state's
-  // next-workout card ("2 left this week").
-  const todayIdx = new Date().getDay();
-  const startOfWeek = new Date();
-  startOfWeek.setHours(0, 0, 0, 0);
-  startOfWeek.setDate(startOfWeek.getDate() - todayIdx);
-  const doneThisWeek = workouts.filter(w => new Date(w.date) >= startOfWeek).length;
 
   // ── Redesign (pre-workout screen) derived values ─────────────────────
   const accentVar = homeMode ? 'var(--violet)' : 'var(--accent)';
@@ -365,16 +348,6 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
     if (s?.durationSec) return { value: `${Math.round(s.durationSec)}${isHe ? ' שנ׳' : 's'}`, label: isHe ? 'זמן' : 'time' };
     return { value: isHe ? 'משקל גוף' : 'BW', label: '' };
   }
-  // Current cycle progress → the weekly-goal ring.
-  let cycleDone = 0;
-  if (allWorkouts.length > 0) {
-    let cs = new Date(allWorkouts[0].date), c = 0;
-    for (const w of allWorkouts) {
-      const dd = (new Date(w.date) - cs) / 864e5;
-      if (dd >= 7) { cs = new Date(w.date); c = 1; } else c++;
-    }
-    cycleDone = c;
-  }
   // Which plan days are already ticked off in the current 7-day cycle —
   // drives the done/today/upcoming state of the weekly-plan rows.
   const doneDayNames = new Set(
@@ -403,36 +376,60 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
   // hook order never changes.
   const sleepAdv = useSleepAdvice(api, screenReady);
 
+  // (If the cycle ends just as "Extra workout" is tapped there is nothing to
+  // explain: the screen re-renders as ready to start.)
+  const goalSheetEl = goalSheet && (goalSheet.saveFailed || weeklyLimitReached) && (
+    <GoalReachedSheet
+      done={cycle.done}
+      goal={cycle.goal}
+      known={cycle.met}
+      loggedToday={alreadyTrainedToday}
+      saveFailed={goalSheet.saveFailed}
+      userId={userId}
+      isHe={isHe}
+      onClose={() => setGoalSheet(null)}
+      // Leaving a live session this way keeps it saved: back on this tab it is
+      // offered as "Active workout · paused".
+      onOpenSettings={() => { setGoalSheet(null); if (onOpenGoalSettings) onOpenGoalSettings(); }}
+    />
+  );
+
   // Full-screen live session overlay takes over everything else.
   if (session) {
     return (
-      <WorkoutSession
-        planExercises={session.exercises}
-        dayName={session.dayName}
-        location={session.location}
-        api={api}
-        userName={userName}
-        restore={session.restore}
-        userEquipment={profile?.equipment}
-        onPermanentSwap={session.location === 'gym' ? persistPlanSwap : undefined}
-        onFinish={(result, opts) => {
-          setSession(null);
-          setResumeAvailable(null);
-          if (showXP && result?.xp) showXP(result.xp);
-          onComplete();
-          if (opts?.goHome) onGoHome && onGoHome();
-        }}
-        onDiscard={() => {
-          setSession(null);
-          // Leaving keeps a session that has progress (WorkoutSession decides); show the resume card for it.
-          setResumeAvailable(readActiveSession());
-        }}
-      />
+      <>
+        <WorkoutSession
+          planExercises={session.exercises}
+          dayName={session.dayName}
+          location={session.location}
+          api={api}
+          userName={userName}
+          restore={session.restore}
+          userEquipment={profile?.equipment}
+          onPermanentSwap={session.location === 'gym' ? persistPlanSwap : undefined}
+          onLimitReached={showSaveRefused}
+          onFinish={(result, opts) => {
+            setSession(null);
+            setResumeAvailable(null);
+            if (showXP && result?.xp) showXP(result.xp);
+            onComplete();
+            if (opts?.goHome) onGoHome && onGoHome();
+          }}
+          onDiscard={() => {
+            setSession(null);
+            // Leaving keeps a session that has progress (WorkoutSession decides); show the resume card for it.
+            setResumeAvailable(readActiveSession());
+          }}
+        />
+        {goalSheetEl}
+      </>
     );
   }
 
   return (
     <>
+      {goalSheetEl}
+
       {/* ── ACTIVE state — an unfinished session survives app restarts ── */}
       {showActive && (
         <div>
@@ -526,13 +523,22 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
                 )}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>
-                {maxPerWeek - doneThisWeek > 0 ? (isHe ? `עוד ${maxPerWeek - doneThisWeek} השבוע` : `${maxPerWeek - doneThisWeek} left this week`) : (isHe ? 'שבוע מלא' : 'Week complete')}
+                {maxPerWeek - cycleDone > 0 ? (isHe ? `עוד ${maxPerWeek - cycleDone} השבוע` : `${maxPerWeek - cycleDone} left this week`) : (isHe ? 'שבוע מלא' : 'Week complete')}
               </div>
             </div>
           )}
           <div style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.5, marginTop: 12, textAlign: 'center' }}>
             {isHe ? 'האימון החי, עם מעקב סטים, משקלים וטיימר מנוחה, ייפתח באימון הבא שלך.' : 'The live workout, with set tracking, weights and a rest timer, opens on your next session.'}
           </div>
+          {weeklyLimitReached && (
+            <button
+              type="button"
+              onClick={() => setGoalSheet({ saveFailed: false })}
+              style={{ width: '100%', height: 46, marginTop: 12, borderRadius: 14, cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', fontFamily: 'inherit', fontWeight: 700, fontSize: 14 }}
+            >
+              {isHe ? 'אימון נוסף' : 'Extra workout'}
+            </button>
+          )}
         </div>
       )}
 
@@ -571,6 +577,15 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
               </div>
             ))}
           </div>
+          {/* The server refuses another workout in a full cycle, so this explains
+              why instead of opening a session that could not be saved. */}
+          <button
+            type="button"
+            onClick={() => setGoalSheet({ saveFailed: false })}
+            style={{ width: '100%', height: 50, marginBottom: 16, borderRadius: 16, cursor: 'pointer', border: '1.5px solid rgba(47,227,194,.5)', background: 'var(--accent-glow, rgba(47,227,194,.08))', color: 'var(--accent-text, var(--accent))', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}
+          >
+            {isHe ? 'אימון נוסף' : 'Extra workout'}
+          </button>
           <div style={{ padding: 14, borderRadius: 14, background: 'var(--accent-glow, rgba(47,227,194,.06))', border: '1px solid rgba(47,227,194,.2)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, fontWeight: 500 }}>
             <span style={{ color: 'var(--accent)', fontWeight: 800 }}>{isHe ? 'המחזור הבא ייפתח בהמשך.' : 'The next cycle opens soon.'}</span>{' '}
             {isHe ? 'השרירים נבנים בזמן ההתאוששות. נצל את הימים הקרובים לשינה ולתזונה טובה.' : 'Muscle is built while you recover. Use the coming days for sleep and good nutrition.'}
@@ -908,20 +923,6 @@ export default function WorkoutPlan({ plan, profile, api, onComplete, workoutHis
             style={{ width: '100%', height: 54, borderRadius: 18, cursor: 'pointer', border: '1.5px solid rgba(47,227,194,.5)', background: 'var(--accent-glow, rgba(47,227,194,.08))', color: 'var(--accent-text, var(--accent))', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}
           >
             {isHe ? 'צפייה בסיכום' : 'View summary'}
-          </button>
-        </div>
-      )}
-
-      {/* Secondary CTA for the week state — same identical dead-end bug as
-          above, but out of scope for this pass; left untouched. */}
-      {showWeek && (
-        <div style={{ position: 'sticky', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 68px)', marginTop: 18, paddingTop: 14, background: 'linear-gradient(180deg, transparent, var(--bg-0) 40%)', zIndex: 5 }}>
-          <button
-            type="button"
-            onClick={startSession}
-            style={{ width: '100%', height: 54, borderRadius: 18, cursor: 'pointer', border: '1.5px solid rgba(47,227,194,.5)', background: 'var(--accent-glow, rgba(47,227,194,.08))', color: 'var(--accent-text, var(--accent))', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}
-          >
-            {isHe ? 'בכל זאת רוצה להתאמן? אימון חופשי' : 'Still want to train? Free workout'}
           </button>
         </div>
       )}

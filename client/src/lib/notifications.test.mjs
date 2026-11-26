@@ -8,7 +8,7 @@ const store = new Map();
 globalThis.localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
 globalThis.window = { Capacitor: { isNativePlatform: () => true }, dispatchEvent() {} };
 
-const { syncReminders, updateReminderState, _setTestHooks, getNotificationPermissionStatus } = await import('./notifications.js');
+const { syncReminders, updateReminderState, setWorkoutQuietUntil, getWorkoutQuietUntil, _setTestHooks, getNotificationPermissionStatus } = await import('./notifications.js');
 const { isManagedId, LEGACY_IDS } = await import('./notifPlan.mjs');
 
 function fakePlugin({ permission = 'granted', pending = [], requestResult = 'granted' } = {}) {
@@ -24,7 +24,7 @@ function fakePlugin({ permission = 'granted', pending = [], requestResult = 'gra
   };
   return p;
 }
-const fresh = () => { store.clear(); updateReminderState({ eatenSlots: [], workedOutToday: false, weeklyGoalMet: false, activityDoneToday: false, sleepLoggedToday: false }, { sync: false }); };
+const fresh = () => { setWorkoutQuietUntil(null, { sync: false }); store.clear(); updateReminderState({ eatenSlots: [], workedOutToday: false, activityDoneToday: false, sleepLoggedToday: false }, { sync: false }); };
 
 test('schedules a 7-day window with one channel per category, once permission is granted', async () => {
   fresh();
@@ -111,6 +111,74 @@ test('everything off (master): clears what was pending, schedules nothing, no pr
   assert.equal(plugin.calls.requested, 0);
   assert.equal(plugin.calls.scheduled.length, 0);
   assert.ok(plugin.calls.cancelled.includes(100220400));
+});
+
+// ── "workout goal reached" quiet time ───────────────────────────────
+const workoutAlarms = (plugin) => plugin.calls.scheduled.filter((n) => n.channelId === 'areto_workout');
+async function scheduled(sync = syncReminders) {
+  const plugin = fakePlugin();
+  _setTestHooks({ native: true, plugin });
+  await sync({ isHe: true });
+  return plugin;
+}
+
+test('goal reached: no workout alarm before the cycle ends; other reminders stay', async () => {
+  fresh();
+  const until = Date.now() + 3 * 86400000;
+  setWorkoutQuietUntil(until, { sync: false });
+  const plugin = await scheduled();
+  const alarms = workoutAlarms(plugin);
+  assert.equal(alarms.length, 7);
+  assert.ok(alarms.every((n) => n.schedule.at.getTime() >= until));
+  assert.ok(plugin.calls.scheduled.some((n) => n.channelId === 'areto_nutrition' && n.schedule.at.getTime() < until));
+});
+
+test('goal reached survives a new day and a restart where the history never loads', async (t) => {
+  fresh();
+  const start = new Date(2026, 10, 4, 7, 0).getTime();
+  t.mock.timers.enable({ apis: ['Date'], now: start });
+  const until = start + 4 * 86400000;
+  setWorkoutQuietUntil(until, { sync: false });
+  updateReminderState({ workedOutToday: true }, { sync: false });
+
+  t.mock.timers.setTime(start + 86400000); // next morning, nothing reported again
+  let alarms = workoutAlarms(await scheduled());
+  assert.ok(alarms.length > 0 && alarms.every((n) => n.schedule.at.getTime() >= until));
+
+  // a cold start: a fresh copy of the module, only storage carries over
+  const relaunched = await import('./notifications.js?relaunch');
+  const plugin = fakePlugin();
+  relaunched._setTestHooks({ native: true, plugin });
+  await relaunched.syncReminders({ isHe: true });
+  alarms = workoutAlarms(plugin);
+  assert.ok(alarms.length > 0 && alarms.every((n) => n.schedule.at.getTime() >= until));
+
+  t.mock.timers.setTime(until + 1000); // the cycle is over
+  assert.equal(getWorkoutQuietUntil(), null);
+  assert.equal(store.has('notif:workoutQuietUntil'), false);
+  assert.ok(workoutAlarms(await scheduled())[0].schedule.at.getTime() < until + 2 * 86400000);
+});
+
+test('clearing it (goal not reached any more, or logout) brings the reminders back at once', async () => {
+  fresh();
+  const soon = () => Date.now() + 2 * 86400000;
+  setWorkoutQuietUntil(Date.now() + 5 * 86400000, { sync: false });
+  assert.ok(workoutAlarms(await scheduled()).every((n) => n.schedule.at.getTime() > soon()));
+  setWorkoutQuietUntil(null, { sync: false }); // what logout() calls
+  assert.equal(store.has('notif:workoutQuietUntil'), false);
+  assert.ok(workoutAlarms(await scheduled()).some((n) => n.schedule.at.getTime() < soon()));
+});
+
+test('a past or broken stored value is ignored and removed', () => {
+  for (const bad of [String(Date.now() - 1000), 'abc', '']) {
+    fresh();
+    store.set('notif:workoutQuietUntil', bad);
+    assert.equal(getWorkoutQuietUntil(), null, bad);
+    assert.equal(store.has('notif:workoutQuietUntil'), false, bad);
+  }
+  fresh();
+  setWorkoutQuietUntil(Date.now() - 1, { sync: false });
+  assert.equal(store.has('notif:workoutQuietUntil'), false);
 });
 
 test('web (not native): a no-op that reports ok', async () => {

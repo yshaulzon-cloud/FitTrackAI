@@ -81,8 +81,43 @@ test('epochDay is local-calendar based', () => {
   assert.equal(epochDay(new Date(2026, 10, 5)) - epochDay(new Date(2026, 10, 4)), 1);
 });
 
-test('workout: weekly goal met → no workout reminders at all', () => {
-  assert.equal(of(plan(mem(), { weeklyGoalMet: true }), 'workout').length, 0);
+test('workout goal reached: skips only the reminders before the cycle ends, then 7 full days', () => {
+  const until = new Date(2026, 10, 7, 9, 0).getTime(); // Saturday 09:00
+  const w = of(plan(mem(), { workoutQuietUntil: until }), 'workout');
+  assert.ok(w.every((n) => n.at.getTime() >= until));
+  assert.equal(w.length, 7);
+  assert.deepEqual(w.map((n) => n.at.getDate()), [7, 8, 9, 10, 11, 12, 13]);
+  assert.ok(w.every((n) => hhmm(n.at) === '18:00'));
+});
+
+test('workout goal reached: a reminder later on the day the cycle ends is kept, an earlier one is not', () => {
+  const day = (until) => of(plan(mem(), { workoutQuietUntil: until.getTime() }), 'workout')[0].at.getDate();
+  assert.equal(day(new Date(2026, 10, 6, 17, 59)), 6);
+  assert.equal(day(new Date(2026, 10, 6, 18, 1)), 7);
+});
+
+test('workout goal reached with a cycle that covers the whole window: reminders still come after it', () => {
+  const until = new Date(2026, 10, 11, 7, 50).getTime(); // exactly 7 days from NOW
+  const w = of(plan(mem(), { workoutQuietUntil: until }), 'workout');
+  assert.equal(w.length, 7);
+  assert.equal(w[0].at.getDate(), 11);
+  assert.equal(w[6].at.getDate(), 17);
+  assert.equal(new Set(w.map((n) => n.id)).size, 7);
+});
+
+test('workout quiet time: past or empty values change nothing; other reminders never change', () => {
+  const normal = plan(mem());
+  for (const workoutQuietUntil of [null, undefined, 0, NOW.getTime() - 1]) {
+    assert.deepEqual(plan(mem(), { workoutQuietUntil }), normal, String(workoutQuietUntil));
+  }
+  const quiet = plan(mem(), { workoutQuietUntil: new Date(2026, 10, 8).getTime() });
+  const others = (p) => p.filter((n) => n.type !== 'workout').map((n) => [n.id, n.at.getTime()]);
+  assert.deepEqual(others(quiet), others(normal));
+});
+
+test('workout quiet time: a nonsense far-future value is bounded', () => {
+  const w = of(plan(mem(), { workoutQuietUntil: new Date(2090, 0, 1).getTime() }), 'workout');
+  assert.equal(w.length, 0);
 });
 
 test('workout: trained today or rest day → skip only today', () => {
@@ -183,20 +218,13 @@ test('copy: every type has he+en, non-empty, with titles within 35 chars', () =>
   assert.ok(USER_TYPES.every((t) => NOTIF_TYPES[t]));
 });
 
-import { workedOutToday, weeklyGoalMet } from './notifPlan.mjs';
+import { workedOutToday } from './notifPlan.mjs';
 
-test('workedOutToday / weeklyGoalMet use the local calendar day and a Sunday-start week', () => {
+test('workedOutToday uses the local calendar day', () => {
   const wed = new Date(2026, 10, 4, 10, 0); // Wednesday
   const w = (y, m, d) => ({ date: new Date(y, m, d, 9, 0).toISOString() });
   assert.equal(workedOutToday([w(2026, 10, 4)], wed), true);
   assert.equal(workedOutToday([w(2026, 10, 3)], wed), false);
-  // Sun 1, Mon 2, Tue 3 = three workouts this week; target 3 → met, target 4 → not
-  const week = [w(2026, 10, 1), w(2026, 10, 2), w(2026, 10, 3)];
-  assert.equal(weeklyGoalMet(week, 3, wed), true);
-  assert.equal(weeklyGoalMet(week, 4, wed), false);
-  // a workout on the previous Saturday belongs to last week
-  assert.equal(weeklyGoalMet([w(2026, 9, 31), w(2026, 10, 2)], 2, wed), false);
-  assert.equal(weeklyGoalMet([], undefined, wed), false);
 });
 
 // ── time zones and daylight-saving (docs/notifications.md, "אזורי זמן") ─────────

@@ -27,6 +27,7 @@ import {
   syncReminders,
 } from '../lib/notifications';
 import { useReminderSync } from '../lib/useReminderSync';
+import { cycleStatus } from '../lib/workoutCycle.mjs';
 import { friendlyError } from '../lib/netError.mjs';
 import { exportFileName, exportJson, exportCounts, exportDelivery } from '../lib/exportData.mjs';
 import {
@@ -75,6 +76,9 @@ export default function Dashboard() {
   // Lets the end of the onboarding flow land directly on a specific tab
   // (e.g. the workout tab) instead of always opening on the overview.
   const [activeTab, setActiveTab] = useState(() => location.state?.tab || 'overview');
+  // A field Settings should open straight to, once ('workoutsPerWeek'). Settings
+  // clears it as soon as it has opened, so the avatar keeps landing on its home.
+  const [settingsFocus, setSettingsFocus] = useState(null);
   const [profileData, setProfileData] = useState(null);
   const [todayNutrition, setTodayNutrition] = useState(null);
   const [workoutHistory, setWorkoutHistory] = useState(null);
@@ -282,7 +286,9 @@ export default function Dashboard() {
             progressionData={progressionData}
             dailyStreak={dailyStreak}
             userName={profileData?.name}
+            userId={profileData?.id}
             onGoHome={() => setActiveTab('overview')}
+            onOpenGoalSettings={() => { setSettingsFocus('workoutsPerWeek'); setActiveTab('settings'); }}
           />
         )}
 
@@ -376,6 +382,8 @@ export default function Dashboard() {
             logout={logout}
             level={progressionData?.level}
             onExit={() => setActiveTab('overview')}
+            focus={settingsFocus}
+            onFocusDone={() => setSettingsFocus(null)}
           />
         )}
       </main>
@@ -700,7 +708,11 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
   // Next step
   const hasLoggedToday = (todayNutrition?.meals || []).length > 0;
   const proteinRemaining = Math.max(0, proteinTarget - proteinProgress);
+  // Workout goal reached (same answer as the reminders and the workout tab): when
+  // "today's workout is waiting" would be next, the whole card is left out.
+  const workoutGoalMet = cycleStatus(workoutHistory, profile?.workoutsPerWeek).met;
   let nextTitle, nextSub, nextAction;
+  let showNextStep = true;
   if (!hasLoggedToday) {
     nextTitle = !targetKnown
       ? (isHe ? 'התחל את היום' : 'Start your day')
@@ -711,6 +723,8 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
     nextTitle = isHe ? `נותרו ${Math.round(proteinRemaining)}g חלבון להיעד` : `${Math.round(proteinRemaining)}g protein left`;
     nextSub = isHe ? 'שייק חלבון, יוגורט יווני או חזה עוף יסגרו את הפער.' : 'A shake, Greek yogurt, or chicken will close the gap.';
     nextAction = () => setActiveTab('nutrition');
+  } else if (!hasWorkoutToday && workoutGoalMet) {
+    showNextStep = false;
   } else if (!hasWorkoutToday) {
     nextTitle = isHe ? `אימון של היום מחכה לך` : `Today's workout is waiting`;
     nextSub = isHe ? `${profile?.workoutsPerWeek || 4} אימונים השבוע. אל תפספס.` : `${profile?.workoutsPerWeek || 4} workouts this week. Don't miss it.`;
@@ -861,16 +875,18 @@ function OverviewTab({ profile, nutrition, todayNutrition, workoutHistory, userN
       </div>
 
       {/* Next Step card — icon beside the copy, single tinted block (prototype) */}
-      <div style={{ marginBottom: 14, background: 'rgba(143,138,247,.07)', border: '1px solid rgba(143,138,247,.16)', borderRadius: 18, padding: '16px 18px', display: 'flex', gap: 13, alignItems: 'flex-start', cursor: 'pointer' }}
-        onClick={nextAction} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && nextAction()}>
-        <div style={{ width: 34, height: 34, borderRadius: 11, background: 'rgba(143,138,247,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8F8AF7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4.5 13.5H11L9.5 22 18 10.5H12z"/></svg>
+      {showNextStep && (
+        <div style={{ marginBottom: 14, background: 'rgba(143,138,247,.07)', border: '1px solid rgba(143,138,247,.16)', borderRadius: 18, padding: '16px 18px', display: 'flex', gap: 13, alignItems: 'flex-start', cursor: 'pointer' }}
+          onClick={nextAction} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && nextAction()}>
+          <div style={{ width: 34, height: 34, borderRadius: 11, background: 'rgba(143,138,247,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8F8AF7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4.5 13.5H11L9.5 22 18 10.5H12z"/></svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--text-1)' }}>{nextTitle}</div>
+            <div style={{ fontSize: 13, color: '#93A0B4', marginTop: 3, lineHeight: 1.6 }}>{nextSub}</div>
+          </div>
         </div>
-        <div>
-          <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--text-1)' }}>{nextTitle}</div>
-          <div style={{ fontSize: 13, color: '#93A0B4', marginTop: 3, lineHeight: 1.6 }}>{nextSub}</div>
-        </div>
-      </div>
+      )}
 
       {/* Week strip */}
       <div style={{ marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border-faint)', borderRadius: 18, padding: '16px 18px' }}>
@@ -934,7 +950,7 @@ function StIc({ type, color = '#fff', size = 18 }) {
   return null;
 }
 
-function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, level, onExit, workoutHistory }) {
+function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, level, onExit, workoutHistory, focus, onFocusDone }) {
   const [adaptOn, setAdaptOn] = useState(() => isAdaptEnabled());
   const { t, lang, setLanguage } = useLang();
   const { theme, setTheme } = useTheme();
@@ -943,7 +959,22 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
   const isHe = lang === 'he';
 
   // ── Navigation ───────────────────────────────────────────
-  const [screen, setScreen] = useState('home');
+  const [screen, setScreen] = useState(() => (focus === 'workoutsPerWeek' ? 'body' : 'home'));
+  // Opened from the "goal reached" sheet: bring "workouts per week" into view and
+  // highlight it for a moment. The goal itself is the user's to change and save.
+  const goalFieldRef = useRef(null);
+  const [flashGoal, setFlashGoal] = useState(false);
+  useEffect(() => {
+    if (focus !== 'workoutsPerWeek') return;
+    setFlashGoal(true);
+    if (onFocusDone) onFocusDone();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!flashGoal) return undefined;
+    goalFieldRef.current?.scrollIntoView({ block: 'center' });
+    const timer = setTimeout(() => setFlashGoal(false), 2600);
+    return () => clearTimeout(timer);
+  }, [flashGoal]);
   const [sheet,  setSheet]  = useState(null);
   const [toast,  setToast]  = useState('');
   const [search, setSearch] = useState('');
@@ -1513,11 +1544,13 @@ function SettingsTab({ profile, nutrition, api, onUpdate, logout, userName, leve
             ))}
           </div>
 
-          <label className="st2-label" style={{ marginTop: 16 }}>{t.workoutsPerWeek}</label>
-          <div className="st2-chip-row">
-            {[1,2,3,4,5,6,7].map(n => (
-              <div key={n} onClick={() => setWorkoutsPerWeek(n)} style={{ ...chipStyle(workoutsPerWeek == n), flex: 1, padding: '10px 4px' }}>{n}</div>
-            ))}
+          <div ref={goalFieldRef} className={`st2-goal-field${flashGoal ? ' st2-goal-field--flash' : ''}`}>
+            <label className="st2-label">{t.workoutsPerWeek}</label>
+            <div className="st2-chip-row">
+              {[1,2,3,4,5,6,7].map(n => (
+                <div key={n} onClick={() => setWorkoutsPerWeek(n)} style={{ ...chipStyle(workoutsPerWeek == n), flex: 1, padding: '10px 4px' }}>{n}</div>
+              ))}
+            </div>
           </div>
 
           {liveCalories != null && (

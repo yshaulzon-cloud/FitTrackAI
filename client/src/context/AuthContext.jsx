@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { readSavedLang } from './LanguageContext';
 import { fetchOrNetworkError, readJsonSafe, serverMessage } from '../lib/netError.mjs';
+import { setWorkoutQuietUntil } from '../lib/notifications';
 
 const AuthContext = createContext(null);
 
@@ -169,6 +170,8 @@ export function AuthProvider({ children }) {
 
   function logout() {
     localStorage.removeItem('token');
+    // "Workout goal reached" belongs to this user: the next one starts with reminders on.
+    setWorkoutQuietUntil(null, { sync: false });
     setToken(null);
     setUser(null);
   }

@@ -5727,6 +5727,12 @@ svg { overflow: hidden; }
 /* Chip row */
 .st2-chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 
+/* "Workouts per week", highlighted for a moment when Settings opens straight to
+   it from the "goal reached" sheet. The outline stays with reduced motion. */
+.st2-goal-field { margin-top: 16px; border-radius: var(--r-md); }
+.st2-goal-field--flash { outline: 2px solid var(--accent); outline-offset: 6px; animation: st2GoalFlash 0.85s ease-in-out 3; }
+@keyframes st2GoalFlash { 50% { background: var(--accent-glow); box-shadow: 0 0 0 6px var(--accent-glow); } }
+
 /* Live calorie preview */
 .st2-live-preview {
   display: flex;

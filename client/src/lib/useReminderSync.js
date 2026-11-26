@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { eatenSlots, workedOutToday, weeklyGoalMet } from './notifPlan.mjs';
-import { updateReminderState, requestReminderSync } from './notifications';
+import { eatenSlots, workedOutToday } from './notifPlan.mjs';
+import { cycleStatus } from './workoutCycle.mjs';
+import { updateReminderState, setWorkoutQuietUntil, requestReminderSync } from './notifications';
 
 // Keeps the scheduled notifications in step with what the user has already
 // done today. Mounted once at the top of the Dashboard (always on screen),
@@ -34,16 +35,18 @@ export function useReminderSync({ todayNutrition, workoutHistory, profile, progr
     return () => window.removeEventListener('areto:menu-logged', compute);
   }, [loggedMeals, isHe]);
 
-  // Workout facts, once history has loaded (null → not loaded yet: report nothing).
-  const workouts = workoutHistory?.workouts;
+  // Workout facts, once history has loaded (null → not loaded yet: report nothing,
+  // so the stored "goal reached" quiet time stays as it was).
   const perWeek = profile?.workoutsPerWeek;
   useEffect(() => {
+    const workouts = workoutHistory?.workouts;
     if (!workouts) return;
-    updateReminderState({
-      workedOutToday: workedOutToday(workouts),
-      weeklyGoalMet: weeklyGoalMet(workouts, perWeek),
-    }, { isHe });
-  }, [workouts, perWeek, isHe]);
+    updateReminderState({ workedOutToday: workedOutToday(workouts) }, { isHe });
+    // A server without `cycle` leaves the count to us, which needs the real goal.
+    if (!workoutHistory.cycle && !perWeek) return;
+    const status = cycleStatus(workoutHistory, perWeek);
+    setWorkoutQuietUntil(status.met ? status.endsAt : null, { isHe });
+  }, [workoutHistory, perWeek, isHe]);
 
   useEffect(() => {
     if (typeof restDayToday === 'boolean') updateReminderState({ restDayToday }, { isHe });

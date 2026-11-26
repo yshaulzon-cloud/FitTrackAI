@@ -11,6 +11,7 @@ import { NOTIF_TYPES, USER_TYPES, getCopy, isActive } from './notifConfig.mjs';
 
 export const WINDOW_DAYS = 7;
 const MIN_LEAD_MS = 30 * 1000; // never schedule something that is "now"
+const MAX_QUIET_DAYS = 14;     // a cycle lasts 7 days; this only bounds a bad value
 
 // Days since 1970-01-01 of the *local* calendar date. Used to build ids that
 // are stable per (type, date): 1002 * 100000 + 20400 = 100,220,400 < 2^31.
@@ -67,7 +68,8 @@ export function eatenSlots({ loggedMeals = [], menuMeals = [], menuTicked = [] }
 // state: {
 //   eatenSlots: Set<'breakfast'|'lunch'|'dinner'>   eaten today (see above)
 //   workedOutToday: boolean
-//   weeklyGoalMet: boolean                           weekly workout target reached
+//   workoutQuietUntil: ms epoch | null               workout goal reached: no workout
+//                                                    reminder before this time
 //   restDayToday: boolean                            today is a planned rest day
 //   activityDoneToday: boolean                       today already counts for the streak
 // }
@@ -89,9 +91,18 @@ export function buildPlan({ now = new Date(), prefs, state = {}, isHe = true, wi
     const { time, weekday } = prefs.items[type];
 
     if (cfg.kind === 'daily') {
-      for (let i = 0; i < windowDays; i++) {
+      // Goal reached: workout reminders before the cycle ends are skipped, and a
+      // full window is still scheduled AFTER it, so they come back even if the
+      // app is never opened (with a goal of 1 the cycle covers all 7 days).
+      const quietUntil = type === 'workout' ? Number(state.workoutQuietUntil) || 0 : 0;
+      const quiet = quietUntil > now.getTime();
+      const quietDays = quiet ? Math.min(MAX_QUIET_DAYS, Math.ceil((quietUntil - now.getTime()) / 86400000)) : 0;
+      let afterQuiet = 0;
+      for (let i = 0; i < windowDays + quietDays + (quiet ? 1 : 0); i++) {
         const today = i === 0;
-        if (type === 'workout' && state.weeklyGoalMet) break;               // quiet until the new week
+        if (quiet && afterQuiet >= windowDays) break;
+        if (quiet && at(day0, i, time).getTime() < quietUntil) continue;
+        if (quiet) afterQuiet++;
         if (today && type === 'workout' && (state.workedOutToday || state.restDayToday)) continue;
         if (today && cfg.slot && eaten.has(cfg.slot)) continue;             // already ate / logged it
         if (today && type === 'streak' && state.activityDoneToday) continue; // streak is safe today
@@ -120,14 +131,4 @@ const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); retur
 export function workedOutToday(workouts = [], now = new Date()) {
   const t = startOfDay(now).getTime();
   return workouts.some((w) => startOfDay(new Date(w.date)).getTime() === t);
-}
-
-// Has the weekly workout target been reached? Calendar week, Sunday start:
-// the same maths as the home tab's week strip (kept from the earlier
-// "pause the reminder once the weekly goal is met" change).
-export function weeklyGoalMet(workouts = [], perWeek = 4, now = new Date()) {
-  const today = startOfDay(now);
-  const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
-  const count = workouts.filter((w) => { const d = startOfDay(new Date(w.date)); return d >= weekStart && d <= today; }).length;
-  return count >= (perWeek || 4);
 }
